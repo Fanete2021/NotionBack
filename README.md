@@ -31,6 +31,16 @@
 $ npm install
 ```
 
+## Database
+
+```bash
+$ npm run db:up
+$ npm run prisma:generate
+$ npm run prisma:migrate
+```
+
+`Prisma v7` uses `DATABASE_URL` from `prisma.config.ts`, and the local PostgreSQL instance is described in `docker-compose.yml`.
+
 ## Compile and run the project
 
 ```bash
