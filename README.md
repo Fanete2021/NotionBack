@@ -54,6 +54,24 @@ $ npm run start:dev
 $ npm run start:prod
 ```
 
+## Docker production build
+
+```bash
+# build and start postgres + app
+$ docker compose --profile prod up -d --build
+
+# stop containers
+$ docker compose --profile prod down
+```
+
+The application container is built with a multi-stage `Dockerfile`: dependencies are installed, Prisma Client is generated, NestJS is compiled to `dist`, and only production dependencies are kept in the final image.
+
+Inside Docker Compose, the app uses:
+
+```bash
+DATABASE_URL=postgresql://postgres:postgres@postgres:5432/notionback?schema=public
+```
+
 ## Run tests
 
 ```bash
