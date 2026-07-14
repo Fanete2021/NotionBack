@@ -1,0 +1,8 @@
+node_modules
+dist
+coverage
+.git
+.agents
+.codex
+.env
+npm-debug.log
