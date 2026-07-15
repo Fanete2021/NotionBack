@@ -30,10 +30,10 @@ services:
         condition: service_healthy
     environment:
       NODE_ENV: production
-      PORT: 3000
+      PORT: 8000
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/notionback?schema=public
     ports:
-      - "3000:3000"
+      - "8000:8000"
 
 volumes:
   postgres_data:
