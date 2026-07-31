@@ -19,10 +19,10 @@ async function bootstrap(): Promise<void> {
   app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
 
   const config = new DocumentBuilder()
-    .setTitle('Cats example')
-    .setDescription('The cats API description')
+    .setTitle('Notion Alternative API')
+    .setDescription('Документация REST API для проекта Notion Alternative')
     .setVersion('1.0')
-    .addTag('cats')
+    .addBearerAuth()
     .build();
   const documentFactory = () => SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, documentFactory);
