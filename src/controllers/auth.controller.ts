@@ -21,7 +21,7 @@ import { RegisterDto } from '../dto/register.dto';
 import { LoginDto } from '../dto/login.dto';
 import { RefreshDto } from '../dto/refresh.dto';
 import type { Request } from 'express';
-import { UserPayload } from '../strategies/jwt.strategy';
+import { UserPayload } from 'src/types/auth.types';
 
 @ApiTags('Авторизация')
 @Controller('auth')
