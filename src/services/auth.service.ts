@@ -10,6 +10,14 @@ import { UsersService } from './users.service';
 import * as bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
 import { Redis } from 'ioredis';
+import { TokenData } from 'src/types/auth/token.types';
+import {
+  CreateUserData,
+  LoginData,
+  LogoutData,
+  RefreshData,
+  RegisterData,
+} from 'src/types/auth/auth.types';
 
 @Injectable()
 export class AuthService {
@@ -20,8 +28,8 @@ export class AuthService {
     @Inject('REDIS_CLIENT') private readonly redis: Redis,
   ) {}
 
-  private async generateTokens(userId: string, email: string) {
-    const payload = { sub: userId, email };
+  private async generateTokens(data: TokenData) {
+    const payload = { sub: data.userId, email: data.email };
     const accessToken = this.jwtService.sign(payload);
     const refreshToken = uuidv4();
 
@@ -29,46 +37,33 @@ export class AuthService {
       'JWT_REFRESH_EXPIRES_IN',
       2592000,
     );
-
-    await this.redis.sadd(`refresh_token:${userId}`, refreshToken);
-    await this.redis.expire(`refresh_token:${userId}`, refreshExpiresIn);
+    await this.redis.sadd(`refresh_token:${data.userId}`, refreshToken);
+    await this.redis.expire(`refresh_token:${data.userId}`, refreshExpiresIn);
 
     return {
       accessToken,
       refreshToken,
-      user: { id: userId, email },
+      user: { id: data.userId, email: data.email },
     };
   }
 
-  async register(data: {
-    email: string;
-    password: string;
-    name: string;
-    avatarUrl?: string;
-  }) {
+  async register(data: RegisterData) {
     const existingUser = await this.usersService.findByEmail(data.email);
     if (existingUser) {
       throw new ConflictException('User with this email already exists');
     }
 
-    const saltRoundsStr = this.configService.get<string>(
-      'BCRYPT_SALT_ROUNDS',
-      '10',
-    );
-    const saltRounds = parseInt(saltRoundsStr.toString(), 10);
+    const saltRounds = this.configService.get<number>('BCRYPT_SALT_ROUNDS', 10);
     const passwordHash = await bcrypt.hash(data.password, saltRounds);
 
-    const user = await this.usersService.createUser({
-      email: data.email,
-      passwordHash: passwordHash,
-      name: data.name,
-      avatarUrl: data.avatarUrl,
-    });
+    const createUserData: CreateUserData = { ...data, passwordHash };
+    const user = await this.usersService.createUser(createUserData);
 
-    return this.generateTokens(user.id, user.email);
+    const tokenData: TokenData = { userId: user.id, email: user.email };
+    return this.generateTokens(tokenData);
   }
 
-  async login(data: { email: string; password: string }) {
+  async login(data: LoginData) {
     const user = await this.usersService.findByEmail(data.email);
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
@@ -82,34 +77,36 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    return this.generateTokens(user.id, user.email);
+    const tokenData: TokenData = { userId: user.id, email: user.email };
+    return this.generateTokens(tokenData);
   }
 
-  async refresh(userId: string, oldRefreshToken: string) {
+  async refresh(data: RefreshData) {
     const isTokenValid = await this.redis.sismember(
-      `refresh_token:${userId}`,
-      oldRefreshToken,
+      `refresh_token:${data.userId}`,
+      data.oldRefreshToken,
     );
 
     if (!isTokenValid) {
       throw new UnauthorizedException('Invalid refresh token');
     }
 
-    await this.redis.srem(`refresh_token:${userId}`, oldRefreshToken);
+    await this.redis.srem(`refresh_token:${data.userId}`, data.oldRefreshToken);
 
-    const user = await this.usersService.findById(userId);
+    const user = await this.usersService.findById(data.userId);
     if (!user) {
       throw new UnauthorizedException('User not found');
     }
 
-    return this.generateTokens(user.id, user.email);
+    const tokenData: TokenData = { userId: user.id, email: user.email };
+    return this.generateTokens(tokenData);
   }
 
-  async logout(userId: string, refreshToken?: string) {
-    if (refreshToken) {
-      await this.redis.srem(`refresh_token:${userId}`, refreshToken);
+  async logout(data: LogoutData) {
+    if (data.refreshToken) {
+      await this.redis.srem(`refresh_token:${data.userId}`, data.refreshToken);
     } else {
-      await this.redis.del(`refresh_token:${userId}`);
+      await this.redis.del(`refresh_token:${data.userId}`);
     }
     return { message: 'Logged out successfully' };
   }

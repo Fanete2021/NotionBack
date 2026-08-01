@@ -21,7 +21,9 @@ import { RegisterDto } from '../dto/register.dto';
 import { LoginDto } from '../dto/login.dto';
 import { RefreshDto } from '../dto/refresh.dto';
 import type { Request } from 'express';
-import { UserPayload } from 'src/types/auth.types';
+import { UserPayload } from 'src/types/auth/payload.types';
+import { LogoutData, RefreshData } from 'src/types/auth/auth.types';
+import { LogoutDto } from 'src/dto/logout.dto';
 
 @ApiTags('Авторизация')
 @Controller('auth')
@@ -37,12 +39,7 @@ export class AuthController {
   @ApiResponse({ status: 409, description: 'Email уже занят' })
   @Post('register')
   async register(@Body() dto: RegisterDto) {
-    return this.authService.register({
-      email: dto.email,
-      password: dto.password,
-      name: dto.name,
-      avatarUrl: dto.avatarUrl,
-    });
+    return this.authService.register(dto);
   }
 
   @ApiOperation({ summary: 'Вход по email и паролю' })
@@ -52,10 +49,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @Post('login')
   async login(@Body() dto: LoginDto) {
-    return this.authService.login({
-      email: dto.email,
-      password: dto.password,
-    });
+    return this.authService.login(dto);
   }
 
   @ApiOperation({ summary: 'Обновление токенов' })
@@ -66,29 +60,26 @@ export class AuthController {
   @Post('refresh')
   async refresh(@Body() dto: RefreshDto, @Req() req: Request) {
     const user = req.user as UserPayload;
-    return this.authService.refresh(user.id, dto.refreshToken);
+    const refreshData: RefreshData = {
+      userId: user.id,
+      oldRefreshToken: dto.refreshToken,
+    };
+    return this.authService.refresh(refreshData);
   }
 
   @ApiOperation({ summary: 'Выход из системы' })
-  @ApiBody({
-    schema: {
-      type: 'object',
-      properties: {
-        refreshToken: {
-          type: 'string',
-          nullable: true,
-          description: 'Для выхода с одного устройства',
-        },
-      },
-    },
-  })
+  @ApiBody({ type: LogoutDto })
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'))
   @HttpCode(HttpStatus.OK)
   @Post('logout')
   async logout(@Req() req: Request, @Body() body: { refreshToken?: string }) {
     const user = req.user as UserPayload;
-    return this.authService.logout(user.id, body.refreshToken);
+    const logoutData: LogoutData = {
+      userId: user.id,
+      refreshToken: body.refreshToken,
+    };
+    return this.authService.logout(logoutData);
   }
 
   @ApiOperation({ summary: 'Получение профиля текущего пользователя' })
