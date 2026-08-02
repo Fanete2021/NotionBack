@@ -33,15 +33,18 @@ services:
       dockerfile: Dockerfile
     container_name: notionback-app
     restart: unless-stopped
-    profiles:
-      - prod
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_started
+    env_file:
+      - .env
     environment:
       NODE_ENV: production
       PORT: 8000
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/notionback?schema=public
+      REDIS_HOST: redis
     ports:
       - "8000:8000"
 
