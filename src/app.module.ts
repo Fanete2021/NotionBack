@@ -6,6 +6,7 @@ import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './modules/auth.module';
 import { UsersModule } from './modules/users.module';
+import { ProjectsModule } from './modules/projects.module';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { Redis } from 'ioredis';
 import * as Joi from 'joi';
@@ -29,6 +30,7 @@ import * as Joi from 'joi';
     PrismaModule,
     AuthModule,
     UsersModule,
+    ProjectsModule,
   ],
   controllers: [AppController],
   providers: [
