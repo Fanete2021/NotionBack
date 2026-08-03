@@ -16,16 +16,17 @@ async function bootstrap(): Promise<void> {
   });
 
   app.useGlobalFilters(new HttpExceptionsFilter());
-  app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
+  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+  app.setGlobalPrefix('api');
 
   const config = new DocumentBuilder()
-    .setTitle('Cats example')
-    .setDescription('The cats API description')
+    .setTitle('NotionBack API')
+    .setDescription('Backend API for the Notion-clone project')
     .setVersion('1.0')
-    .addTag('cats')
+    .addBearerAuth()
     .build();
   const documentFactory = () => SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api', app, documentFactory);
+  SwaggerModule.setup('docs', app, documentFactory, { useGlobalPrefix: true });
 
   const port = configService.get<number>('PORT', 8000);
   await app.listen(port);
