@@ -40,8 +40,9 @@ export class AuthController {
     res.cookie('refreshToken', token, {
       httpOnly: true,
       sameSite: 'lax',
-      maxAge: 30 * 24 * 60 * 60 * 1000,
+      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 дней
       path: '/',
+      secure: true,
     });
   }
 
@@ -115,7 +116,7 @@ export class AuthController {
   async logout(
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
-    @Body() body: { refreshToken?: string },
+    @Body() body: LogoutDto,
   ) {
     const user = req.user as UserPayload;
     const refreshToken =

@@ -17,7 +17,7 @@ import * as Joi from 'joi';
         PORT: Joi.number().default(8000),
         DATABASE_URL: Joi.string().required(),
         JWT_ACCESS_SECRET: Joi.string().required(),
-        JWT_REFRESH_EXPIRES_IN: Joi.number().default(2592000),
+        JWT_REFRESH_EXPIRES_IN: Joi.string().default(2592000),
         BCRYPT_SALT_ROUNDS: Joi.number().default(10),
         REDIS_HOST: Joi.string().default('localhost'),
         REDIS_PORT: Joi.number().default(6379),
