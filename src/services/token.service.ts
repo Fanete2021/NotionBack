@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { Redis } from 'ioredis';
+import ms from 'ms';
 import type { StringValue } from 'ms';
 import { TokenData } from 'src/types/auth/token.types';
 import { RefreshTokenPayload } from 'src/types/auth/payload.types';
@@ -41,7 +42,11 @@ export class TokenService {
     });
 
     await this.redis.sadd(`refresh_token:${data.userId}`, refreshTokenId);
-    await this.redis.expire(`refresh_token:${data.userId}`, refreshExpiresIn);
+    const refreshExpiresInSeconds = ms(refreshExpiresIn) / 1000;
+    await this.redis.expire(
+      `refresh_token:${data.userId}`,
+      refreshExpiresInSeconds,
+    );
 
     return {
       accessToken,
