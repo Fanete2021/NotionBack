@@ -215,7 +215,7 @@ describe('AuthService', () => {
 
   describe('logout', () => {
     it('должен удалять конкретный токен, если он передан (одно устройство)', async () => {
-      mockTokenService.getTokenUserId.mockResolvedValue('123');
+      mockTokenService.getTokenUserId.mockReturnValue('123');
 
       await authService.logout({ userId: '123', token: 'some-token' });
 
