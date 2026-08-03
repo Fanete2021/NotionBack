@@ -15,11 +15,10 @@ export type LoginData = {
 };
 
 export type RefreshData = {
-  userId: string;
-  oldRefreshToken: string;
+  token: string;
 };
 
 export type LogoutData = {
   userId: string;
-  refreshToken?: string;
+  token?: string;
 };

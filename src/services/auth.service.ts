@@ -2,15 +2,12 @@ import {
   Injectable,
   UnauthorizedException,
   ConflictException,
-  Inject,
 } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { UsersService } from './users.service';
 import * as bcrypt from 'bcrypt';
-import { v4 as uuidv4 } from 'uuid';
-import { Redis } from 'ioredis';
 import { TokenData } from 'src/types/auth/token.types';
+import { TokenService } from './token.service';
 import {
   CreateUserData,
   LoginData,
@@ -23,28 +20,12 @@ import {
 export class AuthService {
   constructor(
     private readonly usersService: UsersService,
-    private readonly jwtService: JwtService,
+    private readonly tokenService: TokenService,
     private readonly configService: ConfigService,
-    @Inject('REDIS_CLIENT') private readonly redis: Redis,
   ) {}
 
   private async generateTokens(data: TokenData) {
-    const payload = { sub: data.userId, email: data.email };
-    const accessToken = this.jwtService.sign(payload);
-    const refreshToken = uuidv4();
-
-    const refreshExpiresIn = this.configService.get<number>(
-      'JWT_REFRESH_EXPIRES_IN',
-      2592000,
-    );
-    await this.redis.sadd(`refresh_token:${data.userId}`, refreshToken);
-    await this.redis.expire(`refresh_token:${data.userId}`, refreshExpiresIn);
-
-    return {
-      accessToken,
-      refreshToken,
-      user: { id: data.userId, email: data.email },
-    };
+    return this.tokenService.generateTokens(data);
   }
 
   async register(data: RegisterData) {
@@ -82,32 +63,29 @@ export class AuthService {
   }
 
   async refresh(data: RefreshData) {
-    const isTokenValid = await this.redis.sismember(
-      `refresh_token:${data.userId}`,
-      data.oldRefreshToken,
-    );
+    try {
+      const refreshSession = await this.tokenService.refreshToken(data.token);
+      const user = await this.usersService.findById(refreshSession.userId);
+      if (!user) {
+        throw new UnauthorizedException('User not found');
+      }
 
-    if (!isTokenValid) {
+      const tokenData: TokenData = { userId: user.id, email: user.email };
+      return this.generateTokens(tokenData);
+    } catch {
       throw new UnauthorizedException('Invalid refresh token');
     }
-
-    await this.redis.srem(`refresh_token:${data.userId}`, data.oldRefreshToken);
-
-    const user = await this.usersService.findById(data.userId);
-    if (!user) {
-      throw new UnauthorizedException('User not found');
-    }
-
-    const tokenData: TokenData = { userId: user.id, email: user.email };
-    return this.generateTokens(tokenData);
   }
 
   async logout(data: LogoutData) {
-    if (data.refreshToken) {
-      await this.redis.srem(`refresh_token:${data.userId}`, data.refreshToken);
-    } else {
-      await this.redis.del(`refresh_token:${data.userId}`);
+    if (data.token) {
+      const tokenUserId = this.tokenService.getTokenUserId(data.token);
+      if (tokenUserId !== data.userId) {
+        throw new UnauthorizedException('Invalid refresh token');
+      }
     }
+
+    await this.tokenService.revokeToken(data.userId, data.token);
     return { message: 'Logged out successfully' };
   }
 }
