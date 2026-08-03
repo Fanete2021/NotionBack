@@ -1,10 +1,12 @@
 import { Module, Global } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './modules/auth.module';
 import { UsersModule } from './modules/users.module';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { Redis } from 'ioredis';
 import * as Joi from 'joi';
 
@@ -31,6 +33,10 @@ import * as Joi from 'joi';
   controllers: [AppController],
   providers: [
     AppService,
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
+    },
     {
       provide: 'REDIS_CLIENT',
       inject: [ConfigService],
