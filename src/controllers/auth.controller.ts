@@ -6,20 +6,20 @@ import {
   HttpStatus,
   Get,
   UseGuards,
-  Req,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { AuthService } from '../services/auth.service';
 import { RegisterDto } from '../dto/register.dto';
 import { LoginDto } from '../dto/login.dto';
 import { RefreshDto } from '../dto/refresh.dto';
-import type { Request } from 'express';
-import { UserPayload } from '../strategies/jwt.strategy';
+import { Public } from '../decorators/public.decorator';
+import { CurrentUser } from '../decorators/current-user.decorator';
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @Public()
   @Post('register')
   async register(@Body() dto: RegisterDto) {
     return this.authService.register({
@@ -30,6 +30,7 @@ export class AuthController {
     });
   }
 
+  @Public()
   @HttpCode(HttpStatus.OK)
   @Post('login')
   async login(@Body() dto: LoginDto) {
@@ -39,25 +40,25 @@ export class AuthController {
     });
   }
 
+  @Public()
   @UseGuards(AuthGuard('jwt-refresh'))
   @HttpCode(HttpStatus.OK)
   @Post('refresh')
-  async refresh(@Body() dto: RefreshDto, @Req() req: Request) {
-    const user = req.user as UserPayload;
-    return this.authService.refresh(user.id, dto.refreshToken);
+  async refresh(@Body() dto: RefreshDto, @CurrentUser('id') userId: string) {
+    return this.authService.refresh(userId, dto.refreshToken);
   }
 
-  @UseGuards(AuthGuard('jwt'))
   @HttpCode(HttpStatus.OK)
   @Post('logout')
-  async logout(@Req() req: Request, @Body() body: { refreshToken?: string }) {
-    const user = req.user as UserPayload;
-    return this.authService.logout(user.id, body.refreshToken);
+  async logout(
+    @CurrentUser('id') userId: string,
+    @Body() body: { refreshToken?: string },
+  ) {
+    return this.authService.logout(userId, body.refreshToken);
   }
 
-  @UseGuards(AuthGuard('jwt'))
   @Get('me')
-  getProfile(@Req() req: Request) {
-    return req.user as UserPayload;
+  getProfile(@CurrentUser() user: unknown) {
+    return user;
   }
 }
