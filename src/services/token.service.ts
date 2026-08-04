@@ -55,7 +55,7 @@ export class TokenService {
     };
   }
 
-  async refreshToken(token: string) {
+  async validateRefreshToken(token: string) {
     const decodedRefreshToken: RefreshTokenPayload = this.jwtService.verify(
       token,
       {

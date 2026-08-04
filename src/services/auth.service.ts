@@ -6,13 +6,12 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { UsersService } from './users.service';
 import * as bcrypt from 'bcrypt';
-import { TokenData } from 'src/types/auth/token.types';
+import { TokenData, RefreshData } from 'src/types/auth/token.types';
 import { TokenService } from './token.service';
 import {
   CreateUserData,
   LoginData,
   LogoutData,
-  RefreshData,
   RegisterData,
 } from 'src/types/auth/auth.types';
 
@@ -64,7 +63,9 @@ export class AuthService {
 
   async refresh(data: RefreshData) {
     try {
-      const refreshSession = await this.tokenService.refreshToken(data.token);
+      const refreshSession = await this.tokenService.validateRefreshToken(
+        data.token,
+      );
       const user = await this.usersService.findById(refreshSession.userId);
       if (!user) {
         throw new UnauthorizedException('User not found');

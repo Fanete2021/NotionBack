@@ -23,7 +23,8 @@ import { LoginDto } from '../dto/login.dto';
 import { RefreshDto } from '../dto/refresh.dto';
 import type { Request, Response } from 'express';
 import { UserPayload } from 'src/types/auth/payload.types';
-import { LogoutData, RefreshData } from 'src/types/auth/auth.types';
+import { LogoutData } from 'src/types/auth/auth.types';
+import { RefreshData } from 'src/types/auth/token.types';
 import { LogoutDto } from 'src/dto/logout.dto';
 import { getCookieValue } from '../utils/cookies';
 

@@ -14,10 +14,6 @@ export type LoginData = {
   password: string;
 };
 
-export type RefreshData = {
-  token: string;
-};
-
 export type LogoutData = {
   userId: string;
   token?: string;
