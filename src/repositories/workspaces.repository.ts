@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma, Workspace, WorkspaceMember } from '@prisma/client';
+import { Prisma, Role, Workspace, WorkspaceMember } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { WorkspaceMemberEntity } from '../entities/workspace-member.entity';
 import { WorkspaceEntity } from '../entities/workspace.entity';
@@ -84,16 +84,44 @@ export class WorkspacesRepository {
   async addMember(
     workspaceId: string,
     userId: string,
+    role: Role = Role.EDITOR,
   ): Promise<WorkspaceMemberEntity> {
-    const member = await this.prisma.workspaceMember.upsert({
-      where: {
-        workspaceId_userId: { workspaceId, userId },
-      },
-      update: {},
-      create: { workspaceId, userId, role: 'MEMBER' },
+    const member = await this.prisma.workspaceMember.create({
+      data: { workspaceId, userId, role },
     });
 
     return this.mapMemberToEntity(member);
+  }
+
+  async findAllMembers(workspaceId: string): Promise<WorkspaceMemberEntity[]> {
+    const members = await this.prisma.workspaceMember.findMany({
+      where: { workspaceId },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    return members.map((member) => this.mapMemberToEntity(member));
+  }
+
+  async changeRole(
+    workspaceId: string,
+    userId: string,
+    role: Role,
+  ): Promise<WorkspaceMemberEntity | null> {
+    const member = await this.prisma.workspaceMember
+      .update({
+        where: {
+          workspaceId_userId: { workspaceId, userId },
+        },
+        data: { role },
+      })
+      .catch((error) => {
+        if (this.isNotFoundError(error)) {
+          return null;
+        }
+        throw error;
+      });
+
+    return member ? this.mapMemberToEntity(member) : null;
   }
 
   async removeMember(workspaceId: string, userId: string): Promise<boolean> {

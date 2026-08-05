@@ -1,5 +1,6 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Role } from '@prisma/client';
+import { IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class AddWorkspaceMemberDto {
   @ApiProperty({
@@ -9,4 +10,13 @@ export class AddWorkspaceMemberDto {
   @IsString()
   @IsNotEmpty({ message: 'User id is required' })
   userId!: string;
+
+  @ApiPropertyOptional({
+    enum: Role,
+    default: Role.EDITOR,
+    description: 'Role to assign to the new member',
+  })
+  @IsOptional()
+  @IsEnum(Role, { message: 'Role must be a valid role' })
+  role?: Role;
 }
