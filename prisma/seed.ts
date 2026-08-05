@@ -56,7 +56,7 @@ async function main() {
         members: {
           create: [
             { userId: demoUser.id, role: 'OWNER' },
-            { userId: memberUser.id, role: 'MEMBER' },
+            { userId: memberUser.id, role: 'EDITOR' },
           ],
         },
       },

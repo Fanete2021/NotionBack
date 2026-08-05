@@ -3,6 +3,7 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
 import { HttpExceptionsFilter } from './config/http-exception';
+import { PrismaExceptionFilter } from './config/prisma-exception.filter';
 import { ValidationPipe } from '@nestjs/common';
 
 async function bootstrap(): Promise<void> {
@@ -15,7 +16,7 @@ async function bootstrap(): Promise<void> {
     credentials: true,
   });
 
-  app.useGlobalFilters(new HttpExceptionsFilter());
+  app.useGlobalFilters(new PrismaExceptionFilter(), new HttpExceptionsFilter());
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   app.setGlobalPrefix('api');
 
