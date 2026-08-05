@@ -5,10 +5,6 @@ export type RegisterData = {
   avatarUrl?: string;
 };
 
-export type CreateUserData = Omit<RegisterData, 'password'> & {
-  passwordHash: string;
-};
-
 export type LoginData = {
   email: string;
   password: string;
@@ -17,4 +13,9 @@ export type LoginData = {
 export type LogoutData = {
   userId: string;
   token?: string;
+};
+
+export type UserPayload = {
+  id: string;
+  email: string;
 };

@@ -2,7 +2,8 @@ import { Strategy } from 'passport-jwt';
 import { PassportStrategy } from '@nestjs/passport';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { UserPayload, TokenPayload } from 'src/types/auth/payload.types';
+import { UserPayload } from 'src/types/auth/auth.types';
+import { TokenPayload } from 'src/types/token/token.types';
 import type { Request } from 'express';
 import { getCookieValue } from '../utils/cookies';
 

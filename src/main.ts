@@ -23,6 +23,11 @@ async function bootstrap(): Promise<void> {
     .setDescription('Документация REST API для проекта Notion Alternative')
     .setVersion('1.0')
     .addBearerAuth()
+    .addCookieAuth('refreshToken', {
+      type: 'apiKey',
+      in: 'cookie',
+      name: 'refreshToken',
+    })
     .build();
   const documentFactory = () => SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, documentFactory);

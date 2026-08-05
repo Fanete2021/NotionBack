@@ -6,14 +6,14 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { UsersService } from './users.service';
 import * as bcrypt from 'bcrypt';
-import { TokenData, RefreshData } from 'src/types/auth/token.types';
-import { TokenService } from './token.service';
 import {
-  CreateUserData,
-  LoginData,
-  LogoutData,
-  RegisterData,
-} from 'src/types/auth/auth.types';
+  TokenData,
+  RefreshData,
+  RevokeData,
+} from 'src/types/token/token.types';
+import { TokenService } from './token.service';
+import { LoginData, LogoutData, RegisterData } from 'src/types/auth/auth.types';
+import { CreateUserData } from 'src/types/users/users.types';
 
 @Injectable()
 export class AuthService {
@@ -36,7 +36,12 @@ export class AuthService {
     const saltRounds = this.configService.get<number>('BCRYPT_SALT_ROUNDS', 10);
     const passwordHash = await bcrypt.hash(data.password, saltRounds);
 
-    const createUserData: CreateUserData = { ...data, passwordHash };
+    const createUserData: CreateUserData = {
+      email: data.email,
+      name: data.name,
+      avatarUrl: data.avatarUrl,
+      passwordHash,
+    };
     const user = await this.usersService.createUser(createUserData);
 
     const tokenData: TokenData = { userId: user.id, email: user.email };
@@ -86,7 +91,11 @@ export class AuthService {
       }
     }
 
-    await this.tokenService.revokeToken(data.userId, data.token);
+    const revokeData: RevokeData = {
+      userId: data.userId,
+      token: data.token,
+    };
+    await this.tokenService.revokeToken(revokeData);
     return { message: 'Logged out successfully' };
   }
 }

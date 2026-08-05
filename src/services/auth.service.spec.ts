@@ -29,7 +29,7 @@ describe('AuthService', () => {
 
   const mockTokenService = {
     generateTokens: jest.fn(),
-    refreshToken: jest.fn(),
+    validateRefreshToken: jest.fn(),
     getTokenUserId: jest.fn(),
     revokeToken: jest.fn(),
   };
@@ -184,7 +184,7 @@ describe('AuthService', () => {
       const refreshToken = 'refresh.jwt.token';
       const fakeUser = { id: userId, email: 'test@test.com' };
 
-      mockTokenService.refreshToken.mockResolvedValue({
+      mockTokenService.validateRefreshToken.mockResolvedValue({
         userId,
         refreshTokenId: tokenId,
       });
@@ -197,13 +197,15 @@ describe('AuthService', () => {
 
       const result = await authService.refresh({ token: refreshToken });
 
-      expect(mockTokenService.refreshToken).toHaveBeenCalledWith(refreshToken);
+      expect(mockTokenService.validateRefreshToken).toHaveBeenCalledWith(
+        refreshToken,
+      );
       expect(result).toHaveProperty('accessToken', 'new_access');
       expect(result).toHaveProperty('refreshToken');
     });
 
     it('должен выбрасывать UnauthorizedException, если токена нет в Redis', async () => {
-      mockTokenService.refreshToken.mockRejectedValue(
+      mockTokenService.validateRefreshToken.mockRejectedValue(
         new UnauthorizedException('Invalid refresh token'),
       );
 
@@ -222,14 +224,14 @@ describe('AuthService', () => {
       expect(mockTokenService.getTokenUserId).toHaveBeenCalledWith(
         'some-token',
       );
-      expect(mockTokenService.revokeToken).toHaveBeenCalledWith(
-        '123',
-        'some-token',
-      );
+      expect(mockTokenService.revokeToken).toHaveBeenCalledWith({
+        userId: '123',
+        token: 'some-token',
+      });
     });
 
     it('должен выбрасывать UnauthorizedException, если токен принадлежит другому пользователю', async () => {
-      mockTokenService.getTokenUserId.mockResolvedValue('456');
+      mockTokenService.getTokenUserId.mockReturnValue('456');
 
       await expect(
         authService.logout({ userId: '123', token: 'some-token' }),
@@ -239,10 +241,10 @@ describe('AuthService', () => {
 
     it('должен удалять весь ключ, если токен не передан (все устройства)', async () => {
       await authService.logout({ userId: '123' });
-      expect(mockTokenService.revokeToken).toHaveBeenCalledWith(
-        '123',
-        undefined,
-      );
+      expect(mockTokenService.revokeToken).toHaveBeenCalledWith({
+        userId: '123',
+        token: undefined,
+      });
     });
   });
 });

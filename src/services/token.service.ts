@@ -2,10 +2,11 @@ import { Inject, Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { Redis } from 'ioredis';
-import ms from 'ms';
-import type { StringValue } from 'ms';
-import { TokenData } from 'src/types/auth/token.types';
-import { RefreshTokenPayload } from 'src/types/auth/payload.types';
+import {
+  RevokeData,
+  TokenData,
+  RefreshTokenPayload,
+} from 'src/types/token/token.types';
 
 @Injectable()
 export class TokenService {
@@ -17,9 +18,9 @@ export class TokenService {
 
   async generateTokens(data: TokenData) {
     const accessPayload = { sub: data.userId, email: data.email };
-    const accessExpiresIn = this.configService.get<StringValue>(
+    const accessExpiresIn = this.configService.get<number>(
       'JWT_ACCESS_EXPIRES_IN',
-      '15m',
+      900, // 15 минут в секундах
     );
     const accessToken = this.jwtService.sign(accessPayload, {
       secret: this.configService.get<string>('JWT_ACCESS_SECRET'),
@@ -27,9 +28,9 @@ export class TokenService {
     });
 
     const refreshTokenId = `${data.userId}:${Date.now()}`;
-    const refreshExpiresIn = this.configService.get<StringValue>(
+    const refreshExpiresIn = this.configService.get<number>(
       'JWT_REFRESH_EXPIRES_IN',
-      '30d',
+      2592000, // 30 дней в секундах
     );
     const refreshPayload = {
       sub: data.userId,
@@ -41,12 +42,8 @@ export class TokenService {
       expiresIn: refreshExpiresIn,
     });
 
-    await this.redis.sadd(`refresh_token:${data.userId}`, refreshTokenId);
-    const refreshExpiresInSeconds = ms(refreshExpiresIn) / 1000;
-    await this.redis.expire(
-      `refresh_token:${data.userId}`,
-      refreshExpiresInSeconds,
-    );
+    const key = `refresh_token:${data.userId}:${refreshTokenId}`;
+    await this.redis.set(key, '1', 'EX', refreshExpiresIn);
 
     return {
       accessToken,
@@ -68,19 +65,14 @@ export class TokenService {
       throw new Error('Invalid refresh token');
     }
 
-    const isTokenValid = await this.redis.sismember(
-      `refresh_token:${decodedRefreshToken.sub}`,
-      refreshTokenId,
-    );
+    const redisKey = `refresh_token:${decodedRefreshToken.sub}:${refreshTokenId}`;
+    const isTokenValid = await this.redis.exists(redisKey);
 
     if (!isTokenValid) {
       throw new Error('Invalid refresh token');
     }
 
-    await this.redis.srem(
-      `refresh_token:${decodedRefreshToken.sub}`,
-      refreshTokenId,
-    );
+    await this.redis.del(redisKey);
 
     return {
       userId: decodedRefreshToken.sub,
@@ -99,11 +91,29 @@ export class TokenService {
     return decodedRefreshToken.sub as string | undefined;
   }
 
-  async revokeToken(userId: string, token?: string) {
-    if (token) {
-      await this.redis.srem(`refresh_token:${userId}`, token);
+  async revokeToken(data: RevokeData) {
+    if (data.token) {
+      try {
+        const decodedRefreshToken = this.jwtService.verify<RefreshTokenPayload>(
+          data.token,
+          {
+            secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
+          },
+        );
+
+        if (decodedRefreshToken.jti) {
+          await this.redis.del(
+            `refresh_token:${data.userId}:${decodedRefreshToken.jti}`,
+          );
+        }
+      } catch {
+        // Токен уже невалиден или истек
+      }
     } else {
-      await this.redis.del(`refresh_token:${userId}`);
+      const keys = await this.redis.keys(`refresh_token:${data.userId}:*`);
+      if (keys.length > 0) {
+        await this.redis.del(...keys);
+      }
     }
   }
 }

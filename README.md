@@ -27,8 +27,8 @@ DATABASE_URL=postgresql://postgres:postgres@localhost:5432/notionback?schema=pub
 
 JWT_ACCESS_SECRET=your-access-secret
 JWT_REFRESH_SECRET=your-refresh-secret
-JWT_ACCESS_EXPIRES_IN=15m
-JWT_REFRESH_EXPIRES_IN=30d
+JWT_ACCESS_EXPIRES_IN=900
+JWT_REFRESH_EXPIRES_IN=2592000
 
 BCRYPT_SALT_ROUNDS=10
 

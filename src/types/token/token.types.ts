@@ -1,6 +1,15 @@
-export type UserPayload = {
-  id: string;
+export type TokenData = {
+  userId: string;
   email: string;
+};
+
+export type RefreshData = {
+  token: string;
+};
+
+export type RevokeData = {
+  userId: string;
+  token?: string;
 };
 
 export type TokenPayload = {
