@@ -4,14 +4,12 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthController } from '../controllers/auth.controller';
 import { AuthService } from '../services/auth.service';
 import { UsersModule } from './users.module';
-import { WorkspacesModule } from './workspaces.module';
 import { JwtStrategy } from '../strategies/jwt.strategy';
 import { RefreshStrategy } from '../strategies/refresh.strategy';
 
 @Module({
   imports: [
     UsersModule,
-    WorkspacesModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

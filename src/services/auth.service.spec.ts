@@ -1,7 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuthService } from './auth.service';
 import { UsersService } from './users.service';
-import { WorkspacesService } from './workspaces.service';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { ConflictException, UnauthorizedException } from '@nestjs/common';
@@ -16,10 +15,6 @@ describe('AuthService', () => {
     findByEmail: jest.fn(),
     createUser: jest.fn(),
     findById: jest.fn(),
-  };
-
-  const mockWorkspacesService = {
-    create: jest.fn(),
   };
 
   const mockJwtService = {
@@ -43,7 +38,6 @@ describe('AuthService', () => {
       providers: [
         AuthService,
         { provide: UsersService, useValue: mockUsersService },
-        { provide: WorkspacesService, useValue: mockWorkspacesService },
         { provide: JwtService, useValue: mockJwtService },
         { provide: ConfigService, useValue: mockConfigService },
         { provide: 'REDIS_CLIENT', useValue: mockRedisClient },
@@ -135,17 +129,12 @@ describe('AuthService', () => {
       mockUsersService.findByEmail.mockResolvedValue(null);
       (bcrypt.hash as jest.Mock).mockResolvedValue('hashed');
       mockUsersService.createUser.mockResolvedValue(fakeUser);
-      mockWorkspacesService.create.mockResolvedValue({ id: 'ws-1' });
       mockJwtService.sign.mockReturnValue('fake_access');
       mockConfigService.get.mockReturnValue(10);
 
       const result = await authService.register(registerDto);
 
       expect(mockUsersService.createUser).toHaveBeenCalled();
-      expect(mockWorkspacesService.create).toHaveBeenCalledWith(
-        fakeUser.id,
-        `${registerDto.name}'s workspace`,
-      );
       expect(result).toHaveProperty('accessToken', 'fake_access');
     });
 
@@ -162,7 +151,6 @@ describe('AuthService', () => {
         ConflictException,
       );
       expect(mockUsersService.createUser).not.toHaveBeenCalled();
-      expect(mockWorkspacesService.create).not.toHaveBeenCalled();
     });
   });
 

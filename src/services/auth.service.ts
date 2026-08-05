@@ -7,7 +7,6 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { UsersService } from './users.service';
-import { WorkspacesService } from './workspaces.service';
 import * as bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
 import { Redis } from 'ioredis';
@@ -16,7 +15,6 @@ import { Redis } from 'ioredis';
 export class AuthService {
   constructor(
     private readonly usersService: UsersService,
-    private readonly workspacesService: WorkspacesService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     @Inject('REDIS_CLIENT') private readonly redis: Redis,
@@ -66,8 +64,6 @@ export class AuthService {
       name: data.name,
       avatarUrl: data.avatarUrl,
     });
-
-    await this.workspacesService.create(user.id, `${data.name}'s workspace`);
 
     return this.generateTokens(user.id, user.email);
   }
