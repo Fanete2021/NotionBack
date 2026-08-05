@@ -8,6 +8,7 @@ import {
   CreateProjectData,
   ProjectsRepository,
 } from '../repositories/projects.repository';
+import { buildProjectTree } from '../strategies/build-project-tree';
 import { ProjectEntity } from '../entities/project.entity';
 import { UpdateProjectDto } from '../dto/update-project.dto';
 import { ReorderProjectsDto } from '../dto/reorder-projects.dto';
@@ -25,7 +26,9 @@ export class ProjectsService {
   }
 
   async findAllByWorkspaceId(workspaceId: string): Promise<ProjectEntity[]> {
-    return this.projectsRepository.findAllByWorkspaceId(workspaceId);
+    const flat =
+      await this.projectsRepository.findAllByWorkspaceId(workspaceId);
+    return buildProjectTree(flat);
   }
 
   async findById(id: string): Promise<ProjectEntity> {
@@ -68,19 +71,19 @@ export class ProjectsService {
     const parentProjectId = dto.parentProjectId ?? null;
     await this.assertParentInWorkspace(workspaceId, parentProjectId);
 
-    const tree = await this.projectsRepository.reorder(
+    const flat = await this.projectsRepository.reorder(
       workspaceId,
       parentProjectId,
       dto.orderedIds,
     );
 
-    if (!tree) {
+    if (!flat) {
       throw new BadRequestException(
         'orderedIds must include exactly the sibling projects',
       );
     }
 
-    return tree;
+    return buildProjectTree(flat);
   }
 
   async delete(id: string): Promise<void> {

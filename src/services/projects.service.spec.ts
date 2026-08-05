@@ -159,8 +159,11 @@ describe('ProjectsService', () => {
     });
 
     it('успешно переупорядочивает и возвращает дерево', async () => {
-      const tree = [{ id: 'p2' }, { id: 'p1' }];
-      mockProjectsRepository.reorder.mockResolvedValue(tree);
+      const flat = [
+        { id: 'p1', parentProjectId: null, childProjects: [] },
+        { id: 'p2', parentProjectId: null, childProjects: [] },
+      ];
+      mockProjectsRepository.reorder.mockResolvedValue(flat);
 
       const result = await service.reorder('ws-1', {
         orderedIds: ['p2', 'p1'],
@@ -171,7 +174,27 @@ describe('ProjectsService', () => {
         null,
         ['p2', 'p1'],
       );
-      expect(result).toEqual(tree);
+      expect(result).toHaveLength(2);
+    });
+  });
+
+  describe('findAllByWorkspaceId', () => {
+    it('собирает дерево из плоского списка репозитория', async () => {
+      const flat = [
+        { id: 'root', parentProjectId: null, childProjects: [] },
+        { id: 'child', parentProjectId: 'root', childProjects: [] },
+      ];
+      mockProjectsRepository.findAllByWorkspaceId.mockResolvedValue(flat);
+
+      const result = await service.findAllByWorkspaceId('ws-1');
+
+      expect(mockProjectsRepository.findAllByWorkspaceId).toHaveBeenCalledWith(
+        'ws-1',
+      );
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe('root');
+      expect(result[0].childProjects).toHaveLength(1);
+      expect(result[0].childProjects[0].id).toBe('child');
     });
   });
 

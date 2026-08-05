@@ -36,7 +36,7 @@ export class ProjectsRepository {
       orderBy: { position: 'asc' },
     });
 
-    return this.buildTree(projects);
+    return projects.map((project) => this.mapToEntity(project));
   }
 
   async findById(id: string): Promise<ProjectEntity | null> {
@@ -88,6 +88,15 @@ export class ProjectsRepository {
     }
 
     await this.prisma.$transaction(async (tx) => {
+      const offset = orderedIds.length;
+
+      for (const project of siblings) {
+        await tx.project.update({
+          where: { id: project.id },
+          data: { position: project.position + offset },
+        });
+      }
+
       for (const [index, id] of orderedIds.entries()) {
         await tx.project.update({
           where: { id },
@@ -125,29 +134,6 @@ export class ProjectsRepository {
     }
   }
 
-  private buildTree(projects: Project[]): ProjectEntity[] {
-    const children = new Map<string, Project[]>();
-    const projectIds = new Set(projects.map((project) => project.id));
-    const roots: Project[] = [];
-
-    for (const project of projects) {
-      if (project.parentProjectId && projectIds.has(project.parentProjectId)) {
-        const siblings = children.get(project.parentProjectId) ?? [];
-        siblings.push(project);
-        children.set(project.parentProjectId, siblings);
-      } else {
-        roots.push(project);
-      }
-    }
-
-    const toEntity = (project: Project): ProjectEntity => {
-      const childEntities = (children.get(project.id) ?? []).map(toEntity);
-      return this.mapToEntity(project, childEntities);
-    };
-
-    return roots.map(toEntity);
-  }
-
   private isNotFoundError(
     error: unknown,
   ): error is Prisma.PrismaClientKnownRequestError {
@@ -157,10 +143,7 @@ export class ProjectsRepository {
     );
   }
 
-  private mapToEntity(
-    project: Project,
-    childProjects: ProjectEntity[] = [],
-  ): ProjectEntity {
+  private mapToEntity(project: Project): ProjectEntity {
     return new ProjectEntity(
       project.id,
       project.workspaceId,
@@ -171,7 +154,6 @@ export class ProjectsRepository {
       project.position,
       project.createdAt,
       project.updatedAt,
-      childProjects,
     );
   }
 }

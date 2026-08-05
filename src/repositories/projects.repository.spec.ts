@@ -76,7 +76,7 @@ describe('ProjectsRepository', () => {
       expect(mockPrisma.$transaction).not.toHaveBeenCalled();
     });
 
-    it('обновляет позиции в транзакции и возвращает дерево', async () => {
+    it('обновляет позиции в два прохода в транзакции и возвращает плоский список', async () => {
       mockPrisma.project.findMany
         .mockResolvedValueOnce([
           projectFixture('p1', 0),
@@ -87,11 +87,22 @@ describe('ProjectsRepository', () => {
       const result = await repository.reorder('ws-1', null, ['p2', 'p1']);
 
       expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
+
+      // Фаза 1: сдвиг всех соседей на оффсет (чтобы уникальный ключ не конфликтовал)
       expect(mockProjectUpdate).toHaveBeenNthCalledWith(1, {
+        where: { id: 'p1' },
+        data: { position: 0 + 2 },
+      });
+      expect(mockProjectUpdate).toHaveBeenNthCalledWith(2, {
+        where: { id: 'p2' },
+        data: { position: 1 + 2 },
+      });
+      // Фаза 2: финальные индексы
+      expect(mockProjectUpdate).toHaveBeenNthCalledWith(3, {
         where: { id: 'p2' },
         data: { position: 0 },
       });
-      expect(mockProjectUpdate).toHaveBeenNthCalledWith(2, {
+      expect(mockProjectUpdate).toHaveBeenNthCalledWith(4, {
         where: { id: 'p1' },
         data: { position: 1 },
       });
