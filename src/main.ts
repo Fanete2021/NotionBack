@@ -22,6 +22,8 @@ async function bootstrap(): Promise<void> {
     .setTitle('Notion Alternative API')
     .setDescription('Документация REST API для проекта Notion Alternative')
     .setVersion('1.0')
+    .addServer('http://localhost:8000', 'Локальный сервер')
+    .addServer('https://api.notion-alt.ru', 'Продакшн сервер (пример)')
     .addBearerAuth()
     .addCookieAuth('refreshToken', {
       type: 'apiKey',
