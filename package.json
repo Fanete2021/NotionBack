@@ -9,6 +9,7 @@
     "build": "nest build",
     "db:up": "docker compose up -d postgres",
     "db:down": "docker compose down",
+    "docker:clean-test": "bash scripts/docker-clean-test.sh",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
