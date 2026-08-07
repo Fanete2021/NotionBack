@@ -164,7 +164,10 @@ export class AuthController {
     description: 'Успешный выход',
     type: MessageResponseDto,
   })
-  @ApiResponse({ status: 400, description: 'Ошибка валидации данных' })
+  @ApiResponse({
+    status: 400,
+    description: 'Ошибка валидации данных или отсутствует refreshToken',
+  })
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @UseGuards(AuthGuard('jwt-access'))
   @HttpCode(HttpStatus.OK)
@@ -176,6 +179,12 @@ export class AuthController {
   ) {
     const user = req.user as UserPayload;
     const refreshToken = this.getRefreshTokenFromRequest(req);
+
+    if (!body.allDevices && !refreshToken) {
+      throw new UnauthorizedException(
+        'Refresh token is required to logout from a single device',
+      );
+    }
 
     // Если allDevices = true, мы передаем token = undefined в сервис,
     // чтобы он удалил все сессии по маске (userId:*).
