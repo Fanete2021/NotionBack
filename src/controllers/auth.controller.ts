@@ -69,11 +69,15 @@ export class AuthController {
     });
   }
 
-  @ApiOperation({ summary: 'Регистрация нового пользователя' })
+  @ApiOperation({
+    summary: 'Регистрация нового пользователя',
+    description: 'Устанавливает `refresh_token` через HttpOnly cookie.',
+  })
   @ApiBody({ type: RegisterDto })
   @ApiResponse({
     status: 201,
-    description: 'Пользователь успешно создан, возвращены токены',
+    description:
+      'Пользователь успешно создан. `refresh_token` установлен в cookie.',
     type: AuthResponseDto,
   })
   @ApiResponse({ status: 400, description: 'Ошибка валидации данных' })
@@ -89,11 +93,14 @@ export class AuthController {
     return responseBody;
   }
 
-  @ApiOperation({ summary: 'Вход по email и паролю' })
+  @ApiOperation({
+    summary: 'Вход по email и паролю',
+    description: 'Устанавливает `refresh_token` через HttpOnly cookie.',
+  })
   @ApiBody({ type: LoginDto })
   @ApiResponse({
     status: 200,
-    description: 'Успешный вход, возвращены токены',
+    description: 'Успешный вход. `refresh_token` установлен в cookie.',
     type: AuthResponseDto,
   })
   @ApiResponse({ status: 400, description: 'Ошибка валидации данных' })
@@ -112,7 +119,8 @@ export class AuthController {
 
   @ApiOperation({
     summary: 'Обновление токенов',
-    description: 'Ожидает refreshToken в httpOnly cookie "refreshToken"',
+    description:
+      'Ожидает `refresh_token` в HttpOnly cookie. Запросы нужно слать с флагом `withCredentials: true`.',
   })
   @ApiCookieAuth('refreshToken')
   @ApiResponse({
@@ -120,6 +128,7 @@ export class AuthController {
     description: 'Токены успешно обновлены',
     type: AuthResponseDto,
   })
+  @ApiResponse({ status: 400, description: 'Ошибка валидации данных' })
   @ApiResponse({
     status: 401,
     description: 'Токен недействителен или отсутствует',
@@ -143,7 +152,11 @@ export class AuthController {
     return responseBody;
   }
 
-  @ApiOperation({ summary: 'Выход из системы' })
+  @ApiOperation({
+    summary: 'Выход из системы',
+    description:
+      'Удаляет сессию пользователя. Запросы нужно слать с флагом `withCredentials: true` для удаления cookie. Требуется Access Token.',
+  })
   @ApiBody({ type: LogoutDto })
   @ApiBearerAuth()
   @ApiResponse({
