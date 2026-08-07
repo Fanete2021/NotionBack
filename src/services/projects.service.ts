@@ -8,7 +8,6 @@ import {
   CreateProjectData,
   ProjectsRepository,
 } from '../repositories/projects.repository';
-import { buildProjectTree } from '../strategies/build-project-tree';
 import { ProjectEntity } from '../entities/project.entity';
 import { UpdateProjectDto } from '../dto/update-project.dto';
 import { ReorderProjectsDto } from '../dto/reorder-projects.dto';
@@ -28,7 +27,7 @@ export class ProjectsService {
   async findAllByWorkspaceId(workspaceId: string): Promise<ProjectEntity[]> {
     const flat =
       await this.projectsRepository.findAllByWorkspaceId(workspaceId);
-    return buildProjectTree(flat);
+    return this.buildTree(flat);
   }
 
   async findById(id: string): Promise<ProjectEntity> {
@@ -83,7 +82,7 @@ export class ProjectsService {
       );
     }
 
-    return buildProjectTree(flat);
+    return this.buildTree(flat);
   }
 
   async delete(id: string): Promise<void> {
@@ -107,5 +106,28 @@ export class ProjectsService {
         'Parent project not found or not in the same workspace',
       );
     }
+  }
+
+  private buildTree(projects: ProjectEntity[]): ProjectEntity[] {
+    const children = new Map<string, ProjectEntity[]>();
+    const projectIds = new Set(projects.map((project) => project.id));
+    const roots: ProjectEntity[] = [];
+
+    for (const project of projects) {
+      if (project.parentProjectId && projectIds.has(project.parentProjectId)) {
+        const siblings = children.get(project.parentProjectId) ?? [];
+        siblings.push(project);
+        children.set(project.parentProjectId, siblings);
+      } else {
+        roots.push(project);
+      }
+    }
+
+    const attach = (project: ProjectEntity): ProjectEntity => {
+      project.childProjects = (children.get(project.id) ?? []).map(attach);
+      return project;
+    };
+
+    return roots.map(attach);
   }
 }

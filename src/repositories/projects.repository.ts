@@ -16,12 +16,15 @@ export class ProjectsRepository {
     workspaceId: string,
     data: CreateProjectData,
   ): Promise<ProjectEntity> {
-    const position = await this.prisma.project.count({
+    const { _max } = await this.prisma.project.aggregate({
       where: {
         workspaceId,
         parentProjectId: data.parentProjectId ?? null,
       },
+      _max: { position: true },
     });
+
+    const position = (_max.position ?? -1) + 1;
 
     const project = await this.prisma.project.create({
       data: { ...data, workspaceId, position },

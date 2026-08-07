@@ -11,7 +11,7 @@ describe('ProjectsRepository', () => {
 
   const mockPrisma = {
     project: {
-      count: jest.fn(),
+      aggregate: jest.fn(),
       create: jest.fn(),
       findMany: jest.fn(),
       findUnique: jest.fn(),
@@ -52,6 +52,38 @@ describe('ProjectsRepository', () => {
     mockPrisma.$transaction.mockImplementation(
       (callback: (tx: unknown) => unknown) => callback(mockTx),
     );
+  });
+
+  describe('create', () => {
+    it('вычисляет позицию как максимальную + 1', async () => {
+      mockPrisma.project.aggregate.mockResolvedValue({ _max: { position: 2 } });
+      mockPrisma.project.create.mockResolvedValue(projectFixture('p3', 3));
+
+      const result = await repository.create('ws-1', { name: 'P3' });
+
+      expect(mockPrisma.project.aggregate).toHaveBeenCalledWith({
+        where: { workspaceId: 'ws-1', parentProjectId: null },
+        _max: { position: true },
+      });
+      expect(mockPrisma.project.create).toHaveBeenCalledWith({
+        data: { name: 'P3', workspaceId: 'ws-1', position: 3 },
+      });
+      expect(result).toBeInstanceOf(ProjectEntity);
+    });
+
+    it('вычисляет позицию 0, если проектов ещё нет', async () => {
+      mockPrisma.project.aggregate.mockResolvedValue({
+        _max: { position: null },
+      });
+      mockPrisma.project.create.mockResolvedValue(projectFixture('p1', 0));
+
+      const result = await repository.create('ws-1', { name: 'P1' });
+
+      expect(mockPrisma.project.create).toHaveBeenCalledWith({
+        data: { name: 'P1', workspaceId: 'ws-1', position: 0 },
+      });
+      expect(result).toBeInstanceOf(ProjectEntity);
+    });
   });
 
   describe('reorder', () => {

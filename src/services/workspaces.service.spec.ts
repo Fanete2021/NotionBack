@@ -17,6 +17,7 @@ describe('WorkspacesService', () => {
     create: jest.fn(),
     findById: jest.fn(),
     findAllByUserId: jest.fn(),
+    countOwnedBy: jest.fn(),
     update: jest.fn(),
     delete: jest.fn(),
     addMember: jest.fn(),
@@ -62,9 +63,7 @@ describe('WorkspacesService', () => {
   describe('create', () => {
     it('создаёт воркспейс, если лимит не превышен', async () => {
       mockConfigService.get.mockReturnValue(3);
-      mockWorkspacesRepository.findAllByUserId.mockResolvedValue([
-        { id: 'ws-1' },
-      ]);
+      mockWorkspacesRepository.countOwnedBy.mockResolvedValue(1);
       mockWorkspacesRepository.create.mockResolvedValue({ id: 'ws-2' });
 
       const result = await service.create('user-1', 'My space');
@@ -73,6 +72,9 @@ describe('WorkspacesService', () => {
         'MAX_WORKSPACES_PER_USER',
         3,
       );
+      expect(mockWorkspacesRepository.countOwnedBy).toHaveBeenCalledWith(
+        'user-1',
+      );
       expect(mockWorkspacesRepository.create).toHaveBeenCalledWith(
         'user-1',
         'My space',
@@ -80,18 +82,25 @@ describe('WorkspacesService', () => {
       expect(result).toEqual({ id: 'ws-2' });
     });
 
-    it('бросает 403, если лимит воркспейсов превышен', async () => {
+    it('бросает 403, если лимит воркспейсов (по числу OWNED) превышен', async () => {
       mockConfigService.get.mockReturnValue(3);
-      mockWorkspacesRepository.findAllByUserId.mockResolvedValue([
-        { id: 'ws-1' },
-        { id: 'ws-2' },
-        { id: 'ws-3' },
-      ]);
+      mockWorkspacesRepository.countOwnedBy.mockResolvedValue(3);
 
       await expect(service.create('user-1', 'X')).rejects.toThrow(
         ForbiddenException,
       );
       expect(mockWorkspacesRepository.create).not.toHaveBeenCalled();
+    });
+
+    it('не считает чужие воркспейсы, где юзер просто участник', async () => {
+      mockConfigService.get.mockReturnValue(3);
+      mockWorkspacesRepository.countOwnedBy.mockResolvedValue(0);
+      mockWorkspacesRepository.create.mockResolvedValue({ id: 'ws-2' });
+
+      await expect(service.create('user-1', 'X')).resolves.toEqual({
+        id: 'ws-2',
+      });
+      expect(mockWorkspacesRepository.create).toHaveBeenCalled();
     });
   });
 

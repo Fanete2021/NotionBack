@@ -25,8 +25,8 @@ export class WorkspacesService {
       3,
     );
 
-    const existing = await this.workspacesRepository.findAllByUserId(ownerId);
-    if (existing.length >= maxWorkspaces) {
+    const ownedCount = await this.workspacesRepository.countOwnedBy(ownerId);
+    if (ownedCount >= maxWorkspaces) {
       throw new ForbiddenException(
         `Workspace limit reached (max ${maxWorkspaces} per user)`,
       );

@@ -48,6 +48,12 @@ export class WorkspacesRepository {
     );
   }
 
+  async countOwnedBy(userId: string): Promise<number> {
+    return this.prisma.workspace.count({
+      where: { ownerId: userId },
+    });
+  }
+
   async update(
     id: string,
     data: Prisma.WorkspaceUpdateInput,
