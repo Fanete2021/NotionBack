@@ -84,8 +84,9 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const result = await this.authService.register(dto);
-    this.setRefreshTokenCookie(res, result.refreshToken);
-    return result;
+    const { refreshToken, ...responseBody } = result;
+    this.setRefreshTokenCookie(res, refreshToken);
+    return responseBody;
   }
 
   @ApiOperation({ summary: 'Вход по email и паролю' })
@@ -104,8 +105,9 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const result = await this.authService.login(dto);
-    this.setRefreshTokenCookie(res, result.refreshToken);
-    return result;
+    const { refreshToken, ...responseBody } = result;
+    this.setRefreshTokenCookie(res, refreshToken);
+    return responseBody;
   }
 
   @ApiOperation({
@@ -129,17 +131,16 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const refreshToken = this.getRefreshTokenFromRequest(req);
-    if (!refreshToken) {
+    const oldRefreshToken = this.getRefreshTokenFromRequest(req);
+    if (!oldRefreshToken) {
       throw new UnauthorizedException('Refresh token not found in cookies');
     }
 
-    const refreshData: RefreshData = {
-      token: refreshToken,
-    };
+    const refreshData: RefreshData = { token: oldRefreshToken };
     const result = await this.authService.refresh(refreshData);
-    this.setRefreshTokenCookie(res, result.refreshToken);
-    return result;
+    const { refreshToken, ...responseBody } = result;
+    this.setRefreshTokenCookie(res, refreshToken);
+    return responseBody;
   }
 
   @ApiOperation({ summary: 'Выход из системы' })
