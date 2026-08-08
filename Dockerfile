@@ -2,15 +2,15 @@
 FROM node:22-alpine AS deps
 WORKDIR /app
 
-# Инструменты сборки для native-модулей
-RUN apk add --no-cache python3 make g++ build-base
+# Добавляем libc6-compat для работы native модулей (bcrypt и т.д.) на Alpine
+RUN apk add --no-cache python3 make g++ build-base libc6-compat
 
 ENV HUSKY=0
 ENV PRISMA_SKIP_POSTINSTALL_GENERATE=1
 
-# Копируем ТОЛЬКО package-файлы, чтобы npm ci был максимально чистым
 COPY package*.json ./
-RUN npm ci
+# Временно используем install вместо ci, чтобы обойти возможные ошибки в lock-файле
+RUN npm install
 
 # ---------- build ----------
 FROM node:22-alpine AS build
@@ -19,9 +19,7 @@ ENV HUSKY=0
 ENV PRISMA_SKIP_POSTINSTALL_GENERATE=1
 
 COPY --from=deps /app/node_modules ./node_modules
-# Теперь копируем всё остальное, включая prisma и конфиг
 COPY . .
-# Генерируем клиент здесь, когда все зависимости уже точно есть
 RUN npx prisma generate && npm run build
 
 # ---------- prod-deps ----------
