@@ -1,32 +1,37 @@
 # ---------- deps (все зависимости, включая dev) ----------
 FROM node:22-alpine AS deps
 WORKDIR /app
-ENV HUSKY=0
 
-# Устанавливаем инструменты сборки для native-модулей (например, bcrypt)
+# Инструменты сборки для native-модулей
 RUN apk add --no-cache python3 make g++ build-base
 
+ENV HUSKY=0
+ENV PRISMA_SKIP_POSTINSTALL_GENERATE=1
+
+# Копируем ТОЛЬКО package-файлы, чтобы npm ci был максимально чистым
 COPY package*.json ./
-COPY prisma ./prisma
-COPY prisma.config.ts ./
 RUN npm ci
 
 # ---------- build ----------
 FROM node:22-alpine AS build
 WORKDIR /app
 ENV HUSKY=0
+ENV PRISMA_SKIP_POSTINSTALL_GENERATE=1
+
 COPY --from=deps /app/node_modules ./node_modules
+# Теперь копируем всё остальное, включая prisma и конфиг
 COPY . .
+# Генерируем клиент здесь, когда все зависимости уже точно есть
 RUN npx prisma generate && npm run build
 
-# ---------- prod-deps (оставляем только прод-зависимости) ----------
+# ---------- prod-deps ----------
 FROM node:22-alpine AS prod-deps
 WORKDIR /app
 ENV HUSKY=0
-# Просто копируем все модули из первой стадии и удаляем dev-зависимости
+ENV PRISMA_SKIP_POSTINSTALL_GENERATE=1
+
 COPY --from=deps /app/node_modules ./node_modules
 COPY package*.json ./
-# Удаляем dev-зависимости, не переустанавливая всё заново
 RUN npm prune --omit=dev && npm cache clean --force
 
 # ---------- runner ----------
