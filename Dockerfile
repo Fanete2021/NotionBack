@@ -20,7 +20,7 @@ ENV PRISMA_SKIP_POSTINSTALL_GENERATE=1
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN npx prisma generate && npm run build
+RUN DATABASE_URL="postgresql://postgres:postgres@localhost:5432/notionback?schema=public" npx prisma generate && npm run build
 
 # ---------- prod-deps ----------
 FROM node:22-alpine AS prod-deps
