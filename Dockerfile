@@ -2,8 +2,10 @@
 FROM node:22-alpine AS deps
 WORKDIR /app
 ENV HUSKY=0
+# В Prisma 7 npm ci может искать конфиг
 COPY package*.json ./
 COPY prisma ./prisma
+COPY prisma.config.ts ./
 RUN npm ci
 
 # ---------- build ----------
@@ -18,10 +20,10 @@ RUN npx prisma generate && npm run build
 FROM node:22-alpine AS prod-deps
 WORKDIR /app
 ENV HUSKY=0
-# Пропускаем генерацию Prisma, так как CLI нет в прод-зависимостях
 ENV PRISMA_SKIP_POSTINSTALL_GENERATE=1
 COPY package*.json ./
 COPY prisma ./prisma
+COPY prisma.config.ts ./
 RUN npm ci --omit=dev && npm cache clean --force
 
 # ---------- runner ----------
@@ -35,12 +37,8 @@ ENV PORT=8000
 
 RUN apk add --no-cache curl openssl
 
-# Копируем прод-зависимости
 COPY --from=prod-deps --chown=node:node /app/node_modules ./node_modules
-# Важно: копируем сгенерированный клиент Prisma из стадии build, 
-# так как в prod-deps он не создавался
 COPY --from=build --chown=node:node /app/node_modules/.prisma ./node_modules/.prisma
-
 COPY --from=build --chown=node:node /app/dist ./dist
 COPY --from=build --chown=node:node /app/package.json ./package.json
 COPY --from=build --chown=node:node /app/prisma ./prisma
