@@ -32,9 +32,9 @@ async function bootstrap(): Promise<void> {
     })
     .build();
   const documentFactory = () => SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api', app, documentFactory);
+  SwaggerModule.setup('api/docs', app, documentFactory);
 
   const port = configService.get<number>('PORT', 8000);
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0');
 }
 bootstrap();
