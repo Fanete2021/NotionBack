@@ -69,5 +69,5 @@ jobs:
         env:
           TAG: ${{ inputs.tag || needs.build.outputs.tag }}
         run: |
-          ssh "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
+          ssh -o StrictHostKeyChecking=no "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
             "cd ${{ secrets.DEPLOY_PATH }} && ./deploy.sh $TAG"
