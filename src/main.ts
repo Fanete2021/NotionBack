@@ -3,6 +3,7 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
 import { HttpExceptionsFilter } from './config/http-exception';
+import { PrismaExceptionFilter } from './config/prisma-exception.filter';
 import { ValidationPipe } from '@nestjs/common';
 
 async function bootstrap(): Promise<void> {
@@ -15,8 +16,9 @@ async function bootstrap(): Promise<void> {
     credentials: true,
   });
 
-  app.useGlobalFilters(new HttpExceptionsFilter());
-  app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
+  app.useGlobalFilters(new PrismaExceptionFilter(), new HttpExceptionsFilter());
+  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+  app.setGlobalPrefix('api');
 
   const config = new DocumentBuilder()
     .setTitle('Notion Alternative API')
@@ -33,6 +35,7 @@ async function bootstrap(): Promise<void> {
     .build();
   const documentFactory = () => SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, documentFactory);
+  SwaggerModule.setup('docs', app, documentFactory, { useGlobalPrefix: true });
 
   const port = configService.get<number>('PORT', 8000);
   await app.listen(port, '0.0.0.0');

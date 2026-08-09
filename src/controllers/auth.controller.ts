@@ -33,6 +33,7 @@ import type { Request, Response } from 'express';
 import { UserPayload, LogoutData } from 'src/types/auth/auth.types';
 import { RefreshData } from 'src/types/token/token.types';
 import { getCookieValue } from '../utils/cookies';
+import { Public } from '../decorators/public.decorator';
 
 @ApiTags('Авторизация')
 @Controller('auth')
@@ -82,6 +83,7 @@ export class AuthController {
   })
   @ApiResponse({ status: 400, description: 'Ошибка валидации данных' })
   @ApiResponse({ status: 409, description: 'Email уже занят' })
+  @Public()
   @Post('register')
   async register(
     @Body() dto: RegisterDto,
@@ -105,6 +107,7 @@ export class AuthController {
   })
   @ApiResponse({ status: 400, description: 'Ошибка валидации данных' })
   @ApiResponse({ status: 401, description: 'Неверные учетные данные' })
+  @Public()
   @HttpCode(HttpStatus.OK)
   @Post('login')
   async login(
@@ -133,6 +136,7 @@ export class AuthController {
     status: 401,
     description: 'Токен недействителен или отсутствует',
   })
+  @Public()
   @UseGuards(AuthGuard('jwt-refresh'))
   @HttpCode(HttpStatus.OK)
   @Post('refresh')

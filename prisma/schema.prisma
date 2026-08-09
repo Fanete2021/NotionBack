@@ -7,14 +7,119 @@ datasource db {
   provider = "postgresql"
 }
 
+enum Role {
+  OWNER
+  ADMIN
+  EDITOR
+  VIEWER
+}
+
+enum PageType {
+  DOC
+  ARTICLE
+}
+
 model User {
-  id           String   @id @default(uuid())
-  email        String   @unique
+  id           String    @id @default(uuid())
+  email        String    @unique
   passwordHash String
   name         String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
   avatarUrl    String?
 
+  ownedWorkspaces Workspace[]        @relation("WorkspaceOwner")
+  memberships     WorkspaceMember[]
+  authoredPages   Page[]
+
   @@map("users")
+}
+
+model Workspace {
+  id        String   @id @default(uuid())
+  name      String
+  ownerId   String
+  isPublic  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  owner   User              @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members WorkspaceMember[]
+  projects Project[]
+  pages    Page[]
+
+  @@map("workspaces")
+}
+
+model WorkspaceMember {
+  id          String   @id @default(uuid())
+  workspaceId String
+  userId      String
+  role        Role     @default(EDITOR)
+  createdAt   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+  @@map("workspace_members")
+}
+
+model Project {
+  id              String   @id @default(uuid())
+  workspaceId     String
+  parentProjectId String?
+  name            String
+  color           String?
+  icon            String?
+  position        Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  parentProject Project?  @relation("ProjectHierarchy", fields: [parentProjectId, workspaceId], references: [id, workspaceId], onDelete: Cascade)
+  childProjects Project[] @relation("ProjectHierarchy")
+  pages         Page[]
+
+  @@unique([id, workspaceId])
+  @@index([workspaceId, parentProjectId])
+  @@map("projects")
+}
+
+model Page {
+  id           String    @id @default(uuid())
+  workspaceId  String
+  projectId    String?
+  parentPageId String?
+  title        String
+  icon         String?
+  coverUrl     String?
+  type         PageType  @default(DOC)
+  authorId     String
+  position     Int       @default(0)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  workspace  Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project    Project?    @relation(fields: [projectId, workspaceId], references: [id, workspaceId], onDelete: Cascade)
+  parentPage Page?       @relation("PageHierarchy", fields: [parentPageId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
+  childPages Page[]      @relation("PageHierarchy")
+  author     User        @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  content    PageContent?
+
+  @@unique([id, workspaceId])
+  @@index([workspaceId, parentPageId])
+  @@index([workspaceId, deletedAt])
+  @@map("pages")
+}
+
+model PageContent {
+  pageId    String   @id
+  json      Json
+  yjsState  Bytes?
+  updatedAt DateTime @updatedAt
+
+  page Page @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@map("page_contents")
 }
