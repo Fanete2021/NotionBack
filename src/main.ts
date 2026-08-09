@@ -21,15 +21,23 @@ async function bootstrap(): Promise<void> {
   app.setGlobalPrefix('api');
 
   const config = new DocumentBuilder()
-    .setTitle('NotionBack API')
-    .setDescription('Backend API for the Notion-clone project')
+    .setTitle('Notion Alternative API')
+    .setDescription('Документация REST API для проекта Notion Alternative')
     .setVersion('1.0')
+    .addServer('http://localhost:8000', 'Локальный сервер')
+    .addServer('https://api.notion-alt.ru', 'Продакшн сервер (пример)')
     .addBearerAuth()
+    .addCookieAuth('refreshToken', {
+      type: 'apiKey',
+      in: 'cookie',
+      name: 'refreshToken',
+    })
     .build();
   const documentFactory = () => SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api/docs', app, documentFactory);
   SwaggerModule.setup('docs', app, documentFactory, { useGlobalPrefix: true });
 
   const port = configService.get<number>('PORT', 8000);
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0');
 }
 bootstrap();

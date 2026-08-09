@@ -2,6 +2,7 @@ import { Module, Global } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AppController } from './app.controller';
+import { HealthController } from './health.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './modules/auth.module';
@@ -21,6 +22,7 @@ import * as Joi from 'joi';
         PORT: Joi.number().default(8000),
         DATABASE_URL: Joi.string().required(),
         JWT_ACCESS_SECRET: Joi.string().required(),
+        JWT_ACCESS_EXPIRES_IN: Joi.number().default(900),
         JWT_REFRESH_EXPIRES_IN: Joi.number().default(2592000),
         BCRYPT_SALT_ROUNDS: Joi.number().default(10),
         REDIS_HOST: Joi.string().default('localhost'),
@@ -35,7 +37,7 @@ import * as Joi from 'joi';
     ProjectsModule,
     WorkspacesModule,
   ],
-  controllers: [AppController],
+  controllers: [AppController, HealthController],
   providers: [
     AppService,
     {

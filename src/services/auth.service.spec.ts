@@ -5,6 +5,7 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { ConflictException, UnauthorizedException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
+import { TokenService } from './token.service';
 
 jest.mock('bcrypt');
 
@@ -19,10 +20,18 @@ describe('AuthService', () => {
 
   const mockJwtService = {
     sign: jest.fn(),
+    verify: jest.fn(),
   };
 
   const mockConfigService = {
     get: jest.fn(),
+  };
+
+  const mockTokenService = {
+    generateTokens: jest.fn(),
+    validateRefreshToken: jest.fn(),
+    getTokenUserId: jest.fn(),
+    revokeToken: jest.fn(),
   };
 
   const mockRedisClient = {
@@ -40,6 +49,7 @@ describe('AuthService', () => {
         { provide: UsersService, useValue: mockUsersService },
         { provide: JwtService, useValue: mockJwtService },
         { provide: ConfigService, useValue: mockConfigService },
+        { provide: TokenService, useValue: mockTokenService },
         { provide: 'REDIS_CLIENT', useValue: mockRedisClient },
       ],
     }).compile();
@@ -66,8 +76,11 @@ describe('AuthService', () => {
 
       mockUsersService.findByEmail.mockResolvedValue(fakeUser);
       (bcrypt.compare as jest.Mock).mockResolvedValue(true);
-      mockJwtService.sign.mockReturnValue('fake_access_token');
-      mockConfigService.get.mockReturnValue(3600);
+      mockTokenService.generateTokens.mockResolvedValue({
+        accessToken: 'fake_access_token',
+        refreshToken: 'fake_refresh_token',
+        user: { id: '123', email: 'test@test.com' },
+      });
 
       const result = await authService.login(loginDto);
 
@@ -76,7 +89,10 @@ describe('AuthService', () => {
         loginDto.password,
         fakeUser.passwordHash,
       );
-      expect(mockRedisClient.sadd).toHaveBeenCalled();
+      expect(mockTokenService.generateTokens).toHaveBeenCalledWith({
+        userId: '123',
+        email: 'test@test.com',
+      });
       expect(result).toHaveProperty('accessToken', 'fake_access_token');
       expect(result).toHaveProperty('refreshToken');
       expect(result.user).toEqual({ id: '123', email: 'test@test.com' });
@@ -108,7 +124,7 @@ describe('AuthService', () => {
         UnauthorizedException,
       );
       expect(bcrypt.compare).not.toHaveBeenCalled();
-      expect(mockRedisClient.sadd).not.toHaveBeenCalled();
+      expect(mockTokenService.generateTokens).not.toHaveBeenCalled();
     });
   });
 
@@ -129,12 +145,19 @@ describe('AuthService', () => {
       mockUsersService.findByEmail.mockResolvedValue(null);
       (bcrypt.hash as jest.Mock).mockResolvedValue('hashed');
       mockUsersService.createUser.mockResolvedValue(fakeUser);
-      mockJwtService.sign.mockReturnValue('fake_access');
-      mockConfigService.get.mockReturnValue(10);
+      mockTokenService.generateTokens.mockResolvedValue({
+        accessToken: 'fake_access',
+        refreshToken: 'fake_refresh',
+        user: { id: '123', email: registerDto.email },
+      });
 
       const result = await authService.register(registerDto);
 
       expect(mockUsersService.createUser).toHaveBeenCalled();
+      expect(mockTokenService.generateTokens).toHaveBeenCalledWith({
+        userId: '123',
+        email: registerDto.email,
+      });
       expect(result).toHaveProperty('accessToken', 'fake_access');
     });
 
@@ -157,45 +180,71 @@ describe('AuthService', () => {
   describe('refresh', () => {
     it('должен выдавать новые токены при валидном refresh токене', async () => {
       const userId = '123';
-      const oldToken = 'old-uuid';
+      const tokenId = 'refresh-jti';
+      const refreshToken = 'refresh.jwt.token';
       const fakeUser = { id: userId, email: 'test@test.com' };
 
-      mockRedisClient.sismember.mockResolvedValue(1);
+      mockTokenService.validateRefreshToken.mockResolvedValue({
+        userId,
+        refreshTokenId: tokenId,
+      });
       mockUsersService.findById.mockResolvedValue(fakeUser);
-      mockJwtService.sign.mockReturnValue('new_access');
+      mockTokenService.generateTokens.mockResolvedValue({
+        accessToken: 'new_access',
+        refreshToken: 'new_refresh',
+        user: { id: userId, email: fakeUser.email },
+      });
 
-      const result = await authService.refresh(userId, oldToken);
+      const result = await authService.refresh({ token: refreshToken });
 
-      expect(mockRedisClient.srem).toHaveBeenCalledWith(
-        `refresh_token:${userId}`,
-        oldToken,
+      expect(mockTokenService.validateRefreshToken).toHaveBeenCalledWith(
+        refreshToken,
       );
       expect(result).toHaveProperty('accessToken', 'new_access');
       expect(result).toHaveProperty('refreshToken');
     });
 
     it('должен выбрасывать UnauthorizedException, если токена нет в Redis', async () => {
-      mockRedisClient.sismember.mockResolvedValue(0);
-
-      await expect(authService.refresh('123', 'bad-token')).rejects.toThrow(
-        UnauthorizedException,
+      mockTokenService.validateRefreshToken.mockRejectedValue(
+        new UnauthorizedException('Invalid refresh token'),
       );
-      expect(mockRedisClient.srem).not.toHaveBeenCalled();
+
+      await expect(
+        authService.refresh({ token: 'bad-refresh-token' }),
+      ).rejects.toThrow(UnauthorizedException);
     });
   });
 
   describe('logout', () => {
     it('должен удалять конкретный токен, если он передан (одно устройство)', async () => {
-      await authService.logout('123', 'some-token');
-      expect(mockRedisClient.srem).toHaveBeenCalledWith(
-        'refresh_token:123',
+      mockTokenService.getTokenUserId.mockReturnValue('123');
+
+      await authService.logout({ userId: '123', token: 'some-token' });
+
+      expect(mockTokenService.getTokenUserId).toHaveBeenCalledWith(
         'some-token',
       );
+      expect(mockTokenService.revokeToken).toHaveBeenCalledWith({
+        userId: '123',
+        token: 'some-token',
+      });
+    });
+
+    it('должен выбрасывать UnauthorizedException, если токен принадлежит другому пользователю', async () => {
+      mockTokenService.getTokenUserId.mockReturnValue('456');
+
+      await expect(
+        authService.logout({ userId: '123', token: 'some-token' }),
+      ).rejects.toThrow(UnauthorizedException);
+      expect(mockTokenService.revokeToken).not.toHaveBeenCalled();
     });
 
     it('должен удалять весь ключ, если токен не передан (все устройства)', async () => {
-      await authService.logout('123');
-      expect(mockRedisClient.del).toHaveBeenCalledWith('refresh_token:123');
+      await authService.logout({ userId: '123' });
+      expect(mockTokenService.revokeToken).toHaveBeenCalledWith({
+        userId: '123',
+        token: undefined,
+      });
     });
   });
 });
