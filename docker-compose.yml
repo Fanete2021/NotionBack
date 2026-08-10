@@ -1,53 +1,62 @@
+name: notionback-dev
+
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: notionback-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: notionback
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ${POSTGRES_DB:-notionback}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d notionback"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-notionback}"]
       interval: 10s
       timeout: 5s
       retries: 5
-    
+
   redis:
-    container_name: redis
     image: redis:7-alpine
     restart: unless-stopped
     ports:
-      - 6379:6379
+      - "${REDIS_PORT:-6379}:6379"
     volumes:
       - redis_data:/data
-    
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   app:
     build:
       context: .
-      dockerfile: Dockerfile
-    container_name: notionback-app
+      dockerfile: Dockerfile.dev
     restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
     env_file:
       - .env
     environment:
-      NODE_ENV: production
+      NODE_ENV: development
       PORT: 8000
-      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/notionback?schema=public
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-notionback}?schema=public
       REDIS_HOST: redis
+      REDIS_PORT: 6379
+    volumes:
+      - ./src:/app/src
+      - ./prisma:/app/prisma
+      - node_modules:/app/node_modules
     ports:
-      - "8000:8000"
+      - "${APP_PORT:-8000}:8000"
 
 volumes:
   postgres_data:
   redis_data:
+  node_modules:

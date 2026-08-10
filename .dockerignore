@@ -2,7 +2,11 @@ node_modules
 dist
 coverage
 .git
-.agents
-.codex
+.gitignore
 .env
-npm-debug.log
+.env.*
+*.log
+docs
+guides
+.temp
+.tmp
