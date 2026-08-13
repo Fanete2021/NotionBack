@@ -9,8 +9,8 @@ ENV HUSKY=0
 ENV PRISMA_SKIP_POSTINSTALL_GENERATE=1
 
 COPY package*.json ./
-# Временно используем install вместо ci, чтобы обойти возможные ошибки в lock-файле
-RUN npm install
+# Используем npm ci для строгой фиксации версий из lock-файла
+RUN npm ci
 
 # ---------- build ----------
 FROM node:22-alpine AS build
@@ -23,7 +23,8 @@ COPY . .
 # Передаем заглушку, чтобы prisma.config.ts не падал при сборке
 ENV DATABASE_URL="postgresql://postgres:postgres@localhost:5432/notionback?schema=public"
 RUN npx prisma generate
-RUN npm run build
+# Увеличиваем лимит памяти для Node.js, чтобы избежать Out Of Memory при компиляции TS в GitHub Actions
+RUN NODE_OPTIONS="--max-old-space-size=2048" npm run build
 
 # ---------- prod-deps ----------
 FROM node:22-alpine AS prod-deps
