@@ -1,5 +1,18 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
+export interface ProjectEntityData {
+  id: string;
+  workspaceId: string;
+  parentProjectId: string | null;
+  name: string;
+  color: string | null;
+  icon: string | null;
+  position: number;
+  createdAt: Date;
+  updatedAt: Date;
+  childProjects?: ProjectEntity[];
+}
+
 export class ProjectEntity {
   @ApiProperty({ example: '3fa85f64-5717-4562-b3fc-2c963f66afa6' })
   readonly id: string;
@@ -31,27 +44,16 @@ export class ProjectEntity {
   @ApiPropertyOptional({ type: () => [ProjectEntity] })
   childProjects: ProjectEntity[];
 
-  constructor(
-    id: string,
-    workspaceId: string,
-    parentProjectId: string | null,
-    name: string,
-    color: string | null,
-    icon: string | null,
-    position: number,
-    createdAt: Date,
-    updatedAt: Date,
-    childProjects: ProjectEntity[] = [],
-  ) {
-    this.id = id;
-    this.workspaceId = workspaceId;
-    this.parentProjectId = parentProjectId;
-    this.name = name;
-    this.color = color;
-    this.icon = icon;
-    this.position = position;
-    this.createdAt = createdAt;
-    this.updatedAt = updatedAt;
-    this.childProjects = childProjects;
+  constructor(data: ProjectEntityData) {
+    this.id = data.id;
+    this.workspaceId = data.workspaceId;
+    this.parentProjectId = data.parentProjectId;
+    this.name = data.name;
+    this.color = data.color;
+    this.icon = data.icon;
+    this.position = data.position;
+    this.createdAt = data.createdAt;
+    this.updatedAt = data.updatedAt;
+    this.childProjects = data.childProjects ?? [];
   }
 }

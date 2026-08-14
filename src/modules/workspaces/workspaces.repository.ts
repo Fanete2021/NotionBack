@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma, Role, Workspace, WorkspaceMember } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { isPrismaNotFoundError } from '../../common/prisma/is-not-found-error';
 import { WorkspaceMemberEntity } from './entities/workspace-member.entity';
 import { WorkspaceEntity } from './entities/workspace.entity';
 
@@ -166,29 +167,26 @@ export class WorkspacesRepository {
   private isNotFoundError(
     error: unknown,
   ): error is Prisma.PrismaClientKnownRequestError {
-    return (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === 'P2025'
-    );
+    return isPrismaNotFoundError(error);
   }
 
   private mapToEntity(workspace: Workspace): WorkspaceEntity {
-    return new WorkspaceEntity(
-      workspace.id,
-      workspace.name,
-      workspace.ownerId,
-      workspace.isPublic,
-      workspace.createdAt,
-    );
+    return new WorkspaceEntity({
+      id: workspace.id,
+      name: workspace.name,
+      ownerId: workspace.ownerId,
+      isPublic: workspace.isPublic,
+      createdAt: workspace.createdAt,
+    });
   }
 
   private mapMemberToEntity(member: WorkspaceMember): WorkspaceMemberEntity {
-    return new WorkspaceMemberEntity(
-      member.id,
-      member.workspaceId,
-      member.userId,
-      member.role,
-      member.createdAt,
-    );
+    return new WorkspaceMemberEntity({
+      id: member.id,
+      workspaceId: member.workspaceId,
+      userId: member.userId,
+      role: member.role,
+      createdAt: member.createdAt,
+    });
   }
 }

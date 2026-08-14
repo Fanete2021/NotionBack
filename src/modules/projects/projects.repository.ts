@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma, Project } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { isPrismaNotFoundError } from '../../common/prisma/is-not-found-error';
 import { ProjectEntity } from './entities/project.entity';
 
 export type CreateProjectData = Omit<
@@ -140,23 +141,20 @@ export class ProjectsRepository {
   private isNotFoundError(
     error: unknown,
   ): error is Prisma.PrismaClientKnownRequestError {
-    return (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === 'P2025'
-    );
+    return isPrismaNotFoundError(error);
   }
 
   private mapToEntity(project: Project): ProjectEntity {
-    return new ProjectEntity(
-      project.id,
-      project.workspaceId,
-      project.parentProjectId,
-      project.name,
-      project.color,
-      project.icon,
-      project.position,
-      project.createdAt,
-      project.updatedAt,
-    );
+    return new ProjectEntity({
+      id: project.id,
+      workspaceId: project.workspaceId,
+      parentProjectId: project.parentProjectId,
+      name: project.name,
+      color: project.color,
+      icon: project.icon,
+      position: project.position,
+      createdAt: project.createdAt,
+      updatedAt: project.updatedAt,
+    });
   }
 }
