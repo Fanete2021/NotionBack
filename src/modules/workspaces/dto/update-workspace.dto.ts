@@ -1,4 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
 import { IsBoolean, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class UpdateWorkspaceDto {
@@ -6,6 +7,9 @@ export class UpdateWorkspaceDto {
     example: 'My renamed workspace',
     description: 'Workspace name',
   })
+  @Transform(({ value }: { value: string }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
   @IsOptional()
   @IsString()
   @IsNotEmpty({ message: 'Workspace name must not be empty' })

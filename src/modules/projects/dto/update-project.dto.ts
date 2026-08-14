@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, IsUUID } from 'class-validator';
 
 export class UpdateProjectDto {
   @ApiPropertyOptional({ example: 'Personal', description: 'Project name' })
@@ -17,7 +17,7 @@ export class UpdateProjectDto {
     description: 'Parent project id (null to move to root)',
   })
   @IsOptional()
-  @IsString()
+  @IsUUID()
   parentProjectId?: string | null;
 
   @ApiPropertyOptional({ example: '#3b82f6', description: 'Project color' })

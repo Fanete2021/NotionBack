@@ -3,7 +3,7 @@ import {
   ArrayNotEmpty,
   ArrayUnique,
   IsOptional,
-  IsString,
+  IsUUID,
 } from 'class-validator';
 
 export class ReorderProjectsDto {
@@ -12,7 +12,7 @@ export class ReorderProjectsDto {
     description: 'Parent project id (null for root level)',
   })
   @IsOptional()
-  @IsString()
+  @IsUUID()
   parentProjectId?: string | null;
 
   @ApiProperty({
@@ -21,6 +21,6 @@ export class ReorderProjectsDto {
   })
   @ArrayNotEmpty({ message: 'orderedIds must not be empty' })
   @ArrayUnique({ message: 'orderedIds must not contain duplicates' })
-  @IsString({ each: true, message: 'orderedIds must contain only strings' })
+  @IsUUID('all', { each: true, message: 'orderedIds must contain only UUIDs' })
   orderedIds!: string[];
 }

@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, IsUUID } from 'class-validator';
 
 export class CreateProjectDto {
   @ApiProperty({ example: 'Work', description: 'Project name' })
@@ -16,7 +16,7 @@ export class CreateProjectDto {
     description: 'Parent project id (for nesting)',
   })
   @IsOptional()
-  @IsString()
+  @IsUUID()
   parentProjectId?: string;
 
   @ApiPropertyOptional({ example: '#ff6347', description: 'Project color' })
