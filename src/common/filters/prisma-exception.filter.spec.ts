@@ -32,6 +32,7 @@ describe('PrismaExceptionFilter', () => {
     ['P2002', 409],
     ['P2003', 400],
     ['P2025', 404],
+    ['P9999', 500],
   ])('маппит %s -> %i', (code, status) => {
     filter.catch(knownError(code), hostMock);
 
