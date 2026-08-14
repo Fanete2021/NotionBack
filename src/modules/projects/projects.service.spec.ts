@@ -1,7 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ProjectsService } from './projects.service';
 import { ProjectsRepository } from './projects.repository';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { WorkspacesService } from '../workspaces/workspaces.service';
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 
 describe('ProjectsService', () => {
   let service: ProjectsService;
@@ -15,12 +20,17 @@ describe('ProjectsService', () => {
     reorder: jest.fn(),
   };
 
+  const mockWorkspacesService = {
+    assertMemberOf: jest.fn(),
+  };
+
   beforeEach(async () => {
-    jest.clearAllMocks();
+    jest.resetAllMocks();
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ProjectsService,
         { provide: ProjectsRepository, useValue: mockProjectsRepository },
+        { provide: WorkspacesService, useValue: mockWorkspacesService },
       ],
     }).compile();
 
@@ -32,8 +42,12 @@ describe('ProjectsService', () => {
       mockProjectsRepository.create.mockResolvedValue({ id: 'p1' });
 
       const data = { name: 'Work' };
-      const result = await service.create('ws-1', data);
+      const result = await service.create('user-1', 'ws-1', data);
 
+      expect(mockWorkspacesService.assertMemberOf).toHaveBeenCalledWith(
+        'ws-1',
+        'user-1',
+      );
       expect(mockProjectsRepository.findById).not.toHaveBeenCalled();
       expect(mockProjectsRepository.create).toHaveBeenCalledWith('ws-1', data);
       expect(result).toEqual({ id: 'p1' });
@@ -48,7 +62,7 @@ describe('ProjectsService', () => {
 
       const data = { name: 'Child', parentProjectId: 'parent' };
 
-      await expect(service.create('ws-1', data)).resolves.toEqual({
+      await expect(service.create('user-1', 'ws-1', data)).resolves.toEqual({
         id: 'p2',
       });
       expect(mockProjectsRepository.findById).toHaveBeenCalledWith('parent');
@@ -61,7 +75,10 @@ describe('ProjectsService', () => {
       });
 
       await expect(
-        service.create('ws-1', { name: 'X', parentProjectId: 'parent' }),
+        service.create('user-1', 'ws-1', {
+          name: 'X',
+          parentProjectId: 'parent',
+        }),
       ).rejects.toThrow(BadRequestException);
       expect(mockProjectsRepository.create).not.toHaveBeenCalled();
     });
@@ -70,8 +87,22 @@ describe('ProjectsService', () => {
       mockProjectsRepository.findById.mockResolvedValue(null);
 
       await expect(
-        service.create('ws-1', { name: 'X', parentProjectId: 'missing' }),
+        service.create('user-1', 'ws-1', {
+          name: 'X',
+          parentProjectId: 'missing',
+        }),
       ).rejects.toThrow(BadRequestException);
+      expect(mockProjectsRepository.create).not.toHaveBeenCalled();
+    });
+
+    it('бросает 403, если пользователь не участник воркспейса', async () => {
+      mockWorkspacesService.assertMemberOf.mockRejectedValue(
+        new ForbiddenException('You are not a member of this workspace'),
+      );
+
+      await expect(
+        service.create('user-1', 'ws-1', { name: 'X' }),
+      ).rejects.toThrow(ForbiddenException);
       expect(mockProjectsRepository.create).not.toHaveBeenCalled();
     });
   });
@@ -80,7 +111,24 @@ describe('ProjectsService', () => {
     it('бросает 404, если проект не найден', async () => {
       mockProjectsRepository.findById.mockResolvedValue(null);
 
-      await expect(service.update('p1', {})).rejects.toThrow(NotFoundException);
+      await expect(service.update('user-1', 'p1', {})).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('бросает 403, если пользователь не участник воркспейса', async () => {
+      mockProjectsRepository.findById.mockResolvedValue({
+        id: 'p1',
+        workspaceId: 'ws-1',
+      });
+      mockWorkspacesService.assertMemberOf.mockRejectedValue(
+        new ForbiddenException('You are not a member of this workspace'),
+      );
+
+      await expect(service.update('user-1', 'p1', {})).rejects.toThrow(
+        ForbiddenException,
+      );
+      expect(mockProjectsRepository.update).not.toHaveBeenCalled();
     });
 
     it('бросает 400, если новый родитель из другого воркспейса', async () => {
@@ -89,7 +137,7 @@ describe('ProjectsService', () => {
         .mockResolvedValueOnce({ id: 'parent', workspaceId: 'ws-other' });
 
       await expect(
-        service.update('p1', { parentProjectId: 'parent' }),
+        service.update('user-1', 'p1', { parentProjectId: 'parent' }),
       ).rejects.toThrow(BadRequestException);
       expect(mockProjectsRepository.update).not.toHaveBeenCalled();
     });
@@ -100,11 +148,15 @@ describe('ProjectsService', () => {
         .mockResolvedValueOnce({ id: 'parent', workspaceId: 'ws-1' });
       mockProjectsRepository.update.mockResolvedValue({ id: 'p1' });
 
-      const result = await service.update('p1', {
+      const result = await service.update('user-1', 'p1', {
         name: 'New',
         parentProjectId: 'parent',
       });
 
+      expect(mockWorkspacesService.assertMemberOf).toHaveBeenCalledWith(
+        'ws-1',
+        'user-1',
+      );
       expect(mockProjectsRepository.update).toHaveBeenCalledWith(
         'p1',
         expect.objectContaining({ name: 'New', parentProjectId: 'parent' }),
@@ -119,7 +171,7 @@ describe('ProjectsService', () => {
       });
       mockProjectsRepository.update.mockResolvedValue({ id: 'p1' });
 
-      await service.update('p1', { parentProjectId: null });
+      await service.update('user-1', 'p1', { parentProjectId: null });
 
       expect(mockProjectsRepository.findById).toHaveBeenCalledTimes(1);
       expect(mockProjectsRepository.update).toHaveBeenCalledWith(
@@ -130,6 +182,20 @@ describe('ProjectsService', () => {
   });
 
   describe('reorder', () => {
+    it('бросает 403, если пользователь не участник воркспейса', async () => {
+      mockWorkspacesService.assertMemberOf.mockRejectedValue(
+        new ForbiddenException('You are not a member of this workspace'),
+      );
+
+      await expect(
+        service.reorder('user-1', 'ws-1', {
+          parentProjectId: 'parent',
+          orderedIds: ['p1'],
+        }),
+      ).rejects.toThrow(ForbiddenException);
+      expect(mockProjectsRepository.reorder).not.toHaveBeenCalled();
+    });
+
     it('бросает 400, если родитель из другого воркспейса', async () => {
       mockProjectsRepository.findById.mockResolvedValue({
         id: 'parent',
@@ -137,7 +203,7 @@ describe('ProjectsService', () => {
       });
 
       await expect(
-        service.reorder('ws-1', {
+        service.reorder('user-1', 'ws-1', {
           parentProjectId: 'parent',
           orderedIds: ['p1'],
         }),
@@ -149,7 +215,7 @@ describe('ProjectsService', () => {
       mockProjectsRepository.reorder.mockResolvedValue(null);
 
       await expect(
-        service.reorder('ws-1', { orderedIds: ['p1'] }),
+        service.reorder('user-1', 'ws-1', { orderedIds: ['p1'] }),
       ).rejects.toThrow(BadRequestException);
       expect(mockProjectsRepository.reorder).toHaveBeenCalledWith(
         'ws-1',
@@ -165,10 +231,14 @@ describe('ProjectsService', () => {
       ];
       mockProjectsRepository.reorder.mockResolvedValue(flat);
 
-      const result = await service.reorder('ws-1', {
+      const result = await service.reorder('user-1', 'ws-1', {
         orderedIds: ['p2', 'p1'],
       });
 
+      expect(mockWorkspacesService.assertMemberOf).toHaveBeenCalledWith(
+        'ws-1',
+        'user-1',
+      );
       expect(mockProjectsRepository.reorder).toHaveBeenCalledWith(
         'ws-1',
         null,
@@ -179,15 +249,19 @@ describe('ProjectsService', () => {
   });
 
   describe('findAllByWorkspaceId', () => {
-    it('собирает дерево из плоского списка репозитория', async () => {
+    it('проверяет членство и собирает дерево из плоского списка репозитория', async () => {
       const flat = [
         { id: 'root', parentProjectId: null, childProjects: [] },
         { id: 'child', parentProjectId: 'root', childProjects: [] },
       ];
       mockProjectsRepository.findAllByWorkspaceId.mockResolvedValue(flat);
 
-      const result = await service.findAllByWorkspaceId('ws-1');
+      const result = await service.findAllByWorkspaceId('user-1', 'ws-1');
 
+      expect(mockWorkspacesService.assertMemberOf).toHaveBeenCalledWith(
+        'ws-1',
+        'user-1',
+      );
       expect(mockProjectsRepository.findAllByWorkspaceId).toHaveBeenCalledWith(
         'ws-1',
       );
@@ -198,17 +272,84 @@ describe('ProjectsService', () => {
     });
   });
 
+  describe('findById', () => {
+    it('бросает 404, если проект не существует', async () => {
+      mockProjectsRepository.findById.mockResolvedValue(null);
+
+      await expect(service.findById('user-1', 'p1')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('бросает 403, если пользователь не участник воркспейса', async () => {
+      mockProjectsRepository.findById.mockResolvedValue({
+        id: 'p1',
+        workspaceId: 'ws-1',
+      });
+      mockWorkspacesService.assertMemberOf.mockRejectedValue(
+        new ForbiddenException('You are not a member of this workspace'),
+      );
+
+      await expect(service.findById('user-1', 'p1')).rejects.toThrow(
+        ForbiddenException,
+      );
+    });
+
+    it('возвращает проект участнику воркспейса', async () => {
+      mockProjectsRepository.findById.mockResolvedValue({
+        id: 'p1',
+        workspaceId: 'ws-1',
+        name: 'Work',
+      });
+
+      await expect(service.findById('user-1', 'p1')).resolves.toEqual({
+        id: 'p1',
+        workspaceId: 'ws-1',
+        name: 'Work',
+      });
+      expect(mockWorkspacesService.assertMemberOf).toHaveBeenCalledWith(
+        'ws-1',
+        'user-1',
+      );
+    });
+  });
+
   describe('delete', () => {
     it('бросает 404, если проект не существует', async () => {
-      mockProjectsRepository.delete.mockResolvedValue(false);
+      mockProjectsRepository.findById.mockResolvedValue(null);
 
-      await expect(service.delete('p1')).rejects.toThrow(NotFoundException);
+      await expect(service.delete('user-1', 'p1')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('бросает 403, если пользователь не участник воркспейса', async () => {
+      mockProjectsRepository.findById.mockResolvedValue({
+        id: 'p1',
+        workspaceId: 'ws-1',
+      });
+      mockWorkspacesService.assertMemberOf.mockRejectedValue(
+        new ForbiddenException('You are not a member of this workspace'),
+      );
+
+      await expect(service.delete('user-1', 'p1')).rejects.toThrow(
+        ForbiddenException,
+      );
+      expect(mockProjectsRepository.delete).not.toHaveBeenCalled();
     });
 
     it('удаляет существующий проект', async () => {
+      mockProjectsRepository.findById.mockResolvedValue({
+        id: 'p1',
+        workspaceId: 'ws-1',
+      });
       mockProjectsRepository.delete.mockResolvedValue(true);
 
-      await expect(service.delete('p1')).resolves.toBeUndefined();
+      await expect(service.delete('user-1', 'p1')).resolves.toBeUndefined();
+      expect(mockWorkspacesService.assertMemberOf).toHaveBeenCalledWith(
+        'ws-1',
+        'user-1',
+      );
       expect(mockProjectsRepository.delete).toHaveBeenCalledWith('p1');
     });
   });

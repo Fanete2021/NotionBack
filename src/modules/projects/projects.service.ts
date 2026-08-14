@@ -5,41 +5,58 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { CreateProjectData, ProjectsRepository } from './projects.repository';
+import { WorkspacesService } from '../workspaces/workspaces.service';
 import { ProjectEntity } from './entities/project.entity';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { ReorderProjectsDto } from './dto/reorder-projects.dto';
 
 @Injectable()
 export class ProjectsService {
-  constructor(private readonly projectsRepository: ProjectsRepository) {}
+  constructor(
+    private readonly projectsRepository: ProjectsRepository,
+    private readonly workspacesService: WorkspacesService,
+  ) {}
 
   async create(
+    userId: string,
     workspaceId: string,
     data: CreateProjectData,
   ): Promise<ProjectEntity> {
+    await this.workspacesService.assertMemberOf(workspaceId, userId);
     await this.assertParentInWorkspace(workspaceId, data.parentProjectId);
     return this.projectsRepository.create(workspaceId, data);
   }
 
-  async findAllByWorkspaceId(workspaceId: string): Promise<ProjectEntity[]> {
+  async findAllByWorkspaceId(
+    userId: string,
+    workspaceId: string,
+  ): Promise<ProjectEntity[]> {
+    await this.workspacesService.assertMemberOf(workspaceId, userId);
     const flat =
       await this.projectsRepository.findAllByWorkspaceId(workspaceId);
     return this.buildTree(flat);
   }
 
-  async findById(id: string): Promise<ProjectEntity> {
+  async findById(userId: string, id: string): Promise<ProjectEntity> {
     const project = await this.projectsRepository.findById(id);
     if (!project) {
       throw new NotFoundException('Project not found');
     }
+    await this.workspacesService.assertMemberOf(project.workspaceId, userId);
     return project;
   }
 
-  async update(id: string, data: UpdateProjectDto): Promise<ProjectEntity> {
+  async update(
+    userId: string,
+    id: string,
+    data: UpdateProjectDto,
+  ): Promise<ProjectEntity> {
     const project = await this.projectsRepository.findById(id);
     if (!project) {
       throw new NotFoundException('Project not found');
     }
+
+    await this.workspacesService.assertMemberOf(project.workspaceId, userId);
 
     await this.assertParentInWorkspace(
       project.workspaceId,
@@ -61,9 +78,12 @@ export class ProjectsService {
   }
 
   async reorder(
+    userId: string,
     workspaceId: string,
     dto: ReorderProjectsDto,
   ): Promise<ProjectEntity[]> {
+    await this.workspacesService.assertMemberOf(workspaceId, userId);
+
     const parentProjectId = dto.parentProjectId ?? null;
     await this.assertParentInWorkspace(workspaceId, parentProjectId);
 
@@ -82,7 +102,13 @@ export class ProjectsService {
     return this.buildTree(flat);
   }
 
-  async delete(id: string): Promise<void> {
+  async delete(userId: string, id: string): Promise<void> {
+    const project = await this.projectsRepository.findById(id);
+    if (!project) {
+      throw new NotFoundException('Project not found');
+    }
+    await this.workspacesService.assertMemberOf(project.workspaceId, userId);
+
     const deleted = await this.projectsRepository.delete(id);
     if (!deleted) {
       throw new NotFoundException('Project not found');
@@ -121,8 +147,18 @@ export class ProjectsService {
     }
 
     const attach = (project: ProjectEntity): ProjectEntity => {
-      project.childProjects = (children.get(project.id) ?? []).map(attach);
-      return project;
+      return new ProjectEntity({
+        id: project.id,
+        workspaceId: project.workspaceId,
+        parentProjectId: project.parentProjectId,
+        name: project.name,
+        color: project.color,
+        icon: project.icon,
+        position: project.position,
+        createdAt: project.createdAt,
+        updatedAt: project.updatedAt,
+        childProjects: (children.get(project.id) ?? []).map(attach),
+      });
     };
 
     return roots.map(attach);
