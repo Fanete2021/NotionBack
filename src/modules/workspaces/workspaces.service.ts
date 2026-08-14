@@ -2,14 +2,14 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
-  ConflictException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Role, Prisma } from '@prisma/client';
+import { Role } from '@prisma/client';
 import { WorkspacesRepository } from './workspaces.repository';
 import { WorkspaceEntity } from './entities/workspace.entity';
 import { WorkspaceMemberEntity } from './entities/workspace-member.entity';
 import { UsersService } from '../users/users.service';
+import { UpdateWorkspaceDto } from './dto/update-workspace.dto';
 
 @Injectable()
 export class WorkspacesService {
@@ -35,7 +35,8 @@ export class WorkspacesService {
     return this.workspacesRepository.create(ownerId, name);
   }
 
-  async findById(id: string): Promise<WorkspaceEntity> {
+  async findById(userId: string, id: string): Promise<WorkspaceEntity> {
+    await this.assertMemberOf(id, userId);
     const workspace = await this.workspacesRepository.findById(id);
     if (!workspace) {
       throw new NotFoundException('Workspace not found');
@@ -48,9 +49,11 @@ export class WorkspacesService {
   }
 
   async update(
+    userId: string,
     id: string,
-    payload: Prisma.WorkspaceUpdateInput,
+    payload: UpdateWorkspaceDto,
   ): Promise<WorkspaceEntity> {
+    await this.assertOwner(id, userId);
     const workspace = await this.workspacesRepository.update(id, payload);
     if (!workspace) {
       throw new NotFoundException('Workspace not found');
@@ -58,14 +61,19 @@ export class WorkspacesService {
     return workspace;
   }
 
-  async delete(id: string): Promise<void> {
+  async delete(userId: string, id: string): Promise<void> {
+    await this.assertOwner(id, userId);
     const deleted = await this.workspacesRepository.delete(id);
     if (!deleted) {
       throw new NotFoundException('Workspace not found');
     }
   }
 
-  async listMembers(workspaceId: string): Promise<WorkspaceMemberEntity[]> {
+  async listMembers(
+    userId: string,
+    workspaceId: string,
+  ): Promise<WorkspaceMemberEntity[]> {
+    await this.assertMemberOf(workspaceId, userId);
     return this.workspacesRepository.findAllMembers(workspaceId);
   }
 
@@ -78,7 +86,7 @@ export class WorkspacesService {
     await this.assertCanManageMembers(workspaceId, actorId);
 
     if (role === Role.ADMIN) {
-      await this.assertIsOwner(workspaceId, actorId);
+      await this.assertOwner(workspaceId, actorId);
     }
 
     if (role === Role.OWNER) {
@@ -92,23 +100,7 @@ export class WorkspacesService {
       throw new NotFoundException('User not found');
     }
 
-    try {
-      return await this.workspacesRepository.addMember(
-        workspaceId,
-        userId,
-        role,
-      );
-    } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2002'
-      ) {
-        throw new ConflictException(
-          'User is already a member of this workspace',
-        );
-      }
-      throw error;
-    }
+    return this.workspacesRepository.addMember(workspaceId, userId, role);
   }
 
   async changeMemberRole(
@@ -137,7 +129,7 @@ export class WorkspacesService {
     this.assertCanChangeRole(actorMembership, targetMembership);
 
     if (role === Role.ADMIN) {
-      await this.assertIsOwner(workspaceId, actorId);
+      await this.assertOwner(workspaceId, actorId);
     }
 
     if (role === Role.OWNER) {
@@ -206,8 +198,24 @@ export class WorkspacesService {
     }
   }
 
-  async assertOwner(workspaceId: string, userId: string): Promise<void> {
-    await this.assertIsOwner(workspaceId, userId);
+  async assertOwner(
+    workspaceId: string,
+    userId: string,
+  ): Promise<WorkspaceMemberEntity> {
+    const membership = await this.workspacesRepository.findMembership(
+      workspaceId,
+      userId,
+    );
+
+    if (!membership) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    if (membership.role !== Role.OWNER) {
+      throw new ForbiddenException('Only the workspace owner can do this');
+    }
+
+    return membership;
   }
 
   private async assertCanManageMembers(
@@ -225,26 +233,6 @@ export class WorkspacesService {
 
     if (membership.role !== Role.OWNER && membership.role !== Role.ADMIN) {
       throw new ForbiddenException('Only owner or admin can manage members');
-    }
-
-    return membership;
-  }
-
-  private async assertIsOwner(
-    workspaceId: string,
-    userId: string,
-  ): Promise<WorkspaceMemberEntity> {
-    const membership = await this.workspacesRepository.findMembership(
-      workspaceId,
-      userId,
-    );
-
-    if (!membership) {
-      throw new NotFoundException('Workspace not found');
-    }
-
-    if (membership.role !== Role.OWNER) {
-      throw new ForbiddenException('Only the workspace owner can do this');
     }
 
     return membership;

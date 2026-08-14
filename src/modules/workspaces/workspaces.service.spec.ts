@@ -3,11 +3,7 @@ import { WorkspacesService } from './workspaces.service';
 import { WorkspacesRepository } from './workspaces.repository';
 import { UsersService } from '../users/users.service';
 import { ConfigService } from '@nestjs/config';
-import {
-  ConflictException,
-  ForbiddenException,
-  NotFoundException,
-} from '@nestjs/common';
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { Prisma, Role } from '@prisma/client';
 
 describe('WorkspacesService', () => {
@@ -107,14 +103,37 @@ describe('WorkspacesService', () => {
   describe('findById', () => {
     it('возвращает воркспейс', async () => {
       mockWorkspacesRepository.findById.mockResolvedValue({ id: 'ws-1' });
+      mockWorkspacesRepository.findMembership.mockResolvedValue(
+        membership(Role.EDITOR),
+      );
 
-      await expect(service.findById('ws-1')).resolves.toEqual({ id: 'ws-1' });
+      await expect(service.findById('user-1', 'ws-1')).resolves.toEqual({
+        id: 'ws-1',
+      });
+      expect(mockWorkspacesRepository.findMembership).toHaveBeenCalledWith(
+        'ws-1',
+        'user-1',
+      );
+    });
+
+    it('бросает 403, если пользователь не участник', async () => {
+      mockWorkspacesRepository.findById.mockResolvedValue({ id: 'ws-1' });
+      mockWorkspacesRepository.findMembership.mockResolvedValue(null);
+
+      await expect(service.findById('user-1', 'ws-1')).rejects.toThrow(
+        ForbiddenException,
+      );
     });
 
     it('бросает 404, если воркспейс не найден', async () => {
       mockWorkspacesRepository.findById.mockResolvedValue(null);
+      mockWorkspacesRepository.findMembership.mockResolvedValue(
+        membership(Role.EDITOR),
+      );
 
-      await expect(service.findById('ws-1')).rejects.toThrow(NotFoundException);
+      await expect(service.findById('user-1', 'ws-1')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -131,47 +150,99 @@ describe('WorkspacesService', () => {
   });
 
   describe('update', () => {
-    it('обновляет воркспейс', async () => {
+    it('обновляет воркспейс (owner)', async () => {
+      mockWorkspacesRepository.findMembership.mockResolvedValue(
+        membership(Role.OWNER),
+      );
       mockWorkspacesRepository.update.mockResolvedValue({
         id: 'ws-1',
         name: 'New name',
       });
 
       await expect(
-        service.update('ws-1', { name: 'New name' }),
+        service.update('user-1', 'ws-1', { name: 'New name' }),
       ).resolves.toEqual({ id: 'ws-1', name: 'New name' });
     });
 
+    it('бросает 403, если пользователь не owner', async () => {
+      mockWorkspacesRepository.findMembership.mockResolvedValue(
+        membership(Role.EDITOR),
+      );
+
+      await expect(
+        service.update('user-1', 'ws-1', { name: 'X' }),
+      ).rejects.toThrow(ForbiddenException);
+      expect(mockWorkspacesRepository.update).not.toHaveBeenCalled();
+    });
+
     it('бросает 404, если воркспейс не найден', async () => {
+      mockWorkspacesRepository.findMembership.mockResolvedValue(
+        membership(Role.OWNER),
+      );
       mockWorkspacesRepository.update.mockResolvedValue(null);
 
-      await expect(service.update('ws-1', { name: 'X' })).rejects.toThrow(
+      await expect(
+        service.update('user-1', 'ws-1', { name: 'X' }),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('delete', () => {
+    it('удаляет воркспейс (owner)', async () => {
+      mockWorkspacesRepository.findMembership.mockResolvedValue(
+        membership(Role.OWNER),
+      );
+      mockWorkspacesRepository.delete.mockResolvedValue(true);
+
+      await expect(service.delete('user-1', 'ws-1')).resolves.toBeUndefined();
+    });
+
+    it('бросает 403, если пользователь не owner', async () => {
+      mockWorkspacesRepository.findMembership.mockResolvedValue(
+        membership(Role.EDITOR),
+      );
+
+      await expect(service.delete('user-1', 'ws-1')).rejects.toThrow(
+        ForbiddenException,
+      );
+      expect(mockWorkspacesRepository.delete).not.toHaveBeenCalled();
+    });
+
+    it('бросает 404, если воркспейс не найден', async () => {
+      mockWorkspacesRepository.findMembership.mockResolvedValue(
+        membership(Role.OWNER),
+      );
+      mockWorkspacesRepository.delete.mockResolvedValue(false);
+
+      await expect(service.delete('user-1', 'ws-1')).rejects.toThrow(
         NotFoundException,
       );
     });
   });
 
-  describe('delete', () => {
-    it('удаляет воркспейс', async () => {
-      mockWorkspacesRepository.delete.mockResolvedValue(true);
-
-      await expect(service.delete('ws-1')).resolves.toBeUndefined();
-    });
-
-    it('бросает 404, если воркспейс не найден', async () => {
-      mockWorkspacesRepository.delete.mockResolvedValue(false);
-
-      await expect(service.delete('ws-1')).rejects.toThrow(NotFoundException);
-    });
-  });
-
   describe('listMembers', () => {
     it('возвращает участников воркспейса', async () => {
+      mockWorkspacesRepository.findById.mockResolvedValue({ id: 'ws-1' });
+      mockWorkspacesRepository.findMembership.mockResolvedValue(
+        membership(Role.EDITOR),
+      );
       mockWorkspacesRepository.findAllMembers.mockResolvedValue([
         { workspaceId: 'ws-1', userId: 'user-1' },
       ]);
 
-      await expect(service.listMembers('ws-1')).resolves.toHaveLength(1);
+      await expect(service.listMembers('user-1', 'ws-1')).resolves.toHaveLength(
+        1,
+      );
+    });
+
+    it('бросает 403, если пользователь не участник', async () => {
+      mockWorkspacesRepository.findById.mockResolvedValue({ id: 'ws-1' });
+      mockWorkspacesRepository.findMembership.mockResolvedValue(null);
+
+      await expect(service.listMembers('user-1', 'ws-1')).rejects.toThrow(
+        ForbiddenException,
+      );
+      expect(mockWorkspacesRepository.findAllMembers).not.toHaveBeenCalled();
     });
   });
 
@@ -273,16 +344,16 @@ describe('WorkspacesService', () => {
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('бросает 409, если участник уже существует (P2002)', async () => {
+    it('пробрасывает P2002 наружу (маппит PrismaExceptionFilter)', async () => {
       mockWorkspacesRepository.findMembership.mockResolvedValue(
         membership(Role.OWNER),
       );
       mockUsersService.findById.mockResolvedValue({ id: 'user-2' });
       mockWorkspacesRepository.addMember.mockRejectedValue(p2002);
 
-      await expect(
-        service.addMember('user-1', 'ws-1', 'user-2'),
-      ).rejects.toThrow(ConflictException);
+      await expect(service.addMember('user-1', 'ws-1', 'user-2')).rejects.toBe(
+        p2002,
+      );
     });
   });
 
@@ -520,9 +591,9 @@ describe('WorkspacesService', () => {
         membership(Role.OWNER),
       );
 
-      await expect(
-        service.assertOwner('ws-1', 'user-1'),
-      ).resolves.toBeUndefined();
+      await expect(service.assertOwner('ws-1', 'user-1')).resolves.toEqual(
+        membership(Role.OWNER),
+      );
     });
 
     it('бросает 403, если роль не OWNER', async () => {
