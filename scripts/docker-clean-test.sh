@@ -10,12 +10,6 @@ docker compose down -v --rmi all
 echo "==> Чищу build-кэш Docker..."
 docker builder prune -af
 
-if [ ! -f .env ]; then
-  echo "==> .env не найден, создаю из .env.example"
-  cp .env.example .env
-  echo "!!! Заполни реальные значения в .env перед продолжением, если нужно"
-fi
-
 echo "==> Собираю и поднимаю с нуля..."
 docker compose up --build -d
 

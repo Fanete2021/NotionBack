@@ -1,0 +1,18 @@
+FROM node:22-alpine
+
+WORKDIR /app
+
+ARG DATABASE_URL=postgresql://postgres:postgres@localhost:5432/notionback?schema=public
+ENV DATABASE_URL=${DATABASE_URL}
+
+COPY package.json package-lock.json ./
+COPY prisma ./prisma
+COPY nest-cli.json prisma.config.ts tsconfig.json tsconfig.build.json ./
+
+RUN npm ci
+
+COPY src ./src
+
+EXPOSE 8000
+
+CMD ["sh", "-c", "npx prisma migrate deploy && npx prisma generate && npm run start:dev"]
