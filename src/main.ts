@@ -1,4 +1,5 @@
 import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
@@ -7,7 +8,7 @@ import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter'
 import { ValidationPipe } from '@nestjs/common';
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   const configService = app.get(ConfigService);
 
@@ -15,6 +16,12 @@ async function bootstrap(): Promise<void> {
     origin: configService.get<string>('FRONT_URL', 'http://localhost:3000'),
     credentials: true,
   });
+
+  const maxPageContentBytes = configService.get<number>(
+    'MAX_PAGE_CONTENT_BYTES',
+    1048576,
+  );
+  app.useBodyParser('json', { limit: maxPageContentBytes * 2 });
 
   app.useGlobalFilters(new PrismaExceptionFilter(), new HttpExceptionsFilter());
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));

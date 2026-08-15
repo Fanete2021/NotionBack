@@ -9,6 +9,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { ProjectsModule } from './modules/projects/projects.module';
 import { WorkspacesModule } from './modules/workspaces/workspaces.module';
+import { PagesModule } from './modules/pages/pages.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import appConfig from './config/app.config';
 import authConfig from './config/auth.config';
@@ -34,6 +35,7 @@ import * as Joi from 'joi';
         REDIS_PORT: Joi.number().default(6379),
         FRONT_URL: Joi.string().default('http://localhost:3000'),
         MAX_WORKSPACES_PER_USER: Joi.number().default(3),
+        MAX_PAGE_CONTENT_BYTES: Joi.number().default(1048576),
       }),
     }),
     PrismaModule,
@@ -41,6 +43,7 @@ import * as Joi from 'joi';
     UsersModule,
     ProjectsModule,
     WorkspacesModule,
+    PagesModule,
   ],
   controllers: [AppController, HealthController],
   providers: [
