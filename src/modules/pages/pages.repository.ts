@@ -61,6 +61,19 @@ export class PagesRepository {
     return this.mapToEntity(page);
   }
 
+  async nextPosition(workspaceId: string, projectId: string): Promise<number> {
+    const { _max } = await this.prisma.page.aggregate({
+      where: {
+        workspaceId,
+        projectId,
+        parentPageId: null,
+      },
+      _max: { position: true },
+    });
+
+    return (_max.position ?? -1) + 1;
+  }
+
   async findAllByWorkspaceId(
     workspaceId: string,
     projectId?: string,
@@ -95,7 +108,7 @@ export class PagesRepository {
   ): Promise<PageEntity | null> {
     const page = await this.prisma.page
       .update({
-        where: { id },
+        where: { id, deletedAt: null },
         data,
       })
       .catch((error) => {
@@ -111,7 +124,7 @@ export class PagesRepository {
   async softDelete(id: string): Promise<boolean> {
     try {
       await this.prisma.page.update({
-        where: { id },
+        where: { id, deletedAt: null },
         data: { deletedAt: new Date() },
       });
       return true;

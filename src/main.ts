@@ -17,6 +17,10 @@ async function bootstrap(): Promise<void> {
     credentials: true,
   });
 
+  // Глобальная рамка body-parser: дефолт Express (100 KB) не пропускает
+  // контент страниц. Ставим 2× лимит контента, точный лимит (Buffer.byteLength)
+  // проверяется в PagesService.updateContent. Это ослабляет общий лимит тела для
+  // всех JSON-роутов (register/login и пр.), поэтому держим множитель минимальным.
   const maxPageContentBytes = configService.get<number>(
     'MAX_PAGE_CONTENT_BYTES',
     1048576,

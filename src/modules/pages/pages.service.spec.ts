@@ -16,6 +16,7 @@ describe('PagesService', () => {
     create: jest.fn(),
     findAllByWorkspaceId: jest.fn(),
     findById: jest.fn(),
+    nextPosition: jest.fn(),
     update: jest.fn(),
     softDelete: jest.fn(),
     findContent: jest.fn(),
@@ -163,23 +164,41 @@ describe('PagesService', () => {
       mockPagesRepository.findById.mockResolvedValue({
         id: 'p1',
         workspaceId: 'ws-1',
+        projectId: 'prj-1',
       });
       mockProjectsRepository.findById.mockResolvedValue({
         id: 'prj-2',
         workspaceId: 'ws-1',
       });
-      mockPagesRepository.findAllByWorkspaceId.mockResolvedValue([
-        { id: 'p1' },
-        { id: 'p2' },
-        { id: 'p3' },
-      ]);
+      mockPagesRepository.nextPosition.mockResolvedValue(3);
       mockPagesRepository.update.mockResolvedValue({ id: 'p1' });
 
       await service.update('p1', { projectId: 'prj-2' });
 
+      expect(mockPagesRepository.nextPosition).toHaveBeenCalledWith(
+        'ws-1',
+        'prj-2',
+      );
       expect(mockPagesRepository.update).toHaveBeenCalledWith(
         'p1',
         expect.objectContaining({ projectId: 'prj-2', position: 3 }),
+      );
+    });
+
+    it('не перемещает, если projectId совпадает с текущим', async () => {
+      mockPagesRepository.findById.mockResolvedValue({
+        id: 'p1',
+        workspaceId: 'ws-1',
+        projectId: 'prj-1',
+      });
+      mockPagesRepository.update.mockResolvedValue({ id: 'p1' });
+
+      await service.update('p1', { projectId: 'prj-1' });
+
+      expect(mockPagesRepository.nextPosition).not.toHaveBeenCalled();
+      expect(mockPagesRepository.update).toHaveBeenCalledWith(
+        'p1',
+        expect.not.objectContaining({ projectId: 'prj-1' }),
       );
     });
 
@@ -187,6 +206,7 @@ describe('PagesService', () => {
       mockPagesRepository.findById.mockResolvedValue({
         id: 'p1',
         workspaceId: 'ws-1',
+        projectId: 'prj-1',
       });
       mockProjectsRepository.findById.mockResolvedValue(null);
 
@@ -275,6 +295,21 @@ describe('PagesService', () => {
         BadRequestException,
       );
       await expect(service.updateContent('p1', undefined)).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(mockPagesRepository.upsertContent).not.toHaveBeenCalled();
+    });
+
+    it('бросает 400, если тело не является объектом', async () => {
+      mockPagesRepository.findById.mockResolvedValue({
+        id: 'p1',
+        workspaceId: 'ws-1',
+      });
+
+      await expect(service.updateContent('p1', 'doc')).rejects.toThrow(
+        BadRequestException,
+      );
+      await expect(service.updateContent('p1', [1, 2, 3])).rejects.toThrow(
         BadRequestException,
       );
       expect(mockPagesRepository.upsertContent).not.toHaveBeenCalled();

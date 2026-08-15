@@ -58,10 +58,6 @@ export class PagesService {
       throw new NotFoundException('Page not found');
     }
 
-    if (dto.projectId !== undefined) {
-      await this.assertProjectInWorkspace(page.workspaceId, dto.projectId);
-    }
-
     const payload: Prisma.PageUncheckedUpdateInput = {
       title: dto.title,
       icon: dto.icon,
@@ -69,9 +65,10 @@ export class PagesService {
       type: dto.type,
     };
 
-    if (dto.projectId !== undefined) {
+    if (dto.projectId !== undefined && dto.projectId !== page.projectId) {
+      await this.assertProjectInWorkspace(page.workspaceId, dto.projectId);
       payload.projectId = dto.projectId;
-      payload.position = await this.nextPosition(
+      payload.position = await this.pagesRepository.nextPosition(
         page.workspaceId,
         dto.projectId,
       );
@@ -124,20 +121,13 @@ export class PagesService {
       throw new BadRequestException('Page content must be a JSON value');
     }
 
+    if (typeof json !== 'object' || Array.isArray(json)) {
+      throw new BadRequestException('Page content must be a JSON object');
+    }
+
     this.assertSizeWithinLimit(json);
 
     return this.pagesRepository.upsertContent(id, json);
-  }
-
-  private async nextPosition(
-    workspaceId: string,
-    projectId: string,
-  ): Promise<number> {
-    const pages = await this.pagesRepository.findAllByWorkspaceId(
-      workspaceId,
-      projectId,
-    );
-    return pages.length;
   }
 
   private assertSizeWithinLimit(json: unknown): void {

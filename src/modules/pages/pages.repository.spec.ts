@@ -182,6 +182,34 @@ describe('PagesRepository', () => {
     });
   });
 
+  describe('nextPosition', () => {
+    it('возвращает следующую позицию как _max + 1 для корневых страниц', async () => {
+      mockPrisma.page.aggregate.mockResolvedValue({ _max: { position: 2 } });
+
+      const result = await repository.nextPosition('ws-1', 'prj-1');
+
+      expect(mockPrisma.page.aggregate).toHaveBeenCalledWith({
+        where: {
+          workspaceId: 'ws-1',
+          projectId: 'prj-1',
+          parentPageId: null,
+        },
+        _max: { position: true },
+      });
+      expect(result).toBe(3);
+    });
+
+    it('возвращает 0, если страниц в проекте ещё нет', async () => {
+      mockPrisma.page.aggregate.mockResolvedValue({
+        _max: { position: null },
+      });
+
+      const result = await repository.nextPosition('ws-1', 'prj-1');
+
+      expect(result).toBe(0);
+    });
+  });
+
   describe('findById', () => {
     it('возвращает null, если страница не найдена', async () => {
       mockPrisma.page.findUnique.mockResolvedValue(null);
@@ -217,7 +245,7 @@ describe('PagesRepository', () => {
       const result = await repository.update('p1', { title: 'New' });
 
       expect(mockPrisma.page.update).toHaveBeenCalledWith({
-        where: { id: 'p1' },
+        where: { id: 'p1', deletedAt: null },
         data: { title: 'New' },
       });
       expect(result).toBeInstanceOf(PageEntity);
@@ -237,7 +265,7 @@ describe('PagesRepository', () => {
       const result = await repository.softDelete('p1');
 
       expect(mockPrisma.page.update).toHaveBeenCalledWith({
-        where: { id: 'p1' },
+        where: { id: 'p1', deletedAt: null },
         data: { deletedAt: expect.any(Date) as Date },
       });
       expect(result).toBe(true);
