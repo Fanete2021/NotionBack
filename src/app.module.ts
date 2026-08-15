@@ -28,7 +28,7 @@ import * as Joi from 'joi';
         BCRYPT_SALT_ROUNDS: Joi.number().default(10),
         REDIS_HOST: Joi.string().default('localhost'),
         REDIS_PORT: Joi.number().default(6379),
-        FRONT_URL: Joi.string().default('http://localhost:3000'),
+        CORS_ORIGINS: Joi.string().default('http://localhost:3000'),
         MAX_WORKSPACES_PER_USER: Joi.number().default(3),
       }),
     }),
