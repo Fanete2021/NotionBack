@@ -55,7 +55,7 @@ export class AuthController {
 
     res.cookie('refreshToken', token, {
       httpOnly: true,
-      sameSite: 'lax',
+      sameSite: 'none',
       maxAge: maxAgeSeconds * 1000, // Переводим секунды в миллисекунды для cookie
       path: '/',
       secure: true,
@@ -65,8 +65,9 @@ export class AuthController {
   private clearRefreshTokenCookie(res: Response): void {
     res.clearCookie('refreshToken', {
       httpOnly: true,
-      sameSite: 'lax',
+      sameSite: 'none',
       path: '/',
+      secure: true,
     });
   }
 
