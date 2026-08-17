@@ -58,7 +58,7 @@ export class AuthController {
       sameSite: 'none',
       maxAge: maxAgeSeconds * 1000, // Переводим секунды в миллисекунды для cookie
       path: '/',
-      secure: false,
+      secure: false, // На этапе разработки ставим false чтобы фронт мог работать с cookie, в продакшене нужно ставить true
     });
   }
 
@@ -67,7 +67,7 @@ export class AuthController {
       httpOnly: true,
       sameSite: 'none',
       path: '/',
-      secure: false,
+      secure: false, // На этапе разработки ставим false чтобы фронт мог работать с cookie, в продакшене нужно ставить true
     });
   }
 
