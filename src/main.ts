@@ -51,7 +51,7 @@ async function bootstrap(): Promise<void> {
       const status = error.status ?? 413;
       res.status(status).json({
         statusCode: status,
-        message: 'Page content exceeds the size limit',
+        message: 'Request body exceeds the size limit',
         error: 'PayloadTooLargeException',
         path: req.url,
         timestamp: new Date().toISOString(),
