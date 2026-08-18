@@ -106,10 +106,8 @@ describe('PagesController', () => {
   describe('update', () => {
     it('проверяет членство и обновляет страницу', async () => {
       const dto = { title: 'New' };
-      mockPagesService.findById.mockResolvedValue({
-        id: 'p1',
-        workspaceId: 'ws-1',
-      });
+      const page = { id: 'p1', workspaceId: 'ws-1' };
+      mockPagesService.findById.mockResolvedValue(page);
       mockPagesService.update.mockResolvedValue({ id: 'p1' });
 
       const result = await controller.update('user-1', 'p1', dto);
@@ -118,17 +116,15 @@ describe('PagesController', () => {
         'ws-1',
         'user-1',
       );
-      expect(mockPagesService.update).toHaveBeenCalledWith('p1', dto);
+      expect(mockPagesService.update).toHaveBeenCalledWith(page, dto);
       expect(result).toEqual({ id: 'p1' });
     });
   });
 
   describe('delete', () => {
     it('проверяет членство и удаляет страницу', async () => {
-      mockPagesService.findById.mockResolvedValue({
-        id: 'p1',
-        workspaceId: 'ws-1',
-      });
+      const page = { id: 'p1', workspaceId: 'ws-1' };
+      mockPagesService.findById.mockResolvedValue(page);
       mockPagesService.delete.mockResolvedValue(undefined);
 
       await expect(controller.delete('user-1', 'p1')).resolves.toBeUndefined();
@@ -136,16 +132,14 @@ describe('PagesController', () => {
         'ws-1',
         'user-1',
       );
-      expect(mockPagesService.delete).toHaveBeenCalledWith('p1');
+      expect(mockPagesService.delete).toHaveBeenCalledWith(page);
     });
   });
 
   describe('getContent', () => {
     it('проверяет членство и возвращает контент', async () => {
-      mockPagesService.findById.mockResolvedValue({
-        id: 'p1',
-        workspaceId: 'ws-1',
-      });
+      const page = { id: 'p1', workspaceId: 'ws-1' };
+      mockPagesService.findById.mockResolvedValue(page);
       mockPagesService.getContent.mockResolvedValue({ pageId: 'p1' });
 
       const result = await controller.getContent('user-1', 'p1');
@@ -154,7 +148,7 @@ describe('PagesController', () => {
         'ws-1',
         'user-1',
       );
-      expect(mockPagesService.getContent).toHaveBeenCalledWith('p1');
+      expect(mockPagesService.getContent).toHaveBeenCalledWith(page);
       expect(result).toEqual({ pageId: 'p1' });
     });
   });
@@ -162,10 +156,8 @@ describe('PagesController', () => {
   describe('updateContent', () => {
     it('проверяет членство и перезаписывает контент', async () => {
       const body = { type: 'doc', content: [] };
-      mockPagesService.findById.mockResolvedValue({
-        id: 'p1',
-        workspaceId: 'ws-1',
-      });
+      const page = { id: 'p1', workspaceId: 'ws-1' };
+      mockPagesService.findById.mockResolvedValue(page);
       mockPagesService.updateContent.mockResolvedValue({
         pageId: 'p1',
         json: body,
@@ -177,7 +169,7 @@ describe('PagesController', () => {
         'ws-1',
         'user-1',
       );
-      expect(mockPagesService.updateContent).toHaveBeenCalledWith('p1', body);
+      expect(mockPagesService.updateContent).toHaveBeenCalledWith(page, body);
       expect(result).toEqual({ pageId: 'p1', json: body });
     });
   });

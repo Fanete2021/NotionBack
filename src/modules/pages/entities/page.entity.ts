@@ -17,9 +17,6 @@ export class PageEntity {
   @ApiPropertyOptional({ example: '📄' })
   readonly icon: string | null;
 
-  @ApiPropertyOptional({ example: 'https://example.com/cover.png' })
-  readonly coverUrl: string | null;
-
   @ApiProperty({ enum: PageType, example: PageType.DOC })
   readonly type: PageType;
 
@@ -41,7 +38,6 @@ export class PageEntity {
     projectId: string | null,
     title: string,
     icon: string | null,
-    coverUrl: string | null,
     type: PageType,
     authorId: string,
     position: number,
@@ -53,7 +49,6 @@ export class PageEntity {
     this.projectId = projectId;
     this.title = title;
     this.icon = icon;
-    this.coverUrl = coverUrl;
     this.type = type;
     this.authorId = authorId;
     this.position = position;

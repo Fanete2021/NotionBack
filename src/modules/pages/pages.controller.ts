@@ -25,6 +25,7 @@ import { WorkspacesService } from '../workspaces/workspaces.service';
 import { CreatePageDto } from './dto/create-page.dto';
 import { UpdatePageDto } from './dto/update-page.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { ApiWorkspaceForbidden } from '../../common/decorators/api-workspace-forbidden.decorator';
 import { PageEntity } from './entities/page.entity';
 import { PageContentEntity } from './entities/page-content.entity';
 
@@ -44,10 +45,7 @@ export class PagesController {
     description: 'Page created',
     type: PageEntity,
   })
-  @ApiResponse({
-    status: 403,
-    description: 'You are not a member of this workspace',
-  })
+  @ApiWorkspaceForbidden()
   @ApiResponse({ status: 404, description: 'Project not found' })
   async create(
     @CurrentUser('id') userId: string,
@@ -61,10 +59,7 @@ export class PagesController {
   @ApiOperation({ summary: 'Get a page by id' })
   @ApiParam({ name: 'id', type: String, description: 'Page id' })
   @ApiResponse({ status: 200, type: PageEntity })
-  @ApiResponse({
-    status: 403,
-    description: 'You are not a member of this workspace',
-  })
+  @ApiWorkspaceForbidden()
   @ApiResponse({ status: 404, description: 'Page not found' })
   async findById(
     @CurrentUser('id') userId: string,
@@ -77,14 +72,11 @@ export class PagesController {
 
   @Patch('pages/:id')
   @ApiOperation({
-    summary: 'Update a page (title, icon, cover, type, project)',
+    summary: 'Update a page (title, icon, type, project)',
   })
   @ApiParam({ name: 'id', type: String, description: 'Page id' })
   @ApiResponse({ status: 200, type: PageEntity })
-  @ApiResponse({
-    status: 403,
-    description: 'You are not a member of this workspace',
-  })
+  @ApiWorkspaceForbidden()
   @ApiResponse({ status: 404, description: 'Page or project not found' })
   async update(
     @CurrentUser('id') userId: string,
@@ -93,7 +85,7 @@ export class PagesController {
   ): Promise<PageEntity> {
     const page = await this.pagesService.findById(id);
     await this.workspacesService.assertMemberOf(page.workspaceId, userId);
-    return this.pagesService.update(id, dto);
+    return this.pagesService.update(page, dto);
   }
 
   @Delete('pages/:id')
@@ -101,10 +93,7 @@ export class PagesController {
   @ApiOperation({ summary: 'Soft-delete a page (moves it to trash)' })
   @ApiParam({ name: 'id', type: String, description: 'Page id' })
   @ApiResponse({ status: 204, description: 'Page deleted' })
-  @ApiResponse({
-    status: 403,
-    description: 'You are not a member of this workspace',
-  })
+  @ApiWorkspaceForbidden()
   @ApiResponse({ status: 404, description: 'Page not found' })
   async delete(
     @CurrentUser('id') userId: string,
@@ -112,17 +101,14 @@ export class PagesController {
   ): Promise<void> {
     const page = await this.pagesService.findById(id);
     await this.workspacesService.assertMemberOf(page.workspaceId, userId);
-    await this.pagesService.delete(id);
+    await this.pagesService.delete(page);
   }
 
   @Get('pages/:id/content')
   @ApiOperation({ summary: 'Get a page content (TipTap JSON)' })
   @ApiParam({ name: 'id', type: String, description: 'Page id' })
   @ApiResponse({ status: 200, type: PageContentEntity })
-  @ApiResponse({
-    status: 403,
-    description: 'You are not a member of this workspace',
-  })
+  @ApiWorkspaceForbidden()
   @ApiResponse({ status: 404, description: 'Page not found' })
   async getContent(
     @CurrentUser('id') userId: string,
@@ -130,7 +116,7 @@ export class PagesController {
   ): Promise<PageContentEntity> {
     const page = await this.pagesService.findById(id);
     await this.workspacesService.assertMemberOf(page.workspaceId, userId);
-    return this.pagesService.getContent(id);
+    return this.pagesService.getContent(page);
   }
 
   @Put('pages/:id/content')
@@ -141,10 +127,7 @@ export class PagesController {
     description: 'TipTap document JSON',
   })
   @ApiResponse({ status: 200, type: PageContentEntity })
-  @ApiResponse({
-    status: 403,
-    description: 'You are not a member of this workspace',
-  })
+  @ApiWorkspaceForbidden()
   @ApiResponse({ status: 404, description: 'Page not found' })
   @ApiResponse({
     status: 413,
@@ -157,7 +140,7 @@ export class PagesController {
   ): Promise<PageContentEntity> {
     const page = await this.pagesService.findById(id);
     await this.workspacesService.assertMemberOf(page.workspaceId, userId);
-    return this.pagesService.updateContent(id, body);
+    return this.pagesService.updateContent(page, body);
   }
 
   @Get('workspaces/:workspaceId/pages')
@@ -176,10 +159,7 @@ export class PagesController {
     description: 'Filter by project id',
   })
   @ApiResponse({ status: 200, type: [PageEntity] })
-  @ApiResponse({
-    status: 403,
-    description: 'You are not a member of this workspace',
-  })
+  @ApiWorkspaceForbidden()
   async findAllByWorkspaceId(
     @CurrentUser('id') userId: string,
     @Param('workspaceId') workspaceId: string,

@@ -41,7 +41,6 @@ describe('PagesRepository', () => {
     projectId: 'prj-1',
     title: `Page ${id}`,
     icon: null,
-    coverUrl: null,
     type: PageType.DOC,
     authorId: 'user-1',
     position,
@@ -91,7 +90,6 @@ describe('PagesRepository', () => {
         projectId: 'prj-1',
         title: 'P3',
         icon: null,
-        coverUrl: null,
         type: PageType.DOC,
       });
 
@@ -106,7 +104,6 @@ describe('PagesRepository', () => {
           projectId: 'prj-1',
           title: 'P3',
           icon: null,
-          coverUrl: null,
           type: PageType.DOC,
           position: 3,
         },
@@ -129,7 +126,6 @@ describe('PagesRepository', () => {
         projectId: 'prj-1',
         title: 'P1',
         icon: null,
-        coverUrl: null,
         type: PageType.DOC,
       });
 
@@ -140,7 +136,6 @@ describe('PagesRepository', () => {
           projectId: 'prj-1',
           title: 'P1',
           icon: null,
-          coverUrl: null,
           type: PageType.DOC,
           position: 0,
         },

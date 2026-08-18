@@ -8,6 +8,7 @@ import {
   NotFoundException,
   PayloadTooLargeException,
 } from '@nestjs/common';
+import { PageEntity } from './entities/page.entity';
 
 describe('PagesService', () => {
   let service: PagesService;
@@ -30,6 +31,20 @@ describe('PagesService', () => {
   const mockConfigService = {
     get: jest.fn(),
   };
+
+  const pageFixture = (overrides: Partial<PageEntity> = {}): PageEntity =>
+    new PageEntity(
+      overrides.id ?? 'p1',
+      overrides.workspaceId ?? 'ws-1',
+      overrides.projectId ?? 'prj-1',
+      overrides.title ?? 'Введение',
+      overrides.icon ?? null,
+      overrides.type ?? 'DOC',
+      overrides.authorId ?? 'user-1',
+      overrides.position ?? 0,
+      overrides.createdAt ?? new Date(),
+      overrides.updatedAt ?? new Date(),
+    );
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -77,7 +92,7 @@ describe('PagesService', () => {
       expect(mockPagesRepository.create).not.toHaveBeenCalled();
     });
 
-    it('создаёт страницу с типом DOC по умолчанию', async () => {
+    it('создаёт страницу с типом DOC и без иконки по умолчанию', async () => {
       mockProjectsRepository.findById.mockResolvedValue({
         id: 'prj-1',
         workspaceId: 'ws-1',
@@ -97,7 +112,33 @@ describe('PagesService', () => {
           projectId: 'prj-1',
           title: 'Введение',
           icon: null,
-          coverUrl: null,
+          type: 'DOC',
+        },
+      );
+      expect(result).toEqual({ id: 'p1' });
+    });
+
+    it('передаёт иконку при создании', async () => {
+      mockProjectsRepository.findById.mockResolvedValue({
+        id: 'prj-1',
+        workspaceId: 'ws-1',
+      });
+      mockPagesRepository.create.mockResolvedValue({ id: 'p1' });
+
+      const result = await service.create('ws-1', 'user-1', {
+        title: 'Введение',
+        icon: '📄',
+        workspaceId: 'ws-1',
+        projectId: 'prj-1',
+      });
+
+      expect(mockPagesRepository.create).toHaveBeenCalledWith(
+        'ws-1',
+        'user-1',
+        {
+          projectId: 'prj-1',
+          title: 'Введение',
+          icon: '📄',
           type: 'DOC',
         },
       );
@@ -136,22 +177,10 @@ describe('PagesService', () => {
   });
 
   describe('update', () => {
-    it('бросает 404, если страница не существует', async () => {
-      mockPagesRepository.findById.mockResolvedValue(null);
-
-      await expect(service.update('p1', { title: 'New' })).rejects.toThrow(
-        NotFoundException,
-      );
-    });
-
     it('обновляет без перемещения, если projectId не передан', async () => {
-      mockPagesRepository.findById.mockResolvedValue({
-        id: 'p1',
-        workspaceId: 'ws-1',
-      });
       mockPagesRepository.update.mockResolvedValue({ id: 'p1' });
 
-      await service.update('p1', { title: 'New' });
+      await service.update(pageFixture(), { title: 'New' });
 
       expect(mockProjectsRepository.findById).not.toHaveBeenCalled();
       expect(mockPagesRepository.update).toHaveBeenCalledWith(
@@ -161,11 +190,6 @@ describe('PagesService', () => {
     });
 
     it('перемещает в конец нового проекта', async () => {
-      mockPagesRepository.findById.mockResolvedValue({
-        id: 'p1',
-        workspaceId: 'ws-1',
-        projectId: 'prj-1',
-      });
       mockProjectsRepository.findById.mockResolvedValue({
         id: 'prj-2',
         workspaceId: 'ws-1',
@@ -173,7 +197,7 @@ describe('PagesService', () => {
       mockPagesRepository.nextPosition.mockResolvedValue(3);
       mockPagesRepository.update.mockResolvedValue({ id: 'p1' });
 
-      await service.update('p1', { projectId: 'prj-2' });
+      await service.update(pageFixture(), { projectId: 'prj-2' });
 
       expect(mockPagesRepository.nextPosition).toHaveBeenCalledWith(
         'ws-1',
@@ -186,14 +210,9 @@ describe('PagesService', () => {
     });
 
     it('не перемещает, если projectId совпадает с текущим', async () => {
-      mockPagesRepository.findById.mockResolvedValue({
-        id: 'p1',
-        workspaceId: 'ws-1',
-        projectId: 'prj-1',
-      });
       mockPagesRepository.update.mockResolvedValue({ id: 'p1' });
 
-      await service.update('p1', { projectId: 'prj-1' });
+      await service.update(pageFixture(), { projectId: 'prj-1' });
 
       expect(mockPagesRepository.nextPosition).not.toHaveBeenCalled();
       expect(mockPagesRepository.update).toHaveBeenCalledWith(
@@ -203,54 +222,37 @@ describe('PagesService', () => {
     });
 
     it('бросает 404, если целевой проект не найден при перемещении', async () => {
-      mockPagesRepository.findById.mockResolvedValue({
-        id: 'p1',
-        workspaceId: 'ws-1',
-        projectId: 'prj-1',
-      });
       mockProjectsRepository.findById.mockResolvedValue(null);
 
       await expect(
-        service.update('p1', { projectId: 'missing' }),
+        service.update(pageFixture(), { projectId: 'missing' }),
       ).rejects.toThrow(NotFoundException);
       expect(mockPagesRepository.update).not.toHaveBeenCalled();
     });
   });
 
   describe('delete', () => {
-    it('бросает 404, если страница не существует', async () => {
-      mockPagesRepository.findById.mockResolvedValue(null);
-
-      await expect(service.delete('p1')).rejects.toThrow(NotFoundException);
-    });
-
-    it('мягко удаляет существующую страницу', async () => {
-      mockPagesRepository.findById.mockResolvedValue({
-        id: 'p1',
-        workspaceId: 'ws-1',
-      });
+    it('мягко удаляет страницу', async () => {
       mockPagesRepository.softDelete.mockResolvedValue(true);
 
-      await expect(service.delete('p1')).resolves.toBeUndefined();
+      await expect(service.delete(pageFixture())).resolves.toBeUndefined();
       expect(mockPagesRepository.softDelete).toHaveBeenCalledWith('p1');
+    });
+
+    it('бросает 404, если страница не была удалена', async () => {
+      mockPagesRepository.softDelete.mockResolvedValue(null);
+
+      await expect(service.delete(pageFixture())).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
   describe('getContent', () => {
-    it('бросает 404, если страница не существует', async () => {
-      mockPagesRepository.findById.mockResolvedValue(null);
-
-      await expect(service.getContent('p1')).rejects.toThrow(NotFoundException);
-    });
-
     it('возвращает пустой документ, если контента ещё нет', async () => {
-      mockPagesRepository.findById.mockResolvedValue({
-        id: 'p1',
-        workspaceId: 'ws-1',
-      });
       mockPagesRepository.findContent.mockResolvedValue(null);
 
-      const result = await service.getContent('p1');
+      const result = await service.getContent(pageFixture());
 
       expect(result.pageId).toBe('p1');
       expect(result.json).toEqual({ type: 'doc', content: [] });
@@ -258,16 +260,12 @@ describe('PagesService', () => {
     });
 
     it('возвращает сохранённый контент', async () => {
-      mockPagesRepository.findById.mockResolvedValue({
-        id: 'p1',
-        workspaceId: 'ws-1',
-      });
       mockPagesRepository.findContent.mockResolvedValue({
         pageId: 'p1',
         json: { type: 'doc', content: [{ type: 'paragraph' }] },
       });
 
-      const result = await service.getContent('p1');
+      const result = await service.getContent(pageFixture());
 
       expect(result.json).toEqual({
         type: 'doc',
@@ -277,53 +275,31 @@ describe('PagesService', () => {
   });
 
   describe('updateContent', () => {
-    it('бросает 404, если страница не существует', async () => {
-      mockPagesRepository.findById.mockResolvedValue(null);
-
-      await expect(service.updateContent('p1', {})).rejects.toThrow(
-        NotFoundException,
-      );
-    });
-
     it('бросает 400, если тело не является JSON-значением', async () => {
-      mockPagesRepository.findById.mockResolvedValue({
-        id: 'p1',
-        workspaceId: 'ws-1',
-      });
-
-      await expect(service.updateContent('p1', null)).rejects.toThrow(
+      await expect(service.updateContent(pageFixture(), null)).rejects.toThrow(
         BadRequestException,
       );
-      await expect(service.updateContent('p1', undefined)).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(
+        service.updateContent(pageFixture(), undefined),
+      ).rejects.toThrow(BadRequestException);
       expect(mockPagesRepository.upsertContent).not.toHaveBeenCalled();
     });
 
     it('бросает 400, если тело не является объектом', async () => {
-      mockPagesRepository.findById.mockResolvedValue({
-        id: 'p1',
-        workspaceId: 'ws-1',
-      });
-
-      await expect(service.updateContent('p1', 'doc')).rejects.toThrow(
+      await expect(service.updateContent(pageFixture(), 'doc')).rejects.toThrow(
         BadRequestException,
       );
-      await expect(service.updateContent('p1', [1, 2, 3])).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(
+        service.updateContent(pageFixture(), [1, 2, 3]),
+      ).rejects.toThrow(BadRequestException);
       expect(mockPagesRepository.upsertContent).not.toHaveBeenCalled();
     });
 
     it('бросает 413, если размер превышает лимит', async () => {
-      mockPagesRepository.findById.mockResolvedValue({
-        id: 'p1',
-        workspaceId: 'ws-1',
-      });
       mockConfigService.get.mockReturnValue(10);
 
       await expect(
-        service.updateContent('p1', {
+        service.updateContent(pageFixture(), {
           type: 'doc',
           content: [{ type: 'paragraph', text: 'Слишком длинный контент' }],
         }),
@@ -332,17 +308,13 @@ describe('PagesService', () => {
     });
 
     it('перезаписывает контент целиком', async () => {
-      mockPagesRepository.findById.mockResolvedValue({
-        id: 'p1',
-        workspaceId: 'ws-1',
-      });
       mockPagesRepository.upsertContent.mockResolvedValue({
         pageId: 'p1',
         json: { type: 'doc' },
       });
 
       const json = { type: 'doc', content: [{ type: 'paragraph' }] };
-      const result = await service.updateContent('p1', json);
+      const result = await service.updateContent(pageFixture(), json);
 
       expect(mockPagesRepository.upsertContent).toHaveBeenCalledWith(
         'p1',

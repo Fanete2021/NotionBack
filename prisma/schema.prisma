@@ -92,7 +92,6 @@ model Page {
   parentPageId String?
   title        String
   icon         String?
-  coverUrl     String?
   type         PageType  @default(DOC)
   authorId     String
   position     Int       @default(0)

@@ -31,8 +31,7 @@ export class PagesService {
     return this.pagesRepository.create(workspaceId, authorId, {
       projectId: dto.projectId,
       title: dto.title,
-      icon: null,
-      coverUrl: null,
+      icon: dto.icon ?? null,
       type: dto.type ?? 'DOC',
     });
   }
@@ -52,16 +51,10 @@ export class PagesService {
     return page;
   }
 
-  async update(id: string, dto: UpdatePageDto): Promise<PageEntity> {
-    const page = await this.pagesRepository.findById(id);
-    if (!page) {
-      throw new NotFoundException('Page not found');
-    }
-
+  async update(page: PageEntity, dto: UpdatePageDto): Promise<PageEntity> {
     const payload: Prisma.PageUncheckedUpdateInput = {
       title: dto.title,
       icon: dto.icon,
-      coverUrl: dto.coverUrl,
       type: dto.type,
     };
 
@@ -74,35 +67,25 @@ export class PagesService {
       );
     }
 
-    const updated = await this.pagesRepository.update(id, payload);
+    const updated = await this.pagesRepository.update(page.id, payload);
     if (!updated) {
       throw new NotFoundException('Page not found');
     }
     return updated;
   }
 
-  async delete(id: string): Promise<void> {
-    const page = await this.pagesRepository.findById(id);
-    if (!page) {
-      throw new NotFoundException('Page not found');
-    }
-
-    const deleted = await this.pagesRepository.softDelete(id);
+  async delete(page: PageEntity): Promise<void> {
+    const deleted = await this.pagesRepository.softDelete(page.id);
     if (!deleted) {
       throw new NotFoundException('Page not found');
     }
   }
 
-  async getContent(id: string): Promise<PageContentEntity> {
-    const page = await this.pagesRepository.findById(id);
-    if (!page) {
-      throw new NotFoundException('Page not found');
-    }
-
-    const content = await this.pagesRepository.findContent(id);
+  async getContent(page: PageEntity): Promise<PageContentEntity> {
+    const content = await this.pagesRepository.findContent(page.id);
     if (!content) {
       return new PageContentEntity(
-        id,
+        page.id,
         EMPTY_DOCUMENT as Prisma.JsonValue,
         new Date(),
       );
@@ -111,12 +94,10 @@ export class PagesService {
     return content;
   }
 
-  async updateContent(id: string, json: unknown): Promise<PageContentEntity> {
-    const page = await this.pagesRepository.findById(id);
-    if (!page) {
-      throw new NotFoundException('Page not found');
-    }
-
+  async updateContent(
+    page: PageEntity,
+    json: unknown,
+  ): Promise<PageContentEntity> {
     if (json === null || json === undefined) {
       throw new BadRequestException('Page content must be a JSON value');
     }
@@ -127,7 +108,7 @@ export class PagesService {
 
     this.assertSizeWithinLimit(json);
 
-    return this.pagesRepository.upsertContent(id, json);
+    return this.pagesRepository.upsertContent(page.id, json);
   }
 
   private assertSizeWithinLimit(json: unknown): void {

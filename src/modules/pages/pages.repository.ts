@@ -13,7 +13,6 @@ export type CreatePageData = {
   projectId: string;
   title: string;
   icon: string | null;
-  coverUrl: string | null;
   type: PageType;
 };
 
@@ -45,7 +44,6 @@ export class PagesRepository {
           projectId: data.projectId,
           title: data.title,
           icon: data.icon,
-          coverUrl: data.coverUrl,
           type: data.type,
           position,
         },
@@ -177,7 +175,6 @@ export class PagesRepository {
       page.projectId,
       page.title,
       page.icon,
-      page.coverUrl,
       page.type,
       page.authorId,
       page.position,
