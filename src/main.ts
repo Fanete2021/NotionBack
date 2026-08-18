@@ -1,13 +1,20 @@
 import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
+import * as express from 'express';
 import { AppModule } from './app.module';
 import { HttpExceptionsFilter } from './common/filters/http-exception.filter';
 import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter';
 import { ValidationPipe } from '@nestjs/common';
+import { PAGE_CONTENT_ROUTE } from './modules/pages/pages.routes';
+
+const GLOBAL_PREFIX = 'api';
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    bodyParser: false,
+  });
 
   const configService = app.get(ConfigService);
 
@@ -20,9 +27,44 @@ async function bootstrap(): Promise<void> {
     credentials: true,
   });
 
+  const maxPageContentBytes = configService.get<number>(
+    'MAX_PAGE_CONTENT_BYTES',
+    1048576,
+  );
+
+  // Большой лимит тела только для content-эндпоинта страниц, остальные
+  // JSON-роуты остаются на дефолтном лимите express (100 KB).
+  app.use(
+    `/${GLOBAL_PREFIX}/${PAGE_CONTENT_ROUTE}`,
+    express.json({ limit: maxPageContentBytes * 2 }),
+  );
+  app.use(express.json());
+
+  const bodyParserErrorHandler: express.ErrorRequestHandler = (
+    err,
+    req,
+    res,
+    next,
+  ) => {
+    const error = err as { type?: string; status?: number } | undefined;
+    if (error?.type === 'entity.too.large') {
+      const status = error.status ?? 413;
+      res.status(status).json({
+        statusCode: status,
+        message: 'Request body exceeds the size limit',
+        error: 'PayloadTooLargeException',
+        path: req.url,
+        timestamp: new Date().toISOString(),
+      });
+      return;
+    }
+    next(err);
+  };
+  app.use(bodyParserErrorHandler);
+
   app.useGlobalFilters(new PrismaExceptionFilter(), new HttpExceptionsFilter());
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
-  app.setGlobalPrefix('api');
+  app.setGlobalPrefix(GLOBAL_PREFIX);
 
   const config = new DocumentBuilder()
     .setTitle('Notion Alternative API')

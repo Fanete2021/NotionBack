@@ -34,14 +34,6 @@ describe('AuthService', () => {
     revokeToken: jest.fn(),
   };
 
-  const mockRedisClient = {
-    sadd: jest.fn(),
-    expire: jest.fn(),
-    sismember: jest.fn(),
-    srem: jest.fn(),
-    del: jest.fn(),
-  };
-
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -50,7 +42,6 @@ describe('AuthService', () => {
         { provide: JwtService, useValue: mockJwtService },
         { provide: ConfigService, useValue: mockConfigService },
         { provide: TokenService, useValue: mockTokenService },
-        { provide: 'REDIS_CLIENT', useValue: mockRedisClient },
       ],
     }).compile();
 
@@ -112,7 +103,6 @@ describe('AuthService', () => {
       await expect(authService.login(loginDto)).rejects.toThrow(
         UnauthorizedException,
       );
-      expect(mockRedisClient.sadd).not.toHaveBeenCalled();
     });
 
     it('должен выбрасывать ошибку UnauthorizedException, если пользователь не найден', async () => {
