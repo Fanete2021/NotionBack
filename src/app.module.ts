@@ -2,14 +2,17 @@ import { Module, Global } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AppController } from './app.controller';
-import { HealthController } from './health.controller';
+import { HealthController } from './health/health.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
-import { AuthModule } from './modules/auth.module';
-import { UsersModule } from './modules/users.module';
-import { ProjectsModule } from './modules/projects.module';
-import { WorkspacesModule } from './modules/workspaces.module';
-import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { AuthModule } from './modules/auth/auth.module';
+import { UsersModule } from './modules/users/users.module';
+import { ProjectsModule } from './modules/projects/projects.module';
+import { WorkspacesModule } from './modules/workspaces/workspaces.module';
+import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
+import appConfig from './config/app.config';
+import authConfig from './config/auth.config';
+import databaseConfig from './config/database.config';
 import { Redis } from 'ioredis';
 import * as Joi from 'joi';
 
@@ -18,6 +21,7 @@ import * as Joi from 'joi';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      load: [appConfig, authConfig, databaseConfig],
       validationSchema: Joi.object({
         PORT: Joi.number().default(8000),
         DATABASE_URL: Joi.string().required(),
