@@ -28,6 +28,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { ApiWorkspaceForbidden } from '../../common/decorators/api-workspace-forbidden.decorator';
 import { PageEntity } from './entities/page.entity';
 import { PageContentEntity } from './entities/page-content.entity';
+import { PAGE_CONTENT_ROUTE } from './pages.routes';
 
 @ApiBearerAuth()
 @ApiTags('Pages')
@@ -104,7 +105,7 @@ export class PagesController {
     await this.pagesService.delete(page);
   }
 
-  @Get('pages/:id/content')
+  @Get(PAGE_CONTENT_ROUTE)
   @ApiOperation({ summary: 'Get a page content (TipTap JSON)' })
   @ApiParam({ name: 'id', type: String, description: 'Page id' })
   @ApiResponse({ status: 200, type: PageContentEntity })
@@ -119,7 +120,7 @@ export class PagesController {
     return this.pagesService.getContent(page);
   }
 
-  @Put('pages/:id/content')
+  @Put(PAGE_CONTENT_ROUTE)
   @ApiOperation({ summary: 'Overwrite a page content (TipTap JSON)' })
   @ApiParam({ name: 'id', type: String, description: 'Page id' })
   @ApiBody({

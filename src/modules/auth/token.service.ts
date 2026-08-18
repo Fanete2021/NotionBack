@@ -1,7 +1,7 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { Redis } from 'ioredis';
+import { RedisClient } from '../../common/providers/redis-client';
 import {
   RevokeData,
   TokenData,
@@ -13,7 +13,7 @@ export class TokenService {
   constructor(
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
-    @Inject('REDIS_CLIENT') private readonly redis: Redis,
+    private readonly redis: RedisClient,
   ) {}
 
   async generateTokens(data: TokenData) {

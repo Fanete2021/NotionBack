@@ -1,6 +1,6 @@
 import { Module, Global } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { HealthController } from './health/health.controller';
 import { AppService } from './app.service';
@@ -11,10 +11,10 @@ import { ProjectsModule } from './modules/projects/projects.module';
 import { WorkspacesModule } from './modules/workspaces/workspaces.module';
 import { PagesModule } from './modules/pages/pages.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
+import { RedisClient } from './common/providers/redis-client';
 import appConfig from './config/app.config';
 import authConfig from './config/auth.config';
 import databaseConfig from './config/database.config';
-import { Redis } from 'ioredis';
 import * as Joi from 'joi';
 
 @Global()
@@ -48,21 +48,12 @@ import * as Joi from 'joi';
   controllers: [AppController, HealthController],
   providers: [
     AppService,
+    RedisClient,
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
     },
-    {
-      provide: 'REDIS_CLIENT',
-      inject: [ConfigService],
-      useFactory: (configService: ConfigService) => {
-        return new Redis({
-          host: configService.get<string>('REDIS_HOST'),
-          port: configService.get<number>('REDIS_PORT'),
-        });
-      },
-    },
   ],
-  exports: ['REDIS_CLIENT'],
+  exports: [RedisClient],
 })
 export class AppModule {}
