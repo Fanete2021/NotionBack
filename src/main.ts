@@ -2,8 +2,8 @@ import { NestFactory } from '@nestjs/core';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
-import { HttpExceptionsFilter } from './config/http-exception';
-import { PrismaExceptionFilter } from './config/prisma-exception.filter';
+import { HttpExceptionsFilter } from './config/filters/http-exception.filter';
+import { PrismaExceptionFilter } from './config/filters/prisma-exception.filter';
 import { ValidationPipe } from '@nestjs/common';
 
 async function bootstrap(): Promise<void> {
