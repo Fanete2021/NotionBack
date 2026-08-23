@@ -210,7 +210,7 @@ export class WorkspacesService {
     await this.assertIsOwner(workspaceId, userId);
   }
 
-  private async assertCanManageMembers(
+  async assertCanManageMembers(
     workspaceId: string,
     actorId: string,
   ): Promise<WorkspaceMemberEntity> {
