@@ -33,7 +33,7 @@ jobs:
       - name: Generate Prisma Client
       - name: Generate Prisma Client
         env:
-          DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
+          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/notionback?schema=public"
         run: npx prisma generate
     
       - name: Run Linter
