@@ -98,6 +98,7 @@ model Project {
   pages         Page[]
 
   @@unique([id, workspaceId])
+  @@unique([workspaceId, parentProjectId, position])
   @@index([workspaceId, parentProjectId])
   @@map("projects")
 }
@@ -124,6 +125,7 @@ model Page {
   content    PageContent?
 
   @@unique([id, workspaceId])
+  @@unique([workspaceId, projectId, parentPageId, position])
   @@index([workspaceId, parentPageId])
   @@index([workspaceId, deletedAt])
   @@map("pages")

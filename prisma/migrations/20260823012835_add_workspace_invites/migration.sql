@@ -1,8 +1,9 @@
--- DropIndex
-DROP INDEX "pages_position_unique";
+-- RenameIndex
+-- Align the legacy position unique indexes (added manually in 20260805170000_add_db_integrity_indexes)
+-- with the names Prisma expects for @@unique declarations, so they are preserved and schema-managed.
+ALTER INDEX "projects_position_unique" RENAME TO "projects_workspaceId_parentProjectId_position_key";
 
--- DropIndex
-DROP INDEX "projects_position_unique";
+ALTER INDEX "pages_position_unique" RENAME TO "pages_workspaceId_projectId_parentPageId_position_key";
 
 -- CreateTable
 CREATE TABLE "workspace_invites" (

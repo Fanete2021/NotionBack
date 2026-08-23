@@ -80,11 +80,15 @@ export class InvitesService {
     const tokenHash = this.hashToken(token);
     const key = INVITE_KEY_PREFIX + tokenHash;
 
+    // Consume atomically (GETDEL) so parallel requests cannot join twice;
+    // remaining TTL is read beforehand to restore the link if the join fails.
+    const remainingTtl = await this.redis.ttl(key);
+    const cached = await this.redis.getdel(key);
+
     let isTemporary = false;
     let workspaceId: string;
     let role: Role;
 
-    const cached = await this.redis.get(key);
     if (cached) {
       const stored = JSON.parse(cached) as StoredInvite;
       workspaceId = stored.workspaceId;
@@ -99,18 +103,14 @@ export class InvitesService {
       role = invite.role;
     }
 
-    await this.workspacesService.findById(workspaceId);
-
     try {
+      await this.workspacesService.findById(workspaceId);
+
       const member = await this.invitesRepository.addMember(
         workspaceId,
         userId,
         role,
       );
-
-      if (isTemporary) {
-        await this.redis.del(key);
-      }
 
       return new WorkspaceMemberEntity(
         member.id,
@@ -120,6 +120,10 @@ export class InvitesService {
         member.createdAt,
       );
     } catch (error) {
+      if (isTemporary) {
+        await this.restoreInvite(key, cached!, remainingTtl);
+      }
+
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === 'P2002'
@@ -132,13 +136,22 @@ export class InvitesService {
     }
   }
 
+  private async restoreInvite(
+    key: string,
+    value: string,
+    remainingTtl: number,
+  ): Promise<void> {
+    if (remainingTtl > 0) {
+      await this.redis.set(key, value, 'EX', remainingTtl);
+    }
+  }
+
   private hashToken(token: string): string {
     return createHash('sha256').update(token).digest('hex');
   }
 
   private buildUrl(token: string): string {
-    const frontUrl =
-      this.configService.get<string>('FRONT_URL') ?? 'http://localhost:3000';
+    const frontUrl = this.configService.get<string>('FRONT_URL')!;
     return `${frontUrl}/join/${token}`;
   }
 }

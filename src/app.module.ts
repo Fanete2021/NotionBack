@@ -37,7 +37,7 @@ import * as Joi from 'joi';
         CORS_ORIGINS: Joi.string().default('http://localhost:3000'),
         MAX_WORKSPACES_PER_USER: Joi.number().default(3),
         MAX_PAGE_CONTENT_BYTES: Joi.number().default(1048576),
-        INVITE_TTL_SECONDS: Joi.number().default(86400),
+        INVITE_TTL_SECONDS: Joi.number().integer().positive().default(86400),
         FRONT_URL: Joi.string().default('http://localhost:3000'),
       }),
     }),
