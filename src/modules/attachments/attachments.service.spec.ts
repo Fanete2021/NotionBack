@@ -180,6 +180,15 @@ describe('AttachmentsService', () => {
       ).rejects.toThrow(ForbiddenException);
       expect(mockAttachmentsRepository.create).not.toHaveBeenCalled();
     });
+
+    it('не создаёт строку в базе, если подпись url упала (нет PENDING-сироты)', async () => {
+      mockStorage.getUploadUrl.mockRejectedValue(new Error('s3 unavailable'));
+
+      await expect(
+        service.presign('user-1', 'page-1', 'cat.png', 'image/png', 10),
+      ).rejects.toThrow('s3 unavailable');
+      expect(mockAttachmentsRepository.create).not.toHaveBeenCalled();
+    });
   });
 
   describe('confirm', () => {
@@ -292,6 +301,27 @@ describe('AttachmentsService', () => {
         pendingAttachment.key,
       );
       expect(mockAttachmentsRepository.delete).toHaveBeenCalledWith('att-1');
+    });
+
+    it('удаляет объект и строку, если в базе неизвестный content type (defensive)', async () => {
+      mockAttachmentsRepository.findById.mockResolvedValue({
+        ...pendingAttachment,
+        contentType: 'application/zip',
+      });
+      mockWorkspacesService.assertMemberOf.mockResolvedValue(undefined);
+      mockStorage.getObjectInfo.mockResolvedValue({
+        size: 50,
+        contentType: 'application/zip',
+      });
+
+      await expect(service.confirm('user-1', 'att-1')).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(mockStorage.deleteObject).toHaveBeenCalledWith(
+        pendingAttachment.key,
+      );
+      expect(mockAttachmentsRepository.delete).toHaveBeenCalledWith('att-1');
+      expect(mockAttachmentsRepository.markConfirmed).not.toHaveBeenCalled();
     });
   });
 });

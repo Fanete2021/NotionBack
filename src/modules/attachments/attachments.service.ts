@@ -58,16 +58,7 @@ export class AttachmentsService {
 
     const key = `workspaces/${page.workspaceId}/pages/${page.id}/${randomUUID()}.${allowed.extension}`;
 
-    const attachment = await this.attachmentsRepository.create({
-      pageId: page.id,
-      workspaceId: page.workspaceId,
-      uploadedBy: userId,
-      fileName,
-      contentType,
-      size,
-      key,
-    });
-
+    // Sign before persisting so a signing failure does not leave an orphaned PENDING row
     const expiresInSeconds = this.configService.get<number>(
       'ATTACHMENT_PRESIGN_EXPIRES_SECONDS',
       300,
@@ -77,6 +68,16 @@ export class AttachmentsService {
       contentType,
       expiresInSeconds,
     );
+
+    const attachment = await this.attachmentsRepository.create({
+      pageId: page.id,
+      workspaceId: page.workspaceId,
+      uploadedBy: userId,
+      fileName,
+      contentType,
+      size,
+      key,
+    });
 
     return new PresignAttachmentResultEntity(
       attachment.id,
@@ -109,9 +110,14 @@ export class AttachmentsService {
       throw new BadRequestException('File was not uploaded to the storage yet');
     }
 
-    const limit = this.getSizeLimit(
-      ALLOWED_CONTENT_TYPES[attachment.contentType].kind,
-    );
+    const allowed = ALLOWED_CONTENT_TYPES[attachment.contentType];
+    if (!allowed) {
+      // Defensive guard: presign validates the type, so this row should not exist
+      await this.cleanupRejectedUpload(attachment.id, attachment.key);
+      throw new BadRequestException('Unsupported attachment content type');
+    }
+
+    const limit = this.getSizeLimit(allowed.kind);
     if (stored.size > limit) {
       await this.cleanupRejectedUpload(attachment.id, attachment.key);
       throw new PayloadTooLargeException(
