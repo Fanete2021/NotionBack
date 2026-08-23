@@ -44,6 +44,7 @@ export class AuthController {
     private readonly configService: ConfigService,
   ) {}
 
+  // тестовый комментарий
   private getRefreshTokenFromRequest(req: Request): string | undefined {
     return getCookieValue(req, 'refreshToken');
   }
