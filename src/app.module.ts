@@ -30,6 +30,7 @@ import * as Joi from 'joi';
         REDIS_PORT: Joi.number().default(6379),
         CORS_ORIGINS: Joi.string().default('http://localhost:3000'),
         MAX_WORKSPACES_PER_USER: Joi.number().default(3),
+        COOKIE_SECURE: Joi.boolean().default(false),
       }),
     }),
     PrismaModule,

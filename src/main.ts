@@ -4,7 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
 import { HttpExceptionsFilter } from './config/filters/http-exception.filter';
 import { PrismaExceptionFilter } from './config/filters/prisma-exception.filter';
-import { ValidationPipe } from '@nestjs/common';
+import { HttpStatus, ValidationPipe } from '@nestjs/common';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
@@ -21,7 +21,13 @@ async function bootstrap(): Promise<void> {
   });
 
   app.useGlobalFilters(new PrismaExceptionFilter(), new HttpExceptionsFilter());
-  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      transform: true,
+      errorHttpStatusCode: HttpStatus.UNPROCESSABLE_ENTITY,
+    }),
+  );
   app.setGlobalPrefix('api');
 
   const config = new DocumentBuilder()
@@ -31,11 +37,15 @@ async function bootstrap(): Promise<void> {
     .addServer('http://localhost:8000', 'Локальный сервер')
     .addServer('https://api.notion-alt.ru', 'Продакшн сервер (пример)')
     .addBearerAuth()
-    .addCookieAuth('refreshToken', {
-      type: 'apiKey',
-      in: 'cookie',
-      name: 'refreshToken',
-    })
+    .addCookieAuth(
+      'refreshToken',
+      {
+        type: 'apiKey',
+        in: 'cookie',
+        name: 'refreshToken',
+      },
+      'refreshToken',
+    )
     .build();
   const documentFactory = () => SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, documentFactory);

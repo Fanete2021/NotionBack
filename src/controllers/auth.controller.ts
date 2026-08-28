@@ -32,10 +32,17 @@ import {
 import type { Request, Response } from 'express';
 import { UserPayload, LogoutData } from 'src/types/auth/auth.types';
 import { RefreshData } from 'src/types/token/token.types';
-import { getCookieValue } from '../utils/cookies';
+import {
+  COOKIE_NAMES,
+  getCookieValue,
+  setRefreshTokenCookie,
+  clearRefreshTokenCookie,
+} from '../utils/cookies';
 import { Public } from '../decorators/public.decorator';
+import { ApiValidationErrorResponse } from '../decorators/api-bad-request.decorator';
 
 @ApiTags('Авторизация')
+@ApiResponse({ status: 500, description: 'Внутренняя ошибка сервера' })
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -43,46 +50,18 @@ export class AuthController {
     private readonly configService: ConfigService,
   ) {}
 
-  private getRefreshTokenFromRequest(req: Request): string | undefined {
-    return getCookieValue(req, 'refreshToken');
-  }
-
-  private setRefreshTokenCookie(res: Response, token: string): void {
-    const maxAgeSeconds = this.configService.get<number>(
-      'JWT_REFRESH_EXPIRES_IN',
-      2592000,
-    );
-
-    res.cookie('refreshToken', token, {
-      httpOnly: true,
-      sameSite: 'none',
-      maxAge: maxAgeSeconds * 1000, // Переводим секунды в миллисекунды для cookie
-      path: '/',
-      secure: false, // На этапе разработки ставим false чтобы фронт мог работать с cookie, в продакшене нужно ставить true
-    });
-  }
-
-  private clearRefreshTokenCookie(res: Response): void {
-    res.clearCookie('refreshToken', {
-      httpOnly: true,
-      sameSite: 'none',
-      path: '/',
-      secure: false, // На этапе разработки ставим false чтобы фронт мог работать с cookie, в продакшене нужно ставить true
-    });
-  }
-
   @ApiOperation({
     summary: 'Регистрация нового пользователя',
-    description: 'Устанавливает `refresh_token` через HttpOnly cookie.',
+    description: 'Устанавливает `refreshToken` через HttpOnly cookie.',
   })
   @ApiBody({ type: RegisterDto })
   @ApiResponse({
     status: 201,
     description:
-      'Пользователь успешно создан. `refresh_token` установлен в cookie.',
+      'Пользователь успешно создан. `refreshToken` установлен в cookie.',
     type: AuthResponseDto,
   })
-  @ApiResponse({ status: 400, description: 'Ошибка валидации данных' })
+  @ApiValidationErrorResponse()
   @ApiResponse({ status: 409, description: 'Email уже занят' })
   @Public()
   @Post('register')
@@ -92,22 +71,25 @@ export class AuthController {
   ) {
     const result = await this.authService.register(dto);
     const { refreshToken, ...responseBody } = result;
-    this.setRefreshTokenCookie(res, refreshToken);
+    this.handleSetCookie(res, refreshToken);
     return responseBody;
   }
 
   @ApiOperation({
     summary: 'Вход по email и паролю',
-    description: 'Устанавливает `refresh_token` через HttpOnly cookie.',
+    description: 'Устанавливает `refreshToken` через HttpOnly cookie.',
   })
   @ApiBody({ type: LoginDto })
   @ApiResponse({
     status: 200,
-    description: 'Успешный вход. `refresh_token` установлен в cookie.',
+    description: 'Успешный вход. `refreshToken` установлен в cookie.',
     type: AuthResponseDto,
   })
-  @ApiResponse({ status: 400, description: 'Ошибка валидации данных' })
-  @ApiResponse({ status: 401, description: 'Неверные учетные данные' })
+  @ApiValidationErrorResponse()
+  @ApiResponse({
+    status: 401,
+    description: 'Неверный email или пароль (ошибка аутентификации)',
+  })
   @Public()
   @HttpCode(HttpStatus.OK)
   @Post('login')
@@ -117,14 +99,14 @@ export class AuthController {
   ) {
     const result = await this.authService.login(dto);
     const { refreshToken, ...responseBody } = result;
-    this.setRefreshTokenCookie(res, refreshToken);
+    this.handleSetCookie(res, refreshToken);
     return responseBody;
   }
 
   @ApiOperation({
     summary: 'Обновление токенов',
     description:
-      'Ожидает `refresh_token` в HttpOnly cookie. Запросы нужно слать с флагом `withCredentials: true`.',
+      'Ожидает `refreshToken` в HttpOnly cookie. Запросы нужно слать с флагом `withCredentials: true`.',
   })
   @ApiCookieAuth('refreshToken')
   @ApiResponse({
@@ -132,7 +114,7 @@ export class AuthController {
     description: 'Токены успешно обновлены',
     type: AuthResponseDto,
   })
-  @ApiResponse({ status: 400, description: 'Ошибка валидации данных' })
+  @ApiValidationErrorResponse()
   @ApiResponse({
     status: 401,
     description: 'Токен недействителен или отсутствует',
@@ -145,7 +127,7 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const oldRefreshToken = this.getRefreshTokenFromRequest(req);
+    const oldRefreshToken = getCookieValue(req, COOKIE_NAMES.REFRESH_TOKEN);
     if (!oldRefreshToken) {
       throw new UnauthorizedException('Refresh token not found in cookies');
     }
@@ -153,7 +135,7 @@ export class AuthController {
     const refreshData: RefreshData = { token: oldRefreshToken };
     const result = await this.authService.refresh(refreshData);
     const { refreshToken, ...responseBody } = result;
-    this.setRefreshTokenCookie(res, refreshToken);
+    this.handleSetCookie(res, refreshToken);
     return responseBody;
   }
 
@@ -183,7 +165,7 @@ export class AuthController {
     @Body() body: LogoutDto,
   ) {
     const user = req.user as UserPayload;
-    const refreshToken = this.getRefreshTokenFromRequest(req);
+    const refreshToken = getCookieValue(req, COOKIE_NAMES.REFRESH_TOKEN);
 
     if (!body.allDevices && !refreshToken) {
       throw new UnauthorizedException(
@@ -191,15 +173,13 @@ export class AuthController {
       );
     }
 
-    // Если allDevices = true, мы передаем token = undefined в сервис,
-    // чтобы он удалил все сессии по маске (userId:*).
-    // Если false/undefined, передаем конкретный токен, чтобы удалить только его.
     const logoutData: LogoutData = {
       userId: user.id,
       token: body.allDevices ? undefined : refreshToken,
     };
 
-    this.clearRefreshTokenCookie(res);
+    const secure = this.configService.get<boolean>('COOKIE_SECURE', false);
+    clearRefreshTokenCookie(res, secure);
     return this.authService.logout(logoutData);
   }
 
@@ -215,5 +195,14 @@ export class AuthController {
   @Get('me')
   getProfile(@Req() req: Request) {
     return req.user as UserPayload;
+  }
+
+  private handleSetCookie(res: Response, token: string): void {
+    const maxAgeSeconds = this.configService.get<number>(
+      'JWT_REFRESH_EXPIRES_IN',
+      2592000,
+    );
+    const secure = this.configService.get<boolean>('COOKIE_SECURE', false);
+    setRefreshTokenCookie(res, token, maxAgeSeconds, secure);
   }
 }
