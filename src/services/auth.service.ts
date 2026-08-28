@@ -8,14 +8,10 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { UsersRepository } from '../repositories/users.repository';
 import * as bcrypt from 'bcrypt';
-import {
-  TokenData,
-  RefreshData,
-  RevokeData,
-} from 'src/types/token/token.types';
+import { TokenData, RefreshData, RevokeData } from '../types/token/token.types';
 import { TokenService } from './token.service';
-import { LoginData, LogoutData, RegisterData } from 'src/types/auth/auth.types';
-import { CreateUserData } from 'src/types/users/users.types';
+import { LoginData, LogoutData, RegisterData } from '../types/auth/auth.types';
+import { CreateUserData } from '../types/users/users.types';
 
 @Injectable()
 export class AuthService {

@@ -31,8 +31,8 @@ import {
 } from '../dto/auth-response.dto';
 import { ErrorResponseDto } from '../dto/error-response.dto';
 import type { Request, Response } from 'express';
-import { UserPayload, LogoutData } from 'src/types/auth/auth.types';
-import { RefreshData } from 'src/types/token/token.types';
+import { UserPayload, LogoutData } from '../types/auth/auth.types';
+import { RefreshData } from '../types/token/token.types';
 import {
   COOKIE_NAMES,
   getCookieValue,
@@ -41,7 +41,7 @@ import {
 } from '../utils/cookies';
 import { Public } from '../decorators/public.decorator';
 import { ApiValidationErrorResponse } from '../decorators/api-bad-request.decorator';
-import { ApiInternalServerErrorResponse } from 'src/decorators/api-internal-server-error.decorator';
+import { ApiInternalServerErrorResponse } from '../decorators/api-internal-server-error.decorator';
 
 @ApiTags('Авторизация')
 @ApiInternalServerErrorResponse()

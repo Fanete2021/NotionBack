@@ -34,4 +34,16 @@ describe('JwtAuthGuard', () => {
       expect(result).toBe(user);
     });
   });
+
+  describe('canActivate', () => {
+    it('пропускает публичные маршруты без jwt', () => {
+      jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(true);
+      const context = {
+        getHandler: (): object => ({}),
+        getClass: (): object => ({}),
+      };
+
+      expect(guard.canActivate(context as never)).toBe(true);
+    });
+  });
 });

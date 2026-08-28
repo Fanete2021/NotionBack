@@ -2,8 +2,8 @@ import { NestFactory, Reflector } from '@nestjs/core';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
-import { HttpExceptionsFilter } from './config/filters/http-exception.filter';
-import { PrismaExceptionFilter } from './config/filters/prisma-exception.filter';
+import { HttpExceptionsFilter } from './filters/http-exception.filter';
+import { PrismaExceptionFilter } from './filters/prisma-exception.filter';
 import {
   ClassSerializerInterceptor,
   HttpStatus,

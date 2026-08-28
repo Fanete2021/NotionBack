@@ -6,7 +6,7 @@ import {
   RevokeData,
   TokenData,
   RefreshTokenPayload,
-} from 'src/types/token/token.types';
+} from '../types/token/token.types';
 
 @Injectable()
 export class TokenService {

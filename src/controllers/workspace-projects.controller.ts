@@ -22,7 +22,7 @@ import { WorkspaceMemberGuard } from '../guards/workspace-member.guard';
 import { ApiValidationErrorResponse } from '../decorators/api-bad-request.decorator';
 import { ApiForbiddenResponse } from '../decorators/api-forbidden.decorator';
 import { ApiUnauthorizedResponse } from '../decorators/api-unauthorized.decorator';
-import { ApiInternalServerErrorResponse } from 'src/decorators/api-internal-server-error.decorator';
+import { ApiInternalServerErrorResponse } from '../decorators/api-internal-server-error.decorator';
 import { ErrorResponseDto } from '../dto/error-response.dto';
 
 @ApiBearerAuth()
