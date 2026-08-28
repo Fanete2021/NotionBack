@@ -1,9 +1,9 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, IsUUID } from 'class-validator';
 
 export class CreateProjectDto {
-  @ApiProperty({ example: 'Work', description: 'Project name' })
+  @ApiProperty({ example: 'Work', description: 'Название проекта' })
   @Transform(({ value }: { value: string }) =>
     typeof value === 'string' ? value.trim() : value,
   )
@@ -13,18 +13,18 @@ export class CreateProjectDto {
 
   @ApiPropertyOptional({
     example: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
-    description: 'Parent project id (for nesting)',
+    description: 'ID родительского проекта (для вложенности)',
   })
   @IsOptional()
-  @IsString()
+  @IsUUID('4')
   parentProjectId?: string;
 
-  @ApiPropertyOptional({ example: '#ff6347', description: 'Project color' })
+  @ApiPropertyOptional({ example: '#ff6347', description: 'Цвет проекта' })
   @IsOptional()
   @IsString()
   color?: string;
 
-  @ApiPropertyOptional({ example: '📁', description: 'Project icon' })
+  @ApiPropertyOptional({ example: '📁', description: 'Иконка проекта' })
   @IsOptional()
   @IsString()
   icon?: string;

@@ -1,11 +1,15 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
 import { IsBoolean, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class UpdateWorkspaceDto {
   @ApiPropertyOptional({
     example: 'My renamed workspace',
-    description: 'Workspace name',
+    description: 'Название воркспейса',
   })
+  @Transform(({ value }: { value: string }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
   @IsOptional()
   @IsString()
   @IsNotEmpty({ message: 'Workspace name must not be empty' })
@@ -13,7 +17,7 @@ export class UpdateWorkspaceDto {
 
   @ApiPropertyOptional({
     example: true,
-    description: 'Whether the workspace is public',
+    description: 'Публичный ли воркспейс',
   })
   @IsOptional()
   @IsBoolean()

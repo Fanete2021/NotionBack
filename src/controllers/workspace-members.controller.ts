@@ -27,6 +27,8 @@ import { ApiUnauthorizedResponse } from '../decorators/api-unauthorized.decorato
 import { ApiForbiddenResponse } from '../decorators/api-forbidden.decorator';
 import { ApiValidationErrorResponse } from '../decorators/api-bad-request.decorator';
 import { ApiInternalServerErrorResponse } from '../decorators/api-internal-server-error.decorator';
+import { ApiNotFoundResponse } from '../decorators/api-not-found.decorator';
+import { ErrorResponseDto } from '../dto/error-response.dto';
 
 @ApiBearerAuth()
 @ApiTags('Участники воркспейса')
@@ -65,13 +67,11 @@ export class WorkspaceMembersController {
     type: WorkspaceMemberEntity,
   })
   @ApiValidationErrorResponse()
-  @ApiResponse({
-    status: 404,
-    description: 'Воркспейс или пользователь не найден',
-  })
+  @ApiNotFoundResponse('Воркспейс или пользователь не найден')
   @ApiResponse({
     status: 409,
     description: 'Пользователь уже является участником',
+    type: ErrorResponseDto,
   })
   addMember(
     @CurrentUser('id') userId: string,
@@ -99,10 +99,7 @@ export class WorkspaceMembersController {
     type: WorkspaceMemberEntity,
   })
   @ApiValidationErrorResponse()
-  @ApiResponse({
-    status: 404,
-    description: 'Воркспейс или членство не найдено',
-  })
+  @ApiNotFoundResponse('Воркспейс или членство не найдено')
   changeMemberRole(
     @CurrentUser('id') userId: string,
     @Param('workspaceId') workspaceId: string,
@@ -126,10 +123,7 @@ export class WorkspaceMembersController {
   @ApiParam({ name: 'workspaceId', type: String, description: 'ID воркспейса' })
   @ApiParam({ name: 'userId', type: String, description: 'ID пользователя' })
   @ApiResponse({ status: 204, description: 'Участник успешно удален' })
-  @ApiResponse({
-    status: 404,
-    description: 'Воркспейс или членство не найдено',
-  })
+  @ApiNotFoundResponse('Воркспейс или членство не найдено')
   removeMember(
     @CurrentUser('id') userId: string,
     @Param('workspaceId') workspaceId: string,

@@ -3,24 +3,24 @@ import {
   ArrayNotEmpty,
   ArrayUnique,
   IsOptional,
-  IsString,
+  IsUUID,
 } from 'class-validator';
 
 export class ReorderProjectsDto {
   @ApiPropertyOptional({
     example: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
-    description: 'Parent project id (null for root level)',
+    description: 'ID родительского проекта (null — корневой уровень)',
   })
   @IsOptional()
-  @IsString()
+  @IsUUID('4')
   parentProjectId?: string | null;
 
   @ApiProperty({
     example: ['3fa85f64-5717-4562-b3fc-2c963f66afa6'],
-    description: 'Ordered ids of all sibling projects under the given parent',
+    description: 'Упорядоченные id всех соседних проектов под указанным родителем',
   })
   @ArrayNotEmpty({ message: 'orderedIds must not be empty' })
   @ArrayUnique({ message: 'orderedIds must not contain duplicates' })
-  @IsString({ each: true, message: 'orderedIds must contain only strings' })
+  @IsUUID('4', { each: true, message: 'orderedIds must contain only UUIDs' })
   orderedIds!: string[];
 }

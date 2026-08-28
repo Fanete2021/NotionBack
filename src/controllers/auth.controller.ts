@@ -26,9 +26,10 @@ import { LoginDto } from '../dto/login.dto';
 import { LogoutDto } from '../dto/logout.dto';
 import {
   AuthResponseDto,
-  UserDto,
+  AuthUserDto,
   MessageResponseDto,
 } from '../dto/auth-response.dto';
+import { ErrorResponseDto } from '../dto/error-response.dto';
 import type { Request, Response } from 'express';
 import { UserPayload, LogoutData } from 'src/types/auth/auth.types';
 import { RefreshData } from 'src/types/token/token.types';
@@ -63,7 +64,11 @@ export class AuthController {
     type: AuthResponseDto,
   })
   @ApiValidationErrorResponse()
-  @ApiResponse({ status: 409, description: 'Email уже занят' })
+  @ApiResponse({
+    status: 409,
+    description: 'Email уже занят',
+    type: ErrorResponseDto,
+  })
   @Public()
   @Post('register')
   async register(
@@ -90,6 +95,7 @@ export class AuthController {
   @ApiResponse({
     status: 401,
     description: 'Неверный email или пароль (ошибка аутентификации)',
+    type: ErrorResponseDto,
   })
   @Public()
   @HttpCode(HttpStatus.OK)
@@ -119,6 +125,7 @@ export class AuthController {
   @ApiResponse({
     status: 401,
     description: 'Токен недействителен или отсутствует',
+    type: ErrorResponseDto,
   })
   @Public()
   @UseGuards(AuthGuard('jwt-refresh'))
@@ -155,8 +162,13 @@ export class AuthController {
   @ApiResponse({
     status: 400,
     description: 'Ошибка валидации данных или отсутствует refreshToken',
+    type: ErrorResponseDto,
   })
-  @ApiResponse({ status: 401, description: 'Не авторизован' })
+  @ApiResponse({
+    status: 401,
+    description: 'Не авторизован',
+    type: ErrorResponseDto,
+  })
   @UseGuards(AuthGuard('jwt-access'))
   @HttpCode(HttpStatus.OK)
   @Post('logout')
@@ -189,9 +201,13 @@ export class AuthController {
   @ApiResponse({
     status: 200,
     description: 'Данные пользователя получены',
-    type: UserDto,
+    type: AuthUserDto,
   })
-  @ApiResponse({ status: 401, description: 'Не авторизован' })
+  @ApiResponse({
+    status: 401,
+    description: 'Не авторизован',
+    type: ErrorResponseDto,
+  })
   @UseGuards(AuthGuard('jwt-access'))
   @Get('me')
   getProfile(@Req() req: Request) {

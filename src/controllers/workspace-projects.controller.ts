@@ -23,6 +23,7 @@ import { ApiValidationErrorResponse } from '../decorators/api-bad-request.decora
 import { ApiForbiddenResponse } from '../decorators/api-forbidden.decorator';
 import { ApiUnauthorizedResponse } from '../decorators/api-unauthorized.decorator';
 import { ApiInternalServerErrorResponse } from 'src/decorators/api-internal-server-error.decorator';
+import { ErrorResponseDto } from '../dto/error-response.dto';
 
 @ApiBearerAuth()
 @ApiTags('Проекты воркспейса')
@@ -77,6 +78,7 @@ export class WorkspaceProjectsController {
     status: 400,
     description:
       'Некорректный порядок или родительский проект из другого воркспейса',
+    type: ErrorResponseDto,
   })
   async reorder(
     @Param('workspaceId') workspaceId: string,
