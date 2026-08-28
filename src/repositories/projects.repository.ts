@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Prisma, Project } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { ProjectEntity } from '../entities/project.entity';
+import { isNotFoundError } from '../utils/prisma.utils';
 
 export type CreateProjectData = Omit<
   Prisma.ProjectUncheckedCreateInput,
@@ -16,18 +17,26 @@ export class ProjectsRepository {
     workspaceId: string,
     data: CreateProjectData,
   ): Promise<ProjectEntity> {
-    const { _max } = await this.prisma.project.aggregate({
-      where: {
+    const project = await this.prisma.$transaction(async (tx) => {
+      await this.lockSiblingGroup(
+        tx,
         workspaceId,
-        parentProjectId: data.parentProjectId ?? null,
-      },
-      _max: { position: true },
-    });
+        data.parentProjectId ?? null,
+      );
 
-    const position = (_max.position ?? -1) + 1;
+      const { _max } = await tx.project.aggregate({
+        where: {
+          workspaceId,
+          parentProjectId: data.parentProjectId ?? null,
+        },
+        _max: { position: true },
+      });
 
-    const project = await this.prisma.project.create({
-      data: { ...data, workspaceId, position },
+      const position = (_max.position ?? -1) + 1;
+
+      return tx.project.create({
+        data: { ...data, workspaceId, position },
+      });
     });
 
     return this.mapToEntity(project);
@@ -64,7 +73,7 @@ export class ProjectsRepository {
         data,
       })
       .catch((error) => {
-        if (this.isNotFoundError(error)) {
+        if (isNotFoundError(error)) {
           return null;
         }
         throw error;
@@ -78,37 +87,67 @@ export class ProjectsRepository {
     parentProjectId: string | null,
     orderedIds: string[],
   ): Promise<ProjectEntity[] | null> {
-    const siblings = await this.prisma.project.findMany({
-      where: {
-        workspaceId,
-        parentProjectId: parentProjectId ?? null,
-      },
-    });
+    return this.prisma.$transaction(async (tx) => {
+      await this.lockSiblingGroup(tx, workspaceId, parentProjectId);
 
-    const siblingIds = siblings.map((project) => project.id);
-    if (!this.isExactPermutation(orderedIds, siblingIds)) {
-      return null;
+      const siblings = await tx.project.findMany({
+        where: {
+          workspaceId,
+          parentProjectId: parentProjectId ?? null,
+        },
+      });
+
+      const siblingIds = siblings.map((project) => project.id);
+      if (!this.isExactPermutation(orderedIds, siblingIds)) {
+        return null;
+      }
+
+      if (orderedIds.length > 0) {
+        const offset = orderedIds.length;
+        const idList = Prisma.join(
+          orderedIds.map((id) => Prisma.sql`${id}::uuid`),
+        );
+        const valueRows = Prisma.join(
+          orderedIds.map(
+            (id, index) => Prisma.sql`(${id}::uuid, ${index}::int)`,
+          ),
+        );
+
+        await tx.$executeRaw`
+          UPDATE "projects"
+          SET "position" = "position" + ${offset}
+          WHERE id IN (${idList})
+        `;
+        await tx.$executeRaw`
+          UPDATE "projects" AS p
+          SET "position" = v.position,
+              "updatedAt" = NOW()
+          FROM (VALUES ${valueRows}) AS v(id, position)
+          WHERE p.id = v.id
+        `;
+      }
+
+      const projects = await tx.project.findMany({
+        where: { workspaceId },
+        orderBy: { position: 'asc' },
+      });
+
+      return projects.map((project) => this.mapToEntity(project));
+    });
+  }
+
+  async delete(id: string): Promise<boolean> {
+    try {
+      await this.prisma.project.delete({
+        where: { id },
+      });
+      return true;
+    } catch (error) {
+      if (isNotFoundError(error)) {
+        return false;
+      }
+      throw error;
     }
-
-    await this.prisma.$transaction(async (tx) => {
-      const offset = orderedIds.length;
-
-      for (const project of siblings) {
-        await tx.project.update({
-          where: { id: project.id },
-          data: { position: project.position + offset },
-        });
-      }
-
-      for (const [index, id] of orderedIds.entries()) {
-        await tx.project.update({
-          where: { id },
-          data: { position: index },
-        });
-      }
-    });
-
-    return this.findAllByWorkspaceId(workspaceId);
   }
 
   private isExactPermutation(
@@ -123,40 +162,30 @@ export class ProjectsRepository {
     return siblingIds.every((id) => orderedSet.has(id));
   }
 
-  async delete(id: string): Promise<boolean> {
-    try {
-      await this.prisma.project.delete({
-        where: { id },
-      });
-      return true;
-    } catch (error) {
-      if (this.isNotFoundError(error)) {
-        return false;
-      }
-      throw error;
-    }
-  }
-
-  private isNotFoundError(
-    error: unknown,
-  ): error is Prisma.PrismaClientKnownRequestError {
-    return (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === 'P2025'
-    );
+  private lockSiblingGroup(
+    tx: Prisma.TransactionClient,
+    workspaceId: string,
+    parentProjectId: string | null,
+  ): Promise<unknown> {
+    return tx.$queryRaw`
+      SELECT pg_advisory_xact_lock(
+        hashtext(${workspaceId}),
+        hashtext(${parentProjectId ?? ''})
+      )
+    `;
   }
 
   private mapToEntity(project: Project): ProjectEntity {
-    return new ProjectEntity(
-      project.id,
-      project.workspaceId,
-      project.parentProjectId,
-      project.name,
-      project.color,
-      project.icon,
-      project.position,
-      project.createdAt,
-      project.updatedAt,
-    );
+    return new ProjectEntity({
+      id: project.id,
+      workspaceId: project.workspaceId,
+      parentProjectId: project.parentProjectId,
+      name: project.name,
+      color: project.color,
+      icon: project.icon,
+      position: project.position,
+      createdAt: project.createdAt,
+      updatedAt: project.updatedAt,
+    });
   }
 }

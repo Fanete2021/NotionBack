@@ -3,6 +3,7 @@ import { Prisma, Role, Workspace, WorkspaceMember } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { WorkspaceMemberEntity } from '../entities/workspace-member.entity';
 import { WorkspaceEntity } from '../entities/workspace.entity';
+import { isNotFoundError } from '../utils/prisma.utils';
 
 @Injectable()
 export class WorkspacesRepository {
@@ -64,7 +65,7 @@ export class WorkspacesRepository {
         data,
       })
       .catch((error) => {
-        if (this.isNotFoundError(error)) {
+        if (isNotFoundError(error)) {
           return null;
         }
         throw error;
@@ -80,7 +81,7 @@ export class WorkspacesRepository {
       });
       return true;
     } catch (error) {
-      if (this.isNotFoundError(error)) {
+      if (isNotFoundError(error)) {
         return false;
       }
       throw error;
@@ -121,7 +122,7 @@ export class WorkspacesRepository {
         data: { role },
       })
       .catch((error) => {
-        if (this.isNotFoundError(error)) {
+        if (isNotFoundError(error)) {
           return null;
         }
         throw error;
@@ -139,7 +140,7 @@ export class WorkspacesRepository {
       });
       return true;
     } catch (error) {
-      if (this.isNotFoundError(error)) {
+      if (isNotFoundError(error)) {
         return false;
       }
       throw error;
@@ -161,15 +162,6 @@ export class WorkspacesRepository {
     }
 
     return this.mapMemberToEntity(member);
-  }
-
-  private isNotFoundError(
-    error: unknown,
-  ): error is Prisma.PrismaClientKnownRequestError {
-    return (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === 'P2025'
-    );
   }
 
   private mapToEntity(workspace: Workspace): WorkspaceEntity {

@@ -39,14 +39,14 @@ export class UsersRepository {
   }
 
   private mapToEntity(user: User): UserEntity {
-    return new UserEntity(
-      user.id,
-      user.email,
-      user.passwordHash,
-      user.name,
-      user.createdAt,
-      user.updatedAt,
-      user.avatarUrl,
-    );
+    return new UserEntity({
+      id: user.id,
+      email: user.email,
+      passwordHash: user.passwordHash,
+      name: user.name,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+      avatarUrl: user.avatarUrl,
+    });
   }
 }

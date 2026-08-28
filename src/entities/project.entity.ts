@@ -31,27 +31,27 @@ export class ProjectEntity {
   @ApiPropertyOptional({ type: () => [ProjectEntity] })
   readonly childProjects: ProjectEntity[];
 
-  constructor(
-    id: string,
-    workspaceId: string,
-    parentProjectId: string | null,
-    name: string,
-    color: string | null,
-    icon: string | null,
-    position: number,
-    createdAt: Date,
-    updatedAt: Date,
-    childProjects: ProjectEntity[] = [],
-  ) {
-    this.id = id;
-    this.workspaceId = workspaceId;
-    this.parentProjectId = parentProjectId;
-    this.name = name;
-    this.color = color;
-    this.icon = icon;
-    this.position = position;
-    this.createdAt = createdAt;
-    this.updatedAt = updatedAt;
-    this.childProjects = childProjects;
+  constructor(props: {
+    id: string;
+    workspaceId: string;
+    parentProjectId: string | null;
+    name: string;
+    color: string | null;
+    icon: string | null;
+    position: number;
+    createdAt: Date;
+    updatedAt: Date;
+    childProjects?: ProjectEntity[];
+  }) {
+    this.id = props.id;
+    this.workspaceId = props.workspaceId;
+    this.parentProjectId = props.parentProjectId;
+    this.name = props.name;
+    this.color = props.color;
+    this.icon = props.icon;
+    this.position = props.position;
+    this.createdAt = props.createdAt;
+    this.updatedAt = props.updatedAt;
+    this.childProjects = props.childProjects ?? [];
   }
 }

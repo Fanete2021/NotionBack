@@ -130,18 +130,18 @@ export class ProjectsService {
 
     const attach = (project: ProjectEntity): ProjectEntity => {
       const childProjects = (children.get(project.id) ?? []).map(attach);
-      return new ProjectEntity(
-        project.id,
-        project.workspaceId,
-        project.parentProjectId,
-        project.name,
-        project.color,
-        project.icon,
-        project.position,
-        project.createdAt,
-        project.updatedAt,
+      return new ProjectEntity({
+        id: project.id,
+        workspaceId: project.workspaceId,
+        parentProjectId: project.parentProjectId,
+        name: project.name,
+        color: project.color,
+        icon: project.icon,
+        position: project.position,
+        createdAt: project.createdAt,
+        updatedAt: project.updatedAt,
         childProjects,
-      );
+      });
     };
 
     return roots.map(attach);
