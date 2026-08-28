@@ -2,12 +2,13 @@ import {
   Body,
   Controller,
   Delete,
-  Get,
   HttpCode,
   HttpStatus,
   Param,
   Patch,
   Post,
+  Get,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -19,26 +20,34 @@ import {
 import { WorkspacesService } from '../services/workspaces.service';
 import { CreateWorkspaceDto } from '../dto/create-workspace.dto';
 import { UpdateWorkspaceDto } from '../dto/update-workspace.dto';
-import { AddWorkspaceMemberDto } from '../dto/add-workspace-member.dto';
-import { UpdateMemberRoleDto } from '../dto/update-member-role.dto';
 import { CurrentUser } from '../decorators/current-user.decorator';
 import { WorkspaceEntity } from '../entities/workspace.entity';
-import { WorkspaceMemberEntity } from '../entities/workspace-member.entity';
+import { JwtAuthGuard } from '../guards/jwt-auth.guard';
+import { ApiUnauthorizedResponse } from '../decorators/api-unauthorized.decorator';
+import { ApiForbiddenResponse } from '../decorators/api-forbidden.decorator';
+import { ApiValidationErrorResponse } from '../decorators/api-bad-request.decorator';
+import { ApiInternalServerErrorResponse } from '../decorators/api-internal-server-error.decorator';
+import { ApiNotFoundResponse } from '../decorators/api-not-found.decorator';
 
 @ApiBearerAuth()
+@ApiTags('Воркспейсы')
+@ApiUnauthorizedResponse()
+@ApiInternalServerErrorResponse()
+@UseGuards(JwtAuthGuard)
 @Controller('workspaces')
 export class WorkspacesController {
   constructor(private readonly workspacesService: WorkspacesService) {}
 
   @Post()
-  @ApiTags('Workspaces')
-  @ApiOperation({ summary: 'Create a workspace for the current user' })
+  @ApiOperation({ summary: 'Создать новый воркспейс' })
   @ApiResponse({
     status: 201,
-    description: 'Workspace created',
+    description: 'Воркспейс успешно создан',
     type: WorkspaceEntity,
   })
-  async create(
+  @ApiValidationErrorResponse()
+  @ApiForbiddenResponse('Достигнут лимит создания воркспейсов')
+  create(
     @CurrentUser('id') userId: string,
     @Body() dto: CreateWorkspaceDto,
   ): Promise<WorkspaceEntity> {
@@ -46,166 +55,65 @@ export class WorkspacesController {
   }
 
   @Get()
-  @ApiTags('Workspaces')
-  @ApiOperation({ summary: 'Get all workspaces of the current user' })
-  @ApiResponse({ status: 200, type: [WorkspaceEntity] })
-  async findAllByUserId(
+  @ApiOperation({ summary: 'Получить все воркспейсы текущего пользователя' })
+  @ApiResponse({
+    status: 200,
+    description: 'Список воркспейсов успешно получен',
+    type: [WorkspaceEntity],
+  })
+  findAllByUserId(
     @CurrentUser('id') userId: string,
   ): Promise<WorkspaceEntity[]> {
     return this.workspacesService.findAllByUserId(userId);
   }
 
-  @Get(':id')
-  @ApiTags('Workspaces')
-  @ApiOperation({ summary: 'Get a workspace by id' })
-  @ApiParam({ name: 'id', type: String, description: 'Workspace id' })
-  @ApiResponse({ status: 200, type: WorkspaceEntity })
-  @ApiResponse({
-    status: 403,
-    description: 'You are not a member of this workspace',
-  })
-  @ApiResponse({ status: 404, description: 'Workspace not found' })
-  async findById(
-    @CurrentUser('id') userId: string,
-    @Param('id') workspaceId: string,
-  ): Promise<WorkspaceEntity> {
-    await this.workspacesService.assertMemberOf(workspaceId, userId);
-    return this.workspacesService.findById(workspaceId);
-  }
-
-  @Patch(':id')
-  @ApiTags('Workspaces')
-  @ApiOperation({ summary: 'Update a workspace (owner only)' })
-  @ApiParam({ name: 'id', type: String, description: 'Workspace id' })
-  @ApiResponse({ status: 200, type: WorkspaceEntity })
-  @ApiResponse({
-    status: 403,
-    description: 'Only the workspace owner can do this',
-  })
-  @ApiResponse({ status: 404, description: 'Workspace not found' })
-  async update(
-    @CurrentUser('id') userId: string,
-    @Param('id') workspaceId: string,
-    @Body() dto: UpdateWorkspaceDto,
-  ): Promise<WorkspaceEntity> {
-    await this.workspacesService.assertOwner(workspaceId, userId);
-    return this.workspacesService.update(workspaceId, dto);
-  }
-
-  @Delete(':id')
-  @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiTags('Workspaces')
-  @ApiOperation({ summary: 'Delete a workspace (owner only)' })
-  @ApiParam({ name: 'id', type: String, description: 'Workspace id' })
-  @ApiResponse({ status: 204, description: 'Workspace deleted' })
-  @ApiResponse({
-    status: 403,
-    description: 'Only the workspace owner can do this',
-  })
-  @ApiResponse({ status: 404, description: 'Workspace not found' })
-  async delete(
-    @CurrentUser('id') userId: string,
-    @Param('id') workspaceId: string,
-  ): Promise<void> {
-    await this.workspacesService.assertOwner(workspaceId, userId);
-    await this.workspacesService.delete(workspaceId);
-  }
-
-  @Get(':id/members')
-  @ApiTags('Workspace Members')
-  @ApiOperation({ summary: 'List members of a workspace' })
-  @ApiParam({ name: 'id', type: String, description: 'Workspace id' })
-  @ApiResponse({ status: 200, type: [WorkspaceMemberEntity] })
-  @ApiResponse({
-    status: 403,
-    description: 'You are not a member of this workspace',
-  })
-  async listMembers(
-    @CurrentUser('id') userId: string,
-    @Param('id') workspaceId: string,
-  ): Promise<WorkspaceMemberEntity[]> {
-    await this.workspacesService.assertMemberOf(workspaceId, userId);
-    return this.workspacesService.listMembers(workspaceId);
-  }
-
-  @Post(':id/members')
-  @ApiTags('Workspace Members')
-  @ApiOperation({
-    summary:
-      'Add a member to a workspace (owner or admin; admin only by owner)',
-  })
-  @ApiParam({ name: 'id', type: String, description: 'Workspace id' })
-  @ApiResponse({
-    status: 201,
-    description: 'Member added',
-    type: WorkspaceMemberEntity,
-  })
-  @ApiResponse({ status: 403, description: 'Not allowed to manage members' })
-  @ApiResponse({ status: 404, description: 'Workspace or user not found' })
-  @ApiResponse({ status: 409, description: 'User is already a member' })
-  async addMember(
-    @CurrentUser('id') userId: string,
-    @Param('id') workspaceId: string,
-    @Body() dto: AddWorkspaceMemberDto,
-  ): Promise<WorkspaceMemberEntity> {
-    return this.workspacesService.addMember(
-      userId,
-      workspaceId,
-      dto.userId,
-      dto.role,
-    );
-  }
-
-  @Patch(':id/members/:userId')
-  @ApiTags('Workspace Members')
-  @ApiOperation({
-    summary: 'Change a member role (owner can assign admins)',
-  })
-  @ApiParam({ name: 'id', type: String, description: 'Workspace id' })
-  @ApiParam({ name: 'userId', type: String, description: 'User id to update' })
+  @Get(':workspaceId')
+  @ApiOperation({ summary: 'Получить данные воркспейса по ID' })
+  @ApiParam({ name: 'workspaceId', type: String, description: 'ID воркспейса' })
   @ApiResponse({
     status: 200,
-    description: 'Member role updated',
-    type: WorkspaceMemberEntity,
+    description: 'Данные воркспейса успешно получены',
+    type: WorkspaceEntity,
   })
-  @ApiResponse({ status: 403, description: 'Not allowed to change this role' })
-  @ApiResponse({
-    status: 404,
-    description: 'Workspace or membership not found',
-  })
-  async changeMemberRole(
+  @ApiForbiddenResponse()
+  @ApiNotFoundResponse('Воркспейс не найден')
+  findById(
     @CurrentUser('id') userId: string,
-    @Param('id') workspaceId: string,
-    @Param('userId') memberId: string,
-    @Body() dto: UpdateMemberRoleDto,
-  ): Promise<WorkspaceMemberEntity> {
-    return this.workspacesService.changeMemberRole(
-      userId,
-      workspaceId,
-      memberId,
-      dto.role,
-    );
+    @Param('workspaceId') workspaceId: string,
+  ): Promise<WorkspaceEntity> {
+    return this.workspacesService.findById(workspaceId, userId);
   }
 
-  @Delete(':id/members/:userId')
-  @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiTags('Workspace Members')
-  @ApiOperation({
-    summary: 'Remove a member from a workspace (owner or admin)',
-  })
-  @ApiParam({ name: 'id', type: String, description: 'Workspace id' })
-  @ApiParam({ name: 'userId', type: String, description: 'User id to remove' })
-  @ApiResponse({ status: 204, description: 'Member removed' })
-  @ApiResponse({ status: 403, description: 'Not allowed to manage members' })
+  @Patch(':workspaceId')
+  @ApiOperation({ summary: 'Обновить данные воркспейса (только владелец)' })
+  @ApiParam({ name: 'workspaceId', type: String, description: 'ID воркспейса' })
   @ApiResponse({
-    status: 404,
-    description: 'Workspace or membership not found',
+    status: 200,
+    description: 'Воркспейс успешно обновлен',
+    type: WorkspaceEntity,
   })
-  async removeMember(
+  @ApiForbiddenResponse('Только владелец воркспейса может это сделать')
+  @ApiNotFoundResponse('Воркспейс не найден')
+  @ApiValidationErrorResponse()
+  update(
     @CurrentUser('id') userId: string,
-    @Param('id') workspaceId: string,
-    @Param('userId') memberId: string,
+    @Param('workspaceId') workspaceId: string,
+    @Body() dto: UpdateWorkspaceDto,
+  ): Promise<WorkspaceEntity> {
+    return this.workspacesService.update(workspaceId, userId, dto);
+  }
+
+  @Delete(':workspaceId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Удалить воркспейс (только владелец)' })
+  @ApiParam({ name: 'workspaceId', type: String, description: 'ID воркспейса' })
+  @ApiResponse({ status: 204, description: 'Воркспейс успешно удален' })
+  @ApiForbiddenResponse('Только владелец воркспейса может это сделать')
+  @ApiNotFoundResponse('Воркспейс не найден')
+  delete(
+    @CurrentUser('id') userId: string,
+    @Param('workspaceId') workspaceId: string,
   ): Promise<void> {
-    await this.workspacesService.removeMember(userId, workspaceId, memberId);
+    return this.workspacesService.delete(workspaceId, userId);
   }
 }

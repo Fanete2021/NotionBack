@@ -107,14 +107,30 @@ describe('WorkspacesService', () => {
   describe('findById', () => {
     it('возвращает воркспейс', async () => {
       mockWorkspacesRepository.findById.mockResolvedValue({ id: 'ws-1' });
+      mockWorkspacesRepository.findMembership.mockResolvedValue(
+        membership(Role.EDITOR),
+      );
 
-      await expect(service.findById('ws-1')).resolves.toEqual({ id: 'ws-1' });
+      await expect(service.findById('ws-1', 'user-1')).resolves.toEqual({
+        id: 'ws-1',
+      });
     });
 
     it('бросает 404, если воркспейс не найден', async () => {
       mockWorkspacesRepository.findById.mockResolvedValue(null);
 
-      await expect(service.findById('ws-1')).rejects.toThrow(NotFoundException);
+      await expect(service.findById('ws-1', 'user-1')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('бросает 403, если пользователь не является участником воркспейса', async () => {
+      mockWorkspacesRepository.findById.mockResolvedValue({ id: 'ws-1' });
+      mockWorkspacesRepository.findMembership.mockResolvedValue(null);
+
+      await expect(service.findById('ws-1', 'user-1')).rejects.toThrow(
+        ForbiddenException,
+      );
     });
   });
 
@@ -132,36 +148,70 @@ describe('WorkspacesService', () => {
 
   describe('update', () => {
     it('обновляет воркспейс', async () => {
+      mockWorkspacesRepository.findMembership.mockResolvedValue(
+        membership(Role.OWNER),
+      );
       mockWorkspacesRepository.update.mockResolvedValue({
         id: 'ws-1',
         name: 'New name',
       });
 
       await expect(
-        service.update('ws-1', { name: 'New name' }),
+        service.update('ws-1', 'user-1', { name: 'New name' }),
       ).resolves.toEqual({ id: 'ws-1', name: 'New name' });
     });
 
     it('бросает 404, если воркспейс не найден', async () => {
+      mockWorkspacesRepository.findMembership.mockResolvedValue(
+        membership(Role.OWNER),
+      );
       mockWorkspacesRepository.update.mockResolvedValue(null);
 
-      await expect(service.update('ws-1', { name: 'X' })).rejects.toThrow(
-        NotFoundException,
+      await expect(
+        service.update('ws-1', 'user-1', { name: 'X' }),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('бросает 403, если обновляет не владелец воркспейса', async () => {
+      mockWorkspacesRepository.findMembership.mockResolvedValue(
+        membership(Role.EDITOR),
       );
+
+      await expect(
+        service.update('ws-1', 'user-1', { name: 'X' }),
+      ).rejects.toThrow(ForbiddenException);
     });
   });
 
   describe('delete', () => {
     it('удаляет воркспейс', async () => {
+      mockWorkspacesRepository.findMembership.mockResolvedValue(
+        membership(Role.OWNER),
+      );
       mockWorkspacesRepository.delete.mockResolvedValue(true);
 
-      await expect(service.delete('ws-1')).resolves.toBeUndefined();
+      await expect(service.delete('ws-1', 'user-1')).resolves.toBeUndefined();
     });
 
     it('бросает 404, если воркспейс не найден', async () => {
+      mockWorkspacesRepository.findMembership.mockResolvedValue(
+        membership(Role.OWNER),
+      );
       mockWorkspacesRepository.delete.mockResolvedValue(false);
 
-      await expect(service.delete('ws-1')).rejects.toThrow(NotFoundException);
+      await expect(service.delete('ws-1', 'user-1')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('бросает 403, если удаляет не владелец воркспейса', async () => {
+      mockWorkspacesRepository.findMembership.mockResolvedValue(
+        membership(Role.EDITOR),
+      );
+
+      await expect(service.delete('ws-1', 'user-1')).rejects.toThrow(
+        ForbiddenException,
+      );
     });
   });
 

@@ -27,6 +27,7 @@ import { ApiValidationErrorResponse } from '../decorators/api-bad-request.decora
 import { ApiForbiddenResponse } from '../decorators/api-forbidden.decorator';
 import { ApiUnauthorizedResponse } from '../decorators/api-unauthorized.decorator';
 import { ApiInternalServerErrorResponse } from '../decorators/api-internal-server-error.decorator';
+import { ApiNotFoundResponse } from '../decorators/api-not-found.decorator';
 
 interface AuthenticatedRequest extends Request {
   project?: ProjectEntity;
@@ -37,7 +38,7 @@ interface AuthenticatedRequest extends Request {
 @ApiUnauthorizedResponse()
 @ApiForbiddenResponse('Вы не являетесь участником воркспейса этого проекта')
 @ApiInternalServerErrorResponse()
-@ApiResponse({ status: 404, description: 'Проект не найден' })
+@ApiNotFoundResponse('Проект не найден')
 @UseGuards(WorkspaceMemberGuard)
 @Controller('projects')
 export class ProjectsController {
@@ -51,7 +52,7 @@ export class ProjectsController {
     description: 'Данные проекта успешно получены',
     type: ProjectEntity,
   })
-  findById(@Req() req: AuthenticatedRequest) {
+  findById(@Req() req: AuthenticatedRequest): ProjectEntity {
     if (!req.project) {
       throw new InternalServerErrorException('Project not loaded');
     }
@@ -67,7 +68,7 @@ export class ProjectsController {
     type: ProjectEntity,
   })
   @ApiValidationErrorResponse()
-  async update(
+  update(
     @Param('id') id: string,
     @Body() dto: UpdateProjectDto,
     @Req() req: AuthenticatedRequest,
@@ -80,7 +81,7 @@ export class ProjectsController {
   @ApiOperation({ summary: 'Удалить проект' })
   @ApiParam({ name: 'id', type: String, description: 'ID проекта' })
   @ApiResponse({ status: 204, description: 'Проект успешно удален' })
-  async delete(@Param('id') id: string): Promise<void> {
-    await this.projectsService.delete(id);
+  delete(@Param('id') id: string): Promise<void> {
+    return this.projectsService.delete(id);
   }
 }

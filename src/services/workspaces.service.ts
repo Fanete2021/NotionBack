@@ -35,7 +35,10 @@ export class WorkspacesService {
     return this.workspacesRepository.create(ownerId, name);
   }
 
-  async findById(id: string): Promise<WorkspaceEntity> {
+  async findById(id: string, userId: string): Promise<WorkspaceEntity> {
+    // assertMemberOf сам проверит существование воркспейса и права доступа
+    await this.assertMemberOf(id, userId);
+
     const workspace = await this.workspacesRepository.findById(id);
     if (!workspace) {
       throw new NotFoundException('Workspace not found');
@@ -49,8 +52,11 @@ export class WorkspacesService {
 
   async update(
     id: string,
+    userId: string,
     payload: Prisma.WorkspaceUpdateInput,
   ): Promise<WorkspaceEntity> {
+    await this.assertOwner(id, userId);
+
     const workspace = await this.workspacesRepository.update(id, payload);
     if (!workspace) {
       throw new NotFoundException('Workspace not found');
@@ -58,7 +64,9 @@ export class WorkspacesService {
     return workspace;
   }
 
-  async delete(id: string): Promise<void> {
+  async delete(id: string, userId: string): Promise<void> {
+    await this.assertOwner(id, userId);
+
     const deleted = await this.workspacesRepository.delete(id);
     if (!deleted) {
       throw new NotFoundException('Workspace not found');
