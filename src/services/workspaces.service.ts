@@ -2,20 +2,20 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
-  ConflictException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Role, Prisma } from '@prisma/client';
+import { Role } from '@prisma/client';
 import { WorkspacesRepository } from '../repositories/workspaces.repository';
 import { WorkspaceEntity } from '../entities/workspace.entity';
 import { WorkspaceMemberEntity } from '../entities/workspace-member.entity';
-import { UsersService } from './users.service';
+import { UsersRepository } from '../repositories/users.repository';
+import { UpdateWorkspaceDto } from '../dto/update-workspace.dto';
 
 @Injectable()
 export class WorkspacesService {
   constructor(
     private readonly workspacesRepository: WorkspacesRepository,
-    private readonly usersService: UsersService,
+    private readonly usersRepository: UsersRepository,
     private readonly configService: ConfigService,
   ) {}
 
@@ -53,10 +53,14 @@ export class WorkspacesService {
   async update(
     id: string,
     userId: string,
-    payload: Prisma.WorkspaceUpdateInput,
+    dto: UpdateWorkspaceDto,
   ): Promise<WorkspaceEntity> {
-    await this.assertOwner(id, userId);
+    await this.assertIsOwner(id, userId);
 
+    const payload = {
+      ...(dto.name !== undefined && { name: dto.name }),
+      ...(dto.isPublic !== undefined && { isPublic: dto.isPublic }),
+    };
     const workspace = await this.workspacesRepository.update(id, payload);
     if (!workspace) {
       throw new NotFoundException('Workspace not found');
@@ -65,7 +69,7 @@ export class WorkspacesService {
   }
 
   async delete(id: string, userId: string): Promise<void> {
-    await this.assertOwner(id, userId);
+    await this.assertIsOwner(id, userId);
 
     const deleted = await this.workspacesRepository.delete(id);
     if (!deleted) {
@@ -95,28 +99,12 @@ export class WorkspacesService {
       );
     }
 
-    const user = await this.usersService.findById(userId);
+    const user = await this.usersRepository.findById(userId);
     if (!user) {
       throw new NotFoundException('User not found');
     }
 
-    try {
-      return await this.workspacesRepository.addMember(
-        workspaceId,
-        userId,
-        role,
-      );
-    } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2002'
-      ) {
-        throw new ConflictException(
-          'User is already a member of this workspace',
-        );
-      }
-      throw error;
-    }
+    return this.workspacesRepository.addMember(workspaceId, userId, role);
   }
 
   async changeMemberRole(
@@ -212,10 +200,6 @@ export class WorkspacesService {
     if (!membership) {
       throw new ForbiddenException('You are not a member of this workspace');
     }
-  }
-
-  async assertOwner(workspaceId: string, userId: string): Promise<void> {
-    await this.assertIsOwner(workspaceId, userId);
   }
 
   private async assertCanManageMembers(

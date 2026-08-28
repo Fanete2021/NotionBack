@@ -29,7 +29,7 @@ export class ProjectEntity {
   readonly updatedAt: Date;
 
   @ApiPropertyOptional({ type: () => [ProjectEntity] })
-  childProjects: ProjectEntity[];
+  readonly childProjects: ProjectEntity[];
 
   constructor(
     id: string,

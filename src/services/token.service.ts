@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { Redis } from 'ioredis';
@@ -42,8 +42,15 @@ export class TokenService {
       expiresIn: refreshExpiresIn,
     });
 
-    const key = `refresh_token:${data.userId}:${refreshTokenId}`;
-    await this.redis.set(key, '1', 'EX', refreshExpiresIn);
+    const sessionSetKey = this.userSessionsKey(data.userId);
+    await this.redis.set(
+      this.refreshTokenKey(data.userId, refreshTokenId),
+      '1',
+      'EX',
+      refreshExpiresIn,
+    );
+    await this.redis.sadd(sessionSetKey, refreshTokenId);
+    await this.redis.expire(sessionSetKey, refreshExpiresIn);
 
     return {
       accessToken,
@@ -53,26 +60,28 @@ export class TokenService {
   }
 
   async validateRefreshToken(token: string) {
-    const decodedRefreshToken: RefreshTokenPayload = this.jwtService.verify(
-      token,
-      {
-        secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
-      },
-    );
+    const decodedRefreshToken = this.verifyRefreshPayload(token);
 
-    const refreshTokenId = decodedRefreshToken.jti as string | undefined;
+    const refreshTokenId = decodedRefreshToken.jti;
     if (!refreshTokenId) {
-      throw new Error('Invalid refresh token');
+      throw new UnauthorizedException('Invalid refresh token');
     }
 
-    const redisKey = `refresh_token:${decodedRefreshToken.sub}:${refreshTokenId}`;
+    const redisKey = this.refreshTokenKey(
+      decodedRefreshToken.sub,
+      refreshTokenId,
+    );
     const isTokenValid = await this.redis.exists(redisKey);
 
     if (!isTokenValid) {
-      throw new Error('Invalid refresh token');
+      throw new UnauthorizedException('Invalid refresh token');
     }
 
     await this.redis.del(redisKey);
+    await this.redis.srem(
+      this.userSessionsKey(decodedRefreshToken.sub),
+      refreshTokenId,
+    );
 
     return {
       userId: decodedRefreshToken.sub,
@@ -81,39 +90,54 @@ export class TokenService {
   }
 
   getTokenUserId(token: string) {
-    const decodedRefreshToken: RefreshTokenPayload = this.jwtService.verify(
-      token,
-      {
-        secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
-      },
-    );
-
-    return decodedRefreshToken.sub as string | undefined;
+    return this.verifyRefreshPayload(token).sub;
   }
 
   async revokeToken(data: RevokeData) {
+    const sessionSetKey = this.userSessionsKey(data.userId);
+
     if (data.token) {
       try {
-        const decodedRefreshToken = this.jwtService.verify<RefreshTokenPayload>(
-          data.token,
-          {
-            secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
-          },
-        );
+        const decodedRefreshToken = this.verifyRefreshPayload(data.token);
 
         if (decodedRefreshToken.jti) {
           await this.redis.del(
-            `refresh_token:${data.userId}:${decodedRefreshToken.jti}`,
+            this.refreshTokenKey(data.userId, decodedRefreshToken.jti),
           );
+          await this.redis.srem(sessionSetKey, decodedRefreshToken.jti);
         }
-      } catch {
-        // Токен уже невалиден или истек
+      } catch (error) {
+        if (error instanceof UnauthorizedException) {
+          return;
+        }
+        throw error;
       }
     } else {
-      const keys = await this.redis.keys(`refresh_token:${data.userId}:*`);
-      if (keys.length > 0) {
-        await this.redis.del(...keys);
+      const sessionIds = await this.redis.smembers(sessionSetKey);
+      if (sessionIds.length > 0) {
+        await this.redis.del(
+          ...sessionIds.map((id) => this.refreshTokenKey(data.userId, id)),
+        );
       }
+      await this.redis.del(sessionSetKey);
     }
+  }
+
+  private verifyRefreshPayload(token: string): RefreshTokenPayload {
+    try {
+      return this.jwtService.verify<RefreshTokenPayload>(token, {
+        secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
+      });
+    } catch {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+  }
+
+  private refreshTokenKey(userId: string, tokenId: string): string {
+    return `refresh_token:${userId}:${tokenId}`;
+  }
+
+  private userSessionsKey(userId: string): string {
+    return `user_sessions:${userId}`;
   }
 }
