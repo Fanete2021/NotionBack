@@ -5,9 +5,11 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  InternalServerErrorException,
   Param,
   Patch,
-  Post,
+  Req,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -16,135 +18,69 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { Request } from 'express';
 import { ProjectsService } from '../services/projects.service';
-import { WorkspacesService } from '../services/workspaces.service';
-import { CreateProjectDto } from '../dto/create-project.dto';
 import { UpdateProjectDto } from '../dto/update-project.dto';
-import { ReorderProjectsDto } from '../dto/reorder-projects.dto';
-import { CurrentUser } from '../decorators/current-user.decorator';
 import { ProjectEntity } from '../entities/project.entity';
+import { WorkspaceMemberGuard } from '../guards/workspace-member.guard';
+import { ApiValidationErrorResponse } from '../decorators/api-bad-request.decorator';
+import { ApiForbiddenResponse } from '../decorators/api-forbidden.decorator';
+import { ApiUnauthorizedResponse } from '../decorators/api-unauthorized.decorator';
+import { ApiInternalServerErrorResponse } from '../decorators/api-internal-server-error.decorator';
+
+interface AuthenticatedRequest extends Request {
+  project?: ProjectEntity;
+}
 
 @ApiBearerAuth()
-@ApiTags('Projects')
-@Controller()
+@ApiTags('Проекты')
+@ApiUnauthorizedResponse()
+@ApiForbiddenResponse('Вы не являетесь участником воркспейса этого проекта')
+@ApiInternalServerErrorResponse()
+@ApiResponse({ status: 404, description: 'Проект не найден' })
+@UseGuards(WorkspaceMemberGuard)
+@Controller('projects')
 export class ProjectsController {
-  constructor(
-    private readonly projectsService: ProjectsService,
-    private readonly workspacesService: WorkspacesService,
-  ) {}
+  constructor(private readonly projectsService: ProjectsService) {}
 
-  @Post('workspaces/:workspaceId/projects')
-  @ApiOperation({ summary: 'Create a project in a workspace' })
-  @ApiParam({ name: 'workspaceId', type: String, description: 'Workspace id' })
+  @Get(':id')
+  @ApiOperation({ summary: 'Получить данные проекта по ID' })
+  @ApiParam({ name: 'id', type: String, description: 'ID проекта' })
   @ApiResponse({
-    status: 201,
-    description: 'Project created',
+    status: 200,
+    description: 'Данные проекта успешно получены',
     type: ProjectEntity,
   })
-  @ApiResponse({
-    status: 403,
-    description: 'You are not a member of this workspace',
-  })
-  async create(
-    @CurrentUser('id') userId: string,
-    @Param('workspaceId') workspaceId: string,
-    @Body() dto: CreateProjectDto,
-  ): Promise<ProjectEntity> {
-    await this.workspacesService.assertMemberOf(workspaceId, userId);
-    return this.projectsService.create(workspaceId, dto);
+  findById(@Req() req: AuthenticatedRequest) {
+    if (!req.project) {
+      throw new InternalServerErrorException('Project not loaded');
+    }
+    return req.project;
   }
 
-  @Get('workspaces/:workspaceId/projects')
-  @ApiOperation({ summary: 'Get all projects of a workspace' })
-  @ApiParam({ name: 'workspaceId', type: String, description: 'Workspace id' })
-  @ApiResponse({ status: 200, type: [ProjectEntity] })
+  @Patch(':id')
+  @ApiOperation({ summary: 'Обновить данные проекта' })
+  @ApiParam({ name: 'id', type: String, description: 'ID проекта' })
   @ApiResponse({
-    status: 403,
-    description: 'You are not a member of this workspace',
+    status: 200,
+    description: 'Проект успешно обновлен',
+    type: ProjectEntity,
   })
-  async findAllByWorkspaceId(
-    @CurrentUser('id') userId: string,
-    @Param('workspaceId') workspaceId: string,
-  ): Promise<ProjectEntity[]> {
-    await this.workspacesService.assertMemberOf(workspaceId, userId);
-    return this.projectsService.findAllByWorkspaceId(workspaceId);
-  }
-
-  @Patch('workspaces/:workspaceId/projects/order')
-  @ApiOperation({ summary: 'Reorder sibling projects in a workspace' })
-  @ApiParam({ name: 'workspaceId', type: String, description: 'Workspace id' })
-  @ApiResponse({ status: 200, type: [ProjectEntity] })
-  @ApiResponse({
-    status: 400,
-    description:
-      'Parent project not in the same workspace or orderedIds mismatch',
-  })
-  @ApiResponse({
-    status: 403,
-    description: 'You are not a member of this workspace',
-  })
-  async reorder(
-    @CurrentUser('id') userId: string,
-    @Param('workspaceId') workspaceId: string,
-    @Body() dto: ReorderProjectsDto,
-  ): Promise<ProjectEntity[]> {
-    await this.workspacesService.assertMemberOf(workspaceId, userId);
-    return this.projectsService.reorder(workspaceId, dto);
-  }
-
-  @Get('projects/:id')
-  @ApiOperation({ summary: 'Get a project by id' })
-  @ApiParam({ name: 'id', type: String, description: 'Project id' })
-  @ApiResponse({ status: 200, type: ProjectEntity })
-  @ApiResponse({
-    status: 403,
-    description: 'You are not a member of this workspace',
-  })
-  @ApiResponse({ status: 404, description: 'Project not found' })
-  async findById(
-    @CurrentUser('id') userId: string,
-    @Param('id') id: string,
-  ): Promise<ProjectEntity> {
-    const project = await this.projectsService.findById(id);
-    await this.workspacesService.assertMemberOf(project.workspaceId, userId);
-    return project;
-  }
-
-  @Patch('projects/:id')
-  @ApiOperation({ summary: 'Update a project' })
-  @ApiParam({ name: 'id', type: String, description: 'Project id' })
-  @ApiResponse({ status: 200, type: ProjectEntity })
-  @ApiResponse({
-    status: 403,
-    description: 'You are not a member of this workspace',
-  })
-  @ApiResponse({ status: 404, description: 'Project not found' })
+  @ApiValidationErrorResponse()
   async update(
-    @CurrentUser('id') userId: string,
     @Param('id') id: string,
     @Body() dto: UpdateProjectDto,
+    @Req() req: AuthenticatedRequest,
   ): Promise<ProjectEntity> {
-    const project = await this.projectsService.findById(id);
-    await this.workspacesService.assertMemberOf(project.workspaceId, userId);
-    return this.projectsService.update(id, dto);
+    return this.projectsService.update(id, dto, req.project);
   }
 
-  @Delete('projects/:id')
+  @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Delete a project' })
-  @ApiParam({ name: 'id', type: String, description: 'Project id' })
-  @ApiResponse({ status: 204, description: 'Project deleted' })
-  @ApiResponse({
-    status: 403,
-    description: 'You are not a member of this workspace',
-  })
-  @ApiResponse({ status: 404, description: 'Project not found' })
-  async delete(
-    @CurrentUser('id') userId: string,
-    @Param('id') id: string,
-  ): Promise<void> {
-    const project = await this.projectsService.findById(id);
-    await this.workspacesService.assertMemberOf(project.workspaceId, userId);
+  @ApiOperation({ summary: 'Удалить проект' })
+  @ApiParam({ name: 'id', type: String, description: 'ID проекта' })
+  @ApiResponse({ status: 204, description: 'Проект успешно удален' })
+  async delete(@Param('id') id: string): Promise<void> {
     await this.projectsService.delete(id);
   }
 }

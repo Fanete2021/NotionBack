@@ -38,8 +38,13 @@ export class ProjectsService {
     return project;
   }
 
-  async update(id: string, data: UpdateProjectDto): Promise<ProjectEntity> {
-    const project = await this.projectsRepository.findById(id);
+  async update(
+    id: string,
+    data: UpdateProjectDto,
+    existingProject?: ProjectEntity,
+  ): Promise<ProjectEntity> {
+    const project =
+      existingProject ?? (await this.projectsRepository.findById(id));
     if (!project) {
       throw new NotFoundException('Project not found');
     }

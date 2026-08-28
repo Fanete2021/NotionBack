@@ -40,9 +40,10 @@ import {
 } from '../utils/cookies';
 import { Public } from '../decorators/public.decorator';
 import { ApiValidationErrorResponse } from '../decorators/api-bad-request.decorator';
+import { ApiInternalServerErrorResponse } from 'src/decorators/api-internal-server-error.decorator';
 
 @ApiTags('Авторизация')
-@ApiResponse({ status: 500, description: 'Внутренняя ошибка сервера' })
+@ApiInternalServerErrorResponse()
 @Controller('auth')
 export class AuthController {
   constructor(
