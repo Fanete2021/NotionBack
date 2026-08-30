@@ -5,6 +5,7 @@ import { ProjectsService } from '../services/projects.service';
 import { ProjectEntity } from '../entities/project.entity';
 import { WorkspaceMemberGuard } from '../guards/workspace-member.guard';
 import type { Request } from 'express';
+import { WorkspaceProjectGuard } from '../guards/workspace-project.guard';
 
 type AuthenticatedRequest = Request & { project?: ProjectEntity };
 
@@ -34,6 +35,8 @@ describe('ProjectsController', () => {
       controllers: [ProjectsController],
       providers: [{ provide: ProjectsService, useValue: mockProjectsService }],
     })
+      .overrideGuard(WorkspaceProjectGuard)
+      .useValue({ canActivate: () => true })
       .overrideGuard(WorkspaceMemberGuard)
       .useValue({ canActivate: () => true })
       .compile();

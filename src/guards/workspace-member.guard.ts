@@ -1,12 +1,6 @@
-import {
-  CanActivate,
-  ExecutionContext,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { Request } from 'express';
 import { WorkspacesService } from '../services/workspaces.service';
-import { ProjectsService } from '../services/projects.service';
 import { ProjectEntity } from '../entities/project.entity';
 
 interface AuthenticatedRequest extends Request {
@@ -16,10 +10,7 @@ interface AuthenticatedRequest extends Request {
 
 @Injectable()
 export class WorkspaceMemberGuard implements CanActivate {
-  constructor(
-    private readonly workspacesService: WorkspacesService,
-    private readonly projectsService: ProjectsService,
-  ) {}
+  constructor(private readonly workspacesService: WorkspacesService) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
@@ -29,23 +20,10 @@ export class WorkspaceMemberGuard implements CanActivate {
       return false;
     }
 
-    let workspaceId = Array.isArray(request.params.workspaceId)
-      ? request.params.workspaceId[0]
-      : request.params.workspaceId;
-    const projectId = Array.isArray(request.params.id)
-      ? request.params.id[0]
-      : request.params.id;
-
-    // Если у нас роут с проектом, но без workspaceId (например, /projects/:id)
-    if (!workspaceId && projectId) {
-      const project = await this.projectsService.findById(projectId);
-      if (!project) {
-        throw new NotFoundException('Project not found');
-      }
-      workspaceId = project.workspaceId;
-      // Сохраняем проект в запрос, чтобы не читать его из БД повторно в контроллере/сервисе
-      request.project = project;
-    }
+    const fromParams = request.params.workspaceId;
+    const workspaceId =
+      (Array.isArray(fromParams) ? fromParams[0] : fromParams) ??
+      request.project?.workspaceId;
 
     if (!workspaceId) {
       return false;

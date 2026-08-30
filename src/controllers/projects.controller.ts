@@ -22,13 +22,14 @@ import {
   ProjectFindByIdResponse,
   ProjectUpdateResponse,
 } from '../decorators/swagger/controller/project-swagger.decorator';
+import { WorkspaceProjectGuard } from '../guards/workspace-project.guard';
 
 interface AuthenticatedRequest extends Request {
   project?: ProjectEntity;
 }
 
 @ProjectControllerResponse()
-@UseGuards(WorkspaceMemberGuard)
+@UseGuards(WorkspaceProjectGuard, WorkspaceMemberGuard)
 @Controller('projects')
 export class ProjectsController {
   constructor(private readonly projectsService: ProjectsService) {}
