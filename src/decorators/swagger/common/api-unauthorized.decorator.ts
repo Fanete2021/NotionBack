@@ -1,11 +1,11 @@
 import { applyDecorators, HttpStatus } from '@nestjs/common';
 import { ApiResponse } from '@nestjs/swagger';
-import { ErrorResponseDto } from '../dto/error-response.dto';
+import { ErrorResponseDto } from '../../../dto/error-response.dto';
 
-export function ApiNotFoundResponse(description = 'Ресурс не найден') {
+export function ApiUnauthorizedResponse(description = 'Не авторизован') {
   return applyDecorators(
     ApiResponse({
-      status: HttpStatus.NOT_FOUND,
+      status: HttpStatus.UNAUTHORIZED,
       description,
       type: ErrorResponseDto,
     }),

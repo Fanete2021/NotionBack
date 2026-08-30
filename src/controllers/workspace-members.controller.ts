@@ -10,69 +10,37 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
-import {
-  ApiBearerAuth,
-  ApiOperation,
-  ApiParam,
-  ApiResponse,
-  ApiTags,
-} from '@nestjs/swagger';
+
 import { WorkspacesService } from '../services/workspaces.service';
 import { AddWorkspaceMemberDto } from '../dto/add-workspace-member.dto';
 import { UpdateMemberRoleDto } from '../dto/update-member-role.dto';
-import { CurrentUser } from '../decorators/current-user.decorator';
+import { CurrentUser } from '../decorators/swagger/common/current-user.decorator';
 import { WorkspaceMemberEntity } from '../entities/workspace-member.entity';
 import { WorkspaceMemberGuard } from '../guards/workspace-member.guard';
-import { ApiUnauthorizedResponse } from '../decorators/api-unauthorized.decorator';
-import { ApiForbiddenResponse } from '../decorators/api-forbidden.decorator';
-import { ApiValidationErrorResponse } from '../decorators/api-bad-request.decorator';
-import { ApiInternalServerErrorResponse } from '../decorators/api-internal-server-error.decorator';
-import { ApiNotFoundResponse } from '../decorators/api-not-found.decorator';
-import { ErrorResponseDto } from '../dto/error-response.dto';
+import {
+  WorkspaceMemberControllerResponse,
+  WorkspaceMemberListMembersResponse,
+  WorkspaceMemberAddMemberResponse,
+  WorkspaceMemberChangeMemberRoleResponse,
+  WorkspaceMemberRemoveMemberResponse,
+} from '../decorators/swagger/controller/workspace-members-swagger.decorator';
 
-@ApiBearerAuth()
-@ApiTags('Участники воркспейса')
-@ApiUnauthorizedResponse()
-@ApiForbiddenResponse()
-@ApiInternalServerErrorResponse()
+@WorkspaceMemberControllerResponse()
 @UseGuards(WorkspaceMemberGuard)
 @Controller('workspaces/:workspaceId/members')
 export class WorkspaceMembersController {
   constructor(private readonly workspacesService: WorkspacesService) {}
 
+  @WorkspaceMemberListMembersResponse()
   @Get()
-  @ApiOperation({ summary: 'Получить список участников воркспейса' })
-  @ApiParam({ name: 'workspaceId', type: String, description: 'ID воркспейса' })
-  @ApiResponse({
-    status: 200,
-    description: 'Список участников успешно получен',
-    type: [WorkspaceMemberEntity],
-  })
   listMembers(
     @Param('workspaceId') workspaceId: string,
   ): Promise<WorkspaceMemberEntity[]> {
     return this.workspacesService.listMembers(workspaceId);
   }
 
+  @WorkspaceMemberAddMemberResponse()
   @Post()
-  @ApiOperation({
-    summary: 'Добавить участника в воркспейс',
-    description:
-      'Только владелец или админ. Админа может добавить только владелец.',
-  })
-  @ApiParam({ name: 'workspaceId', type: String, description: 'ID воркспейса' })
-  @ApiResponse({
-    status: 201,
-    description: 'Участник успешно добавлен',
-    type: WorkspaceMemberEntity,
-  })
-  @ApiValidationErrorResponse()
-  @ApiNotFoundResponse('Воркспейс или пользователь не найден')
-  @ApiResponse({
-    status: 409,
-    description: 'Пользователь уже является участником',
-    type: ErrorResponseDto,
-  })
   addMember(
     @CurrentUser('id') userId: string,
     @Param('workspaceId') workspaceId: string,
@@ -86,20 +54,8 @@ export class WorkspaceMembersController {
     );
   }
 
+  @WorkspaceMemberChangeMemberRoleResponse()
   @Patch(':userId')
-  @ApiOperation({
-    summary: 'Изменить роль участника',
-    description: 'Владелец может назначать админов.',
-  })
-  @ApiParam({ name: 'workspaceId', type: String, description: 'ID воркспейса' })
-  @ApiParam({ name: 'userId', type: String, description: 'ID пользователя' })
-  @ApiResponse({
-    status: 200,
-    description: 'Роль успешно обновлена',
-    type: WorkspaceMemberEntity,
-  })
-  @ApiValidationErrorResponse()
-  @ApiNotFoundResponse('Воркспейс или членство не найдено')
   changeMemberRole(
     @CurrentUser('id') userId: string,
     @Param('workspaceId') workspaceId: string,
@@ -114,16 +70,9 @@ export class WorkspaceMembersController {
     );
   }
 
+  @WorkspaceMemberRemoveMemberResponse()
   @Delete(':userId')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({
-    summary: 'Удалить участника из воркспейса',
-    description: 'Только владелец или админ.',
-  })
-  @ApiParam({ name: 'workspaceId', type: String, description: 'ID воркспейса' })
-  @ApiParam({ name: 'userId', type: String, description: 'ID пользователя' })
-  @ApiResponse({ status: 204, description: 'Участник успешно удален' })
-  @ApiNotFoundResponse('Воркспейс или членство не найдено')
   removeMember(
     @CurrentUser('id') userId: string,
     @Param('workspaceId') workspaceId: string,

@@ -1,14 +1,16 @@
 import { Controller, Get } from '@nestjs/common';
-import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { Public } from '../decorators/public.decorator';
+import { Public } from '../decorators/swagger/common/public.decorator';
+import {
+  HealthControllerResponse,
+  HealthResponse,
+} from '../decorators/swagger/controller/health-swagger.decorator';
 
-@ApiTags('Health')
+@HealthControllerResponse()
 @Controller('health')
 export class HealthController {
+  @HealthResponse()
   @Public()
   @Get()
-  @ApiOperation({ summary: 'Проверка работоспособности приложения' })
-  @ApiResponse({ status: 200, description: 'Приложение работает' })
   check(): { status: string; timestamp: string } {
     return {
       status: 'ok',

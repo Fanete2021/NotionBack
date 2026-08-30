@@ -11,47 +11,30 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import {
-  ApiBearerAuth,
-  ApiOperation,
-  ApiParam,
-  ApiResponse,
-  ApiTags,
-} from '@nestjs/swagger';
 import { Request } from 'express';
 import { ProjectsService } from '../services/projects.service';
 import { UpdateProjectDto } from '../dto/update-project.dto';
 import { ProjectEntity } from '../entities/project.entity';
 import { WorkspaceMemberGuard } from '../guards/workspace-member.guard';
-import { ApiValidationErrorResponse } from '../decorators/api-bad-request.decorator';
-import { ApiForbiddenResponse } from '../decorators/api-forbidden.decorator';
-import { ApiUnauthorizedResponse } from '../decorators/api-unauthorized.decorator';
-import { ApiInternalServerErrorResponse } from '../decorators/api-internal-server-error.decorator';
-import { ApiNotFoundResponse } from '../decorators/api-not-found.decorator';
+import {
+  ProjectControllerResponse,
+  ProjectDeleteResponse,
+  ProjectFindByIdResponse,
+  ProjectUpdateResponse,
+} from '../decorators/swagger/controller/project-swagger.decorator';
 
 interface AuthenticatedRequest extends Request {
   project?: ProjectEntity;
 }
 
-@ApiBearerAuth()
-@ApiTags('Проекты')
-@ApiUnauthorizedResponse()
-@ApiForbiddenResponse('Вы не являетесь участником воркспейса этого проекта')
-@ApiInternalServerErrorResponse()
-@ApiNotFoundResponse('Проект не найден')
+@ProjectControllerResponse()
 @UseGuards(WorkspaceMemberGuard)
 @Controller('projects')
 export class ProjectsController {
   constructor(private readonly projectsService: ProjectsService) {}
 
+  @ProjectFindByIdResponse()
   @Get(':id')
-  @ApiOperation({ summary: 'Получить данные проекта по ID' })
-  @ApiParam({ name: 'id', type: String, description: 'ID проекта' })
-  @ApiResponse({
-    status: 200,
-    description: 'Данные проекта успешно получены',
-    type: ProjectEntity,
-  })
   findById(@Req() req: AuthenticatedRequest): ProjectEntity {
     if (!req.project) {
       throw new InternalServerErrorException('Project not loaded');
@@ -59,15 +42,8 @@ export class ProjectsController {
     return req.project;
   }
 
+  @ProjectUpdateResponse()
   @Patch(':id')
-  @ApiOperation({ summary: 'Обновить данные проекта' })
-  @ApiParam({ name: 'id', type: String, description: 'ID проекта' })
-  @ApiResponse({
-    status: 200,
-    description: 'Проект успешно обновлен',
-    type: ProjectEntity,
-  })
-  @ApiValidationErrorResponse()
   update(
     @Param('id') id: string,
     @Body() dto: UpdateProjectDto,
@@ -76,11 +52,9 @@ export class ProjectsController {
     return this.projectsService.update(id, dto, req.project);
   }
 
+  @ProjectDeleteResponse()
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Удалить проект' })
-  @ApiParam({ name: 'id', type: String, description: 'ID проекта' })
-  @ApiResponse({ status: 204, description: 'Проект успешно удален' })
   delete(@Param('id') id: string): Promise<void> {
     return this.projectsService.delete(id);
   }

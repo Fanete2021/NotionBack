@@ -12,24 +12,10 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AuthGuard } from '@nestjs/passport';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiBearerAuth,
-  ApiResponse,
-  ApiBody,
-  ApiCookieAuth,
-} from '@nestjs/swagger';
 import { AuthService } from '../services/auth.service';
 import { RegisterDto } from '../dto/register.dto';
 import { LoginDto } from '../dto/login.dto';
 import { LogoutDto } from '../dto/logout.dto';
-import {
-  AuthResponseDto,
-  AuthUserDto,
-  MessageResponseDto,
-} from '../dto/auth-response.dto';
-import { ErrorResponseDto } from '../dto/error-response.dto';
 import type { Request, Response } from 'express';
 import { UserPayload, LogoutData } from '../types/auth/auth.types';
 import { RefreshData } from '../types/token/token.types';
@@ -39,12 +25,17 @@ import {
   setRefreshTokenCookie,
   clearRefreshTokenCookie,
 } from '../utils/cookies';
-import { Public } from '../decorators/public.decorator';
-import { ApiValidationErrorResponse } from '../decorators/api-bad-request.decorator';
-import { ApiInternalServerErrorResponse } from '../decorators/api-internal-server-error.decorator';
+import { Public } from '../decorators/swagger/common/public.decorator';
+import {
+  AuthControllerResponse,
+  LoginResponse,
+  LogoutResponse,
+  MeResponse,
+  RefreshResponse,
+  RegisterResponse,
+} from '../decorators/swagger/controller/auth-swagger.decorator';
 
-@ApiTags('Авторизация')
-@ApiInternalServerErrorResponse()
+@AuthControllerResponse()
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -52,23 +43,7 @@ export class AuthController {
     private readonly configService: ConfigService,
   ) {}
 
-  @ApiOperation({
-    summary: 'Регистрация нового пользователя',
-    description: 'Устанавливает `refreshToken` через HttpOnly cookie.',
-  })
-  @ApiBody({ type: RegisterDto })
-  @ApiResponse({
-    status: 201,
-    description:
-      'Пользователь успешно создан. `refreshToken` установлен в cookie.',
-    type: AuthResponseDto,
-  })
-  @ApiValidationErrorResponse()
-  @ApiResponse({
-    status: 409,
-    description: 'Email уже занят',
-    type: ErrorResponseDto,
-  })
+  @RegisterResponse()
   @Public()
   @Post('register')
   async register(
@@ -81,22 +56,7 @@ export class AuthController {
     return responseBody;
   }
 
-  @ApiOperation({
-    summary: 'Вход по email и паролю',
-    description: 'Устанавливает `refreshToken` через HttpOnly cookie.',
-  })
-  @ApiBody({ type: LoginDto })
-  @ApiResponse({
-    status: 200,
-    description: 'Успешный вход. `refreshToken` установлен в cookie.',
-    type: AuthResponseDto,
-  })
-  @ApiValidationErrorResponse()
-  @ApiResponse({
-    status: 401,
-    description: 'Неверный email или пароль (ошибка аутентификации)',
-    type: ErrorResponseDto,
-  })
+  @LoginResponse()
   @Public()
   @HttpCode(HttpStatus.OK)
   @Post('login')
@@ -110,23 +70,7 @@ export class AuthController {
     return responseBody;
   }
 
-  @ApiOperation({
-    summary: 'Обновление токенов',
-    description:
-      'Ожидает `refreshToken` в HttpOnly cookie. Запросы нужно слать с флагом `withCredentials: true`.',
-  })
-  @ApiCookieAuth('refreshToken')
-  @ApiResponse({
-    status: 200,
-    description: 'Токены успешно обновлены',
-    type: AuthResponseDto,
-  })
-  @ApiValidationErrorResponse()
-  @ApiResponse({
-    status: 401,
-    description: 'Токен недействителен или отсутствует',
-    type: ErrorResponseDto,
-  })
+  @RefreshResponse()
   @Public()
   @UseGuards(AuthGuard('jwt-refresh'))
   @HttpCode(HttpStatus.OK)
@@ -147,28 +91,7 @@ export class AuthController {
     return responseBody;
   }
 
-  @ApiOperation({
-    summary: 'Выход из системы',
-    description:
-      'Удаляет сессию пользователя. Запросы нужно слать с флагом `withCredentials: true` для удаления cookie. Требуется Access Token.',
-  })
-  @ApiBody({ type: LogoutDto })
-  @ApiBearerAuth()
-  @ApiResponse({
-    status: 200,
-    description: 'Успешный выход',
-    type: MessageResponseDto,
-  })
-  @ApiResponse({
-    status: 400,
-    description: 'Ошибка валидации данных или отсутствует refreshToken',
-    type: ErrorResponseDto,
-  })
-  @ApiResponse({
-    status: 401,
-    description: 'Не авторизован',
-    type: ErrorResponseDto,
-  })
+  @LogoutResponse()
   @UseGuards(AuthGuard('jwt-access'))
   @HttpCode(HttpStatus.OK)
   @Post('logout')
@@ -196,18 +119,7 @@ export class AuthController {
     return this.authService.logout(logoutData);
   }
 
-  @ApiOperation({ summary: 'Получение профиля текущего пользователя' })
-  @ApiBearerAuth()
-  @ApiResponse({
-    status: 200,
-    description: 'Данные пользователя получены',
-    type: AuthUserDto,
-  })
-  @ApiResponse({
-    status: 401,
-    description: 'Не авторизован',
-    type: ErrorResponseDto,
-  })
+  @MeResponse()
   @UseGuards(AuthGuard('jwt-access'))
   @Get('me')
   getProfile(@Req() req: Request) {
