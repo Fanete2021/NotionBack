@@ -105,11 +105,11 @@ export class ProjectsRepository {
       if (orderedIds.length > 0) {
         const offset = orderedIds.length;
         const idList = Prisma.join(
-          orderedIds.map((id) => Prisma.sql`${id}::uuid`),
+          orderedIds.map((id) => Prisma.sql`${id}::text`),
         );
         const valueRows = Prisma.join(
           orderedIds.map(
-            (id, index) => Prisma.sql`(${id}::uuid, ${index}::int)`,
+            (id, index) => Prisma.sql`(${id}::text, ${index}::int)`,
           ),
         );
 
