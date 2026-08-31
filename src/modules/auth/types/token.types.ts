@@ -12,6 +12,20 @@ export type RevokeData = {
   token?: string;
 };
 
+export type TokenPair = {
+  accessToken: string;
+  refreshToken: string;
+  user: {
+    id: string;
+    email: string;
+  };
+};
+
+export type RefreshSession = {
+  userId: string;
+  refreshTokenId: string;
+};
+
 export type TokenPayload = {
   sub: string;
   email: string;

@@ -12,8 +12,8 @@ describe('PrismaExceptionFilter', () => {
 
   const hostMock = {
     switchToHttp: () => ({
-      getResponse: () => responseMock,
-      getRequest: () => requestMock,
+      getResponse: (): typeof responseMock => responseMock,
+      getRequest: (): typeof requestMock => requestMock,
     }),
   } as unknown as ArgumentsHost;
 

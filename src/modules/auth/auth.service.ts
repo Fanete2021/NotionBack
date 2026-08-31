@@ -6,9 +6,19 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { UsersService } from '../users/users.service';
 import * as bcrypt from 'bcrypt';
-import { TokenData, RefreshData, RevokeData } from './types/token.types';
+import {
+  TokenData,
+  TokenPair,
+  RefreshData,
+  RevokeData,
+} from './types/token.types';
 import { TokenService } from './token.service';
-import { LoginData, LogoutData, RegisterData } from './types/auth.types';
+import {
+  LoginData,
+  LogoutData,
+  LogoutResult,
+  RegisterData,
+} from './types/auth.types';
 import { CreateUserData } from '../users/types/users.types';
 
 @Injectable()
@@ -19,11 +29,11 @@ export class AuthService {
     private readonly configService: ConfigService,
   ) {}
 
-  private async generateTokens(data: TokenData) {
+  private async generateTokens(data: TokenData): Promise<TokenPair> {
     return this.tokenService.generateTokens(data);
   }
 
-  async register(data: RegisterData) {
+  async register(data: RegisterData): Promise<TokenPair> {
     const existingUser = await this.usersService.findByEmail(data.email);
     if (existingUser) {
       throw new ConflictException('User with this email already exists');
@@ -44,7 +54,7 @@ export class AuthService {
     return this.generateTokens(tokenData);
   }
 
-  async login(data: LoginData) {
+  async login(data: LoginData): Promise<TokenPair> {
     const user = await this.usersService.findByEmail(data.email);
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
@@ -62,7 +72,7 @@ export class AuthService {
     return this.generateTokens(tokenData);
   }
 
-  async refresh(data: RefreshData) {
+  async refresh(data: RefreshData): Promise<TokenPair> {
     try {
       const refreshSession = await this.tokenService.validateRefreshToken(
         data.token,
@@ -79,7 +89,7 @@ export class AuthService {
     }
   }
 
-  async logout(data: LogoutData) {
+  async logout(data: LogoutData): Promise<LogoutResult> {
     if (data.token) {
       const tokenUserId = this.tokenService.getTokenUserId(data.token);
       if (tokenUserId !== data.userId) {

@@ -31,6 +31,7 @@ model User {
   ownedWorkspaces Workspace[]        @relation("WorkspaceOwner")
   memberships     WorkspaceMember[]
   authoredPages   Page[]
+  createdInvites  WorkspaceInvite[]  @relation("InviteCreator")
 
   @@map("users")
 }
@@ -44,6 +45,7 @@ model Workspace {
 
   owner   User              @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   members WorkspaceMember[]
+  invites WorkspaceInvite[]
   projects Project[]
   pages    Page[]
 
@@ -64,6 +66,21 @@ model WorkspaceMember {
   @@map("workspace_members")
 }
 
+model WorkspaceInvite {
+  id          String   @id @default(uuid())
+  tokenHash   String   @unique
+  workspaceId String
+  createdBy   String
+  role        Role     @default(VIEWER)
+  createdAt   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  creator   User      @relation("InviteCreator", fields: [createdBy], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@map("workspace_invites")
+}
+
 model Project {
   id              String   @id @default(uuid())
   workspaceId     String
@@ -81,6 +98,7 @@ model Project {
   pages         Page[]
 
   @@unique([id, workspaceId])
+  @@unique([workspaceId, parentProjectId, position])
   @@index([workspaceId, parentProjectId])
   @@map("projects")
 }
@@ -107,6 +125,7 @@ model Page {
   content    PageContent?
 
   @@unique([id, workspaceId])
+  @@unique([workspaceId, projectId, parentPageId, position])
   @@index([workspaceId, parentPageId])
   @@index([workspaceId, deletedAt])
   @@map("pages")

@@ -1,6 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
-import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { SwaggerModule, DocumentBuilder, OpenAPIObject } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import * as express from 'express';
 import { AppModule } from './app.module';
@@ -79,11 +79,12 @@ async function bootstrap(): Promise<void> {
       name: 'refreshToken',
     })
     .build();
-  const documentFactory = () => SwaggerModule.createDocument(app, config);
+  const documentFactory = (): OpenAPIObject =>
+    SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, documentFactory);
   SwaggerModule.setup('docs', app, documentFactory, { useGlobalPrefix: true });
 
   const port = configService.get<number>('PORT', 8000);
   await app.listen(port, '0.0.0.0');
 }
-bootstrap();
+void bootstrap();
