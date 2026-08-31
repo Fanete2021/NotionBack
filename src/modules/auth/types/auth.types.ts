@@ -14,3 +14,7 @@ export type LogoutData = {
   userId: string;
   token?: string;
 };
+
+export type LogoutResult = {
+  message: string;
+};

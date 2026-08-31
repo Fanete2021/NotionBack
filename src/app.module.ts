@@ -9,7 +9,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { ProjectsModule } from './modules/projects/projects.module';
 import { WorkspacesModule } from './modules/workspaces/workspaces.module';
-import { InvitesModule } from './modules/invites/invites.module';
+import { WorkspaceInvitesModule } from './modules/workspace-invites/workspace-invites.module';
 import { PagesModule } from './modules/pages/pages.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RedisClient } from './common/providers/redis-client';
@@ -38,7 +38,11 @@ import * as Joi from 'joi';
         MAX_WORKSPACES_PER_USER: Joi.number().default(3),
         MAX_PAGE_CONTENT_BYTES: Joi.number().default(1048576),
         INVITE_TTL_SECONDS: Joi.number().integer().positive().default(86400),
-        FRONT_URL: Joi.string().default('http://localhost:3000'),
+        MAX_INVITES_PER_WORKSPACE: Joi.number()
+          .integer()
+          .positive()
+          .default(10),
+        FRONT_URL: Joi.string().uri().default('http://localhost:3000'),
       }),
     }),
     PrismaModule,
@@ -46,7 +50,7 @@ import * as Joi from 'joi';
     UsersModule,
     ProjectsModule,
     WorkspacesModule,
-    InvitesModule,
+    WorkspaceInvitesModule,
     PagesModule,
   ],
   controllers: [AppController, HealthController],

@@ -35,7 +35,9 @@ describe('WorkspacesService', () => {
     get: jest.fn(),
   };
 
-  const membership = (role: Role) => ({
+  const membership = (
+    role: Role,
+  ): { workspaceId: string; userId: string; role: Role } => ({
     workspaceId: 'ws-1',
     userId: 'user-1',
     role,

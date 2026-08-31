@@ -5,6 +5,8 @@ import { RedisClient } from '../../common/providers/redis-client';
 import {
   RevokeData,
   TokenData,
+  TokenPair,
+  RefreshSession,
   RefreshTokenPayload,
 } from './types/token.types';
 
@@ -16,7 +18,7 @@ export class TokenService {
     private readonly redis: RedisClient,
   ) {}
 
-  async generateTokens(data: TokenData) {
+  async generateTokens(data: TokenData): Promise<TokenPair> {
     const accessPayload = { sub: data.userId, email: data.email };
     const accessExpiresIn = this.configService.get<number>(
       'JWT_ACCESS_EXPIRES_IN',
@@ -52,7 +54,7 @@ export class TokenService {
     };
   }
 
-  async validateRefreshToken(token: string) {
+  async validateRefreshToken(token: string): Promise<RefreshSession> {
     const decodedRefreshToken: RefreshTokenPayload = this.jwtService.verify(
       token,
       {
@@ -80,7 +82,7 @@ export class TokenService {
     };
   }
 
-  getTokenUserId(token: string) {
+  getTokenUserId(token: string): string | undefined {
     const decodedRefreshToken: RefreshTokenPayload = this.jwtService.verify(
       token,
       {
@@ -88,10 +90,10 @@ export class TokenService {
       },
     );
 
-    return decodedRefreshToken.sub as string | undefined;
+    return decodedRefreshToken.sub;
   }
 
-  async revokeToken(data: RevokeData) {
+  async revokeToken(data: RevokeData): Promise<void> {
     if (data.token) {
       try {
         const decodedRefreshToken = this.jwtService.verify<RefreshTokenPayload>(

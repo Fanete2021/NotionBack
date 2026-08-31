@@ -71,7 +71,7 @@ model WorkspaceInvite {
   tokenHash   String   @unique
   workspaceId String
   createdBy   String
-  role        Role     @default(EDITOR)
+  role        Role     @default(VIEWER)
   createdAt   DateTime @default(now())
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)

@@ -30,8 +30,8 @@ import {
   MessageResponseDto,
 } from './dto/auth-response.dto';
 import type { Request, Response } from 'express';
-import { UserPayload } from '../../common/types/user-payload.type';
-import { LogoutData } from './types/auth.types';
+import type { UserPayload } from '../../common/types/user-payload.type';
+import { LogoutData, LogoutResult } from './types/auth.types';
 import { RefreshData } from './types/token.types';
 import { getCookieValue } from '../../common/utils/cookies';
 import { Public } from '../../common/decorators/public.decorator';
@@ -90,7 +90,7 @@ export class AuthController {
   async register(
     @Body() dto: RegisterDto,
     @Res({ passthrough: true }) res: Response,
-  ) {
+  ): Promise<AuthResponseDto> {
     const result = await this.authService.register(dto);
     const { refreshToken, ...responseBody } = result;
     this.setRefreshTokenCookie(res, refreshToken);
@@ -115,7 +115,7 @@ export class AuthController {
   async login(
     @Body() dto: LoginDto,
     @Res({ passthrough: true }) res: Response,
-  ) {
+  ): Promise<AuthResponseDto> {
     const result = await this.authService.login(dto);
     const { refreshToken, ...responseBody } = result;
     this.setRefreshTokenCookie(res, refreshToken);
@@ -145,7 +145,7 @@ export class AuthController {
   async refresh(
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
-  ) {
+  ): Promise<AuthResponseDto> {
     const oldRefreshToken = this.getRefreshTokenFromRequest(req);
     if (!oldRefreshToken) {
       throw new UnauthorizedException('Refresh token not found in cookies');
@@ -182,7 +182,7 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
     @Body() body: LogoutDto,
-  ) {
+  ): Promise<LogoutResult> {
     const user = req.user as UserPayload;
     const refreshToken = this.getRefreshTokenFromRequest(req);
 
@@ -214,7 +214,7 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'Не авторизован' })
   @UseGuards(AuthGuard('jwt-access'))
   @Get('me')
-  getProfile(@Req() req: Request) {
+  getProfile(@Req() req: Request): UserPayload {
     return req.user as UserPayload;
   }
 }

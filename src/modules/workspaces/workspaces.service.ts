@@ -99,15 +99,23 @@ export class WorkspacesService {
         role,
       );
     } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2002'
-      ) {
-        throw new ConflictException(
-          'User is already a member of this workspace',
-        );
-      }
-      throw error;
+      this.rethrowAddMemberError(error);
+    }
+  }
+
+  async addMemberViaInvite(
+    workspaceId: string,
+    userId: string,
+    role: Role,
+  ): Promise<WorkspaceMemberEntity> {
+    try {
+      return await this.workspacesRepository.addMember(
+        workspaceId,
+        userId,
+        role,
+      );
+    } catch (error) {
+      this.rethrowAddMemberError(error);
     }
   }
 
@@ -228,6 +236,22 @@ export class WorkspacesService {
     }
 
     return membership;
+  }
+
+  private rethrowAddMemberError(error: unknown): never {
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === 'P2002') {
+        throw new ConflictException(
+          'User is already a member of this workspace',
+        );
+      }
+
+      if (error.code === 'P2003') {
+        throw new NotFoundException('Workspace not found');
+      }
+    }
+
+    throw error;
   }
 
   private async assertIsOwner(

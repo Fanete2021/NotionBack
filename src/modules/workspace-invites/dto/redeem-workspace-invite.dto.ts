@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsNotEmpty, IsString } from 'class-validator';
 
-export class RedeemInviteDto {
+export class RedeemWorkspaceInviteDto {
   @ApiProperty({
     example: 'qU5f_1zXvR2kLmN8pQa',
     description: 'Token from the invite link',

@@ -13,7 +13,7 @@ export class PrismaService extends PrismaClient implements OnModuleDestroy {
     });
   }
 
-  async onModuleDestroy() {
+  async onModuleDestroy(): Promise<void> {
     await this.$disconnect();
   }
 }

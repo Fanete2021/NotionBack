@@ -1,9 +1,28 @@
--- RenameIndex
--- Align the legacy position unique indexes (added manually in 20260805170000_add_db_integrity_indexes)
--- with the names Prisma expects for @@unique declarations, so they are preserved and schema-managed.
-ALTER INDEX "projects_position_unique" RENAME TO "projects_workspaceId_parentProjectId_position_key";
+DO $$
+BEGIN
+  IF to_regclass('"projects_workspaceId_parentProjectId_position_key"') IS NULL THEN
+    IF to_regclass('"projects_position_unique"') IS NOT NULL THEN
+      ALTER INDEX "projects_position_unique"
+        RENAME TO "projects_workspaceId_parentProjectId_position_key";
+    ELSE
+      CREATE UNIQUE INDEX "projects_workspaceId_parentProjectId_position_key"
+        ON "projects"("workspaceId", "parentProjectId", "position")
+        NULLS NOT DISTINCT;
+    END IF;
+  END IF;
 
-ALTER INDEX "pages_position_unique" RENAME TO "pages_workspaceId_projectId_parentPageId_position_key";
+  IF to_regclass('"pages_workspaceId_projectId_parentPageId_position_key"') IS NULL THEN
+    IF to_regclass('"pages_position_unique"') IS NOT NULL THEN
+      ALTER INDEX "pages_position_unique"
+        RENAME TO "pages_workspaceId_projectId_parentPageId_position_key";
+    ELSE
+      CREATE UNIQUE INDEX "pages_workspaceId_projectId_parentPageId_position_key"
+        ON "pages"("workspaceId", "projectId", "parentPageId", "position")
+        NULLS NOT DISTINCT;
+    END IF;
+  END IF;
+END
+$$;
 
 -- CreateTable
 CREATE TABLE "workspace_invites" (

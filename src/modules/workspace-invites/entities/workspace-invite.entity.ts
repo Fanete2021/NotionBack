@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
-import { InviteType } from '../types/invite.types';
+import { WorkspaceInviteType } from '../types/workspace-invite.types';
 
 export class WorkspaceInviteEntity {
   @ApiProperty({
@@ -15,8 +15,8 @@ export class WorkspaceInviteEntity {
   })
   readonly url: string;
 
-  @ApiProperty({ enum: InviteType })
-  readonly type: InviteType;
+  @ApiProperty({ enum: WorkspaceInviteType })
+  readonly type: WorkspaceInviteType;
 
   @ApiProperty({ enum: Role, description: 'Role granted on redemption' })
   readonly role: Role;
@@ -32,7 +32,7 @@ export class WorkspaceInviteEntity {
   constructor(
     token: string,
     url: string,
-    type: InviteType,
+    type: WorkspaceInviteType,
     role: Role,
     expiresAt: Date | null,
   ) {
