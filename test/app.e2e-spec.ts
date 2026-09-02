@@ -1,52 +1,22 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { HttpStatus, INestApplication } from '@nestjs/common';
-import { APP_GUARD } from '@nestjs/core';
-import { ConfigModule } from '@nestjs/config';
-import { PassportModule } from '@nestjs/passport';
 import request from 'supertest';
 import type { App } from 'supertest/types';
-import { HealthController } from '../src/controllers/health.controller';
-import { AuthController } from '../src/controllers/auth.controller';
-import { AuthService } from '../src/services/auth.service';
-import { JwtAuthGuard } from '../src/guards/jwt-auth.guard';
-import { AccessStrategy } from '../src/strategies/access.strategy';
-import { RefreshStrategy } from '../src/strategies/refresh.strategy';
+import { Redis } from 'ioredis';
+import { AppModule } from '../src/app.module';
+import { PrismaService } from '../src/prisma/prisma.service';
 
 describe('Auth & Health (e2e)', () => {
   let app: INestApplication;
 
   beforeAll(async () => {
+    process.env.DATABASE_URL ??=
+      'postgresql://postgres:postgres@localhost:5432/notionback?schema=public';
+    process.env.JWT_ACCESS_SECRET ??= 'test-access-secret';
+    process.env.JWT_REFRESH_SECRET ??= 'test-refresh-secret';
+
     const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [
-        ConfigModule.forRoot({
-          isGlobal: true,
-          ignoreEnvFile: true,
-          load: [
-            (): Record<string, string | number | boolean> => ({
-              JWT_ACCESS_SECRET: 'test-access-secret',
-              JWT_REFRESH_SECRET: 'test-refresh-secret',
-              JWT_REFRESH_EXPIRES_IN: 2592000,
-              COOKIE_SECURE: false,
-            }),
-          ],
-        }),
-        PassportModule.register({}),
-      ],
-      controllers: [HealthController, AuthController],
-      providers: [
-        { provide: APP_GUARD, useClass: JwtAuthGuard },
-        AccessStrategy,
-        RefreshStrategy,
-        {
-          provide: AuthService,
-          useValue: {
-            register: jest.fn(),
-            login: jest.fn(),
-            refresh: jest.fn(),
-            logout: jest.fn(),
-          },
-        },
-      ],
+      imports: [AppModule],
     }).compile();
 
     app = moduleFixture.createNestApplication();
@@ -55,6 +25,9 @@ describe('Auth & Health (e2e)', () => {
   });
 
   afterAll(async () => {
+    const redis = app.get<Redis>('REDIS_CLIENT');
+    await redis.quit();
+    await app.get(PrismaService).$disconnect();
     await app.close();
   });
 
