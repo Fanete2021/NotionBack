@@ -75,7 +75,8 @@ describe('HttpExceptionsFilter', () => {
     expect(jsonMock).toHaveBeenCalledWith(
       expect.objectContaining({
         statusCode: HttpStatus.BAD_REQUEST,
-        message: 'Http Exception',
+        message: validationErrors,
+        error: 'Bad Request',
         path: '/api/test',
       }),
     );
