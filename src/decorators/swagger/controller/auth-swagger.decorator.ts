@@ -106,8 +106,8 @@ export function LogoutResponse() {
       type: MessageResponseDto,
     }),
     ApiResponse({
-      status: 400,
-      description: 'Ошибка валидации данных или отсутствует refreshToken',
+      status: 422,
+      description: 'Ошибка валидации данных',
       type: ErrorResponseDto,
     }),
     ApiResponse({
