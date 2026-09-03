@@ -1,3 +1,5 @@
+import { CurrentUser } from '@common/decorators';
+import { PAGE_CONTENT_ROUTE } from '@modules/pages/constants';
 import {
   Body,
   Controller,
@@ -11,24 +13,11 @@ import {
   Put,
   Query,
 } from '@nestjs/common';
-import { PagesService } from '@modules/pages/pages.service';
-import { WorkspacesService } from '@modules/workspaces/workspaces.service';
-import { CreatePageDto } from '@modules/pages/dto';
-import { UpdatePageDto } from '@modules/pages/dto';
-import { CurrentUser } from '@common/decorators';
-import { PageEntity } from '@modules/pages/entities';
-import { PageContentEntity } from '@modules/pages/entities';
-import { PAGE_CONTENT_ROUTE } from '@modules/pages/constants';
-import {
-  PagesControllerResponse,
-  PagesCreateResponse,
-  PagesDeleteResponse,
-  PagesFindAllByWorkspaceIdResponse,
-  PagesFindByIdResponse,
-  PagesGetContentResponse,
-  PagesUpdateContentResponse,
-  PagesUpdateResponse,
-} from '@modules/pages/decorators';
+import { WorkspacesService } from '../workspaces/workspaces.service';
+import { PagesControllerResponse, PagesCreateResponse, PagesDeleteResponse, PagesFindAllByWorkspaceIdResponse, PagesFindByIdResponse, PagesGetContentResponse, PagesUpdateContentResponse, PagesUpdateResponse } from './decorators';
+import { CreatePageDto, UpdatePageDto } from './dto';
+import { PageContentEntity, PageEntity } from './entities';
+import { PagesService } from './pages.service';
 
 @PagesControllerResponse()
 @Controller()
@@ -36,7 +25,7 @@ export class PagesController {
   constructor(
     private readonly pagesService: PagesService,
     private readonly workspacesService: WorkspacesService,
-  ) {}
+  ) { }
 
   @PagesCreateResponse()
   @Post('pages')
