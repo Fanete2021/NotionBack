@@ -6,9 +6,10 @@ export const COOKIE_NAMES = {
 
 export type CookieName = (typeof COOKIE_NAMES)[keyof typeof COOKIE_NAMES];
 
+export type SameSite = 'none' | 'lax' | 'strict';
+
 export const REFRESH_COOKIE_OPTIONS = {
   httpOnly: true,
-  sameSite: 'none' as const,
   path: '/',
 };
 
@@ -36,17 +37,24 @@ export function setRefreshTokenCookie(
   token: string,
   maxAgeSeconds: number,
   secure: boolean,
+  sameSite: SameSite,
 ): void {
   res.cookie(COOKIE_NAMES.REFRESH_TOKEN, token, {
     ...REFRESH_COOKIE_OPTIONS,
     maxAge: maxAgeSeconds * 1000,
     secure,
+    sameSite,
   });
 }
 
-export function clearRefreshTokenCookie(res: Response, secure: boolean): void {
+export function clearRefreshTokenCookie(
+  res: Response,
+  secure: boolean,
+  sameSite: SameSite,
+): void {
   res.clearCookie(COOKIE_NAMES.REFRESH_TOKEN, {
     ...REFRESH_COOKIE_OPTIONS,
     secure,
+    sameSite,
   });
 }

@@ -17,13 +17,12 @@ describe('AuthController', () => {
 
   const mockConfigService = {
     get: jest.fn((key: string, defaultValue?: unknown) => {
-      if (key === 'JWT_REFRESH_EXPIRES_IN') {
-        return 2592000;
-      }
-      if (key === 'COOKIE_SECURE') {
-        return false;
-      }
-      return defaultValue;
+      const values: Record<string, unknown> = {
+        JWT_REFRESH_EXPIRES_IN: 2592000,
+        COOKIE_SECURE: false,
+        COOKIE_SAME_SITE: 'lax',
+      };
+      return values[key] ?? defaultValue;
     }),
   };
 
@@ -61,11 +60,43 @@ describe('AuthController', () => {
     );
 
     expect(mockAuthService.register).toHaveBeenCalled();
-    expect(cookie).toHaveBeenCalled();
+    expect(cookie).toHaveBeenCalledWith(
+      'refreshToken',
+      'refresh',
+      expect.objectContaining({
+        httpOnly: true,
+        path: '/',
+        secure: false,
+        sameSite: 'lax',
+        maxAge: 2592000 * 1000,
+      }),
+    );
     expect(result).toEqual({
       accessToken: 'access',
       user: { id: '1', email: 'user@test.com' },
     });
+  });
+
+  it('login ставит cookie с теми же sameSite и secure, что и register', async () => {
+    mockAuthService.login.mockResolvedValue({
+      accessToken: 'access',
+      refreshToken: 'refresh',
+      user: { id: '1', email: 'user@test.com' },
+    });
+
+    await controller.login(
+      { email: 'user@test.com', password: 'password123' },
+      res,
+    );
+
+    expect(cookie).toHaveBeenCalledWith(
+      'refreshToken',
+      'refresh',
+      expect.objectContaining({
+        secure: false,
+        sameSite: 'lax',
+      }),
+    );
   });
 
   it('getProfile возвращает пользователя из запроса', () => {
@@ -89,5 +120,30 @@ describe('AuthController', () => {
       controller.logout(req, res, { allDevices: false }),
     ).rejects.toThrow(UnauthorizedException);
     expect(mockAuthService.logout).not.toHaveBeenCalled();
+    expect(clearCookie).not.toHaveBeenCalled();
+  });
+
+  it('logout чистит cookie с теми же secure и sameSite, что ставил login', async () => {
+    mockAuthService.logout.mockResolvedValue({
+      message: 'Logged out successfully',
+    });
+
+    const req = {
+      user: { id: '1', email: 'user@test.com' },
+      headers: { cookie: 'refreshToken=refresh.jwt' },
+    } as unknown as Request;
+
+    await controller.logout(req, res, { allDevices: false });
+
+    expect(clearCookie).toHaveBeenCalledWith(
+      'refreshToken',
+      expect.objectContaining({
+        httpOnly: true,
+        path: '/',
+        secure: false,
+        sameSite: 'lax',
+      }),
+    );
+    expect(mockAuthService.logout).toHaveBeenCalled();
   });
 });

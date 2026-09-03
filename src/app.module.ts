@@ -29,6 +29,7 @@ import * as Joi from 'joi';
         CORS_ORIGINS: Joi.string().default('http://localhost:3000'),
         MAX_WORKSPACES_PER_USER: Joi.number().default(3),
         COOKIE_SECURE: Joi.boolean().default(false),
+        COOKIE_SAME_SITE: Joi.string().default('lax'),
       }),
     }),
     PrismaModule,

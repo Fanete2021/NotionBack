@@ -24,6 +24,7 @@ import {
   getCookieValue,
   setRefreshTokenCookie,
   clearRefreshTokenCookie,
+  SameSite,
 } from '../utils/cookies';
 import { Public } from '../decorators/swagger/common/public.decorator';
 import {
@@ -115,7 +116,11 @@ export class AuthController {
     };
 
     const secure = this.configService.get<boolean>('COOKIE_SECURE', false);
-    clearRefreshTokenCookie(res, secure);
+    const sameSite = this.configService.get<SameSite>(
+      'COOKIE_SAME_SITE',
+      'lax',
+    );
+    clearRefreshTokenCookie(res, secure, sameSite);
     return this.authService.logout(logoutData);
   }
 
@@ -132,6 +137,10 @@ export class AuthController {
       2592000,
     );
     const secure = this.configService.get<boolean>('COOKIE_SECURE', false);
-    setRefreshTokenCookie(res, token, maxAgeSeconds, secure);
+    const sameSite = this.configService.get<SameSite>(
+      'COOKIE_SAME_SITE',
+      'lax',
+    );
+    setRefreshTokenCookie(res, token, maxAgeSeconds, secure, sameSite);
   }
 }

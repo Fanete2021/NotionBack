@@ -1,5 +1,11 @@
-import { getCookieValue, CookieName } from './cookies';
-import type { Request } from 'express';
+import {
+  COOKIE_NAMES,
+  clearRefreshTokenCookie,
+  getCookieValue,
+  setRefreshTokenCookie,
+  CookieName,
+} from './cookies';
+import type { Request, Response } from 'express';
 
 describe('getCookieValue', () => {
   it('should return undefined if headers are missing', () => {
@@ -56,5 +62,60 @@ describe('getCookieValue', () => {
   it('should handle single cookie without semicolons', () => {
     const req = { headers: { cookie: 'testCookie=singleValue' } } as Request;
     expect(getCookieValue(req, 'testCookie' as CookieName)).toBe('singleValue');
+  });
+});
+
+describe('setRefreshTokenCookie / clearRefreshTokenCookie', () => {
+  const cookie = jest.fn();
+  const clearCookie = jest.fn();
+  const res = { cookie, clearCookie } as unknown as Response;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('ставит refresh cookie с переданными secure и sameSite', () => {
+    setRefreshTokenCookie(res, 'refresh.jwt', 2592000, false, 'lax');
+
+    expect(cookie).toHaveBeenCalledWith(
+      COOKIE_NAMES.REFRESH_TOKEN,
+      'refresh.jwt',
+      expect.objectContaining({
+        httpOnly: true,
+        path: '/',
+        secure: false,
+        sameSite: 'lax',
+        maxAge: 2592000 * 1000,
+      }),
+    );
+  });
+
+  it('чистит refresh cookie с теми же secure и sameSite', () => {
+    clearRefreshTokenCookie(res, false, 'lax');
+
+    expect(clearCookie).toHaveBeenCalledWith(
+      COOKIE_NAMES.REFRESH_TOKEN,
+      expect.objectContaining({
+        httpOnly: true,
+        path: '/',
+        secure: false,
+        sameSite: 'lax',
+      }),
+    );
+  });
+
+  it('прокидывает none + secure для кросс-сайта по HTTPS', () => {
+    setRefreshTokenCookie(res, 'refresh.jwt', 60, true, 'none');
+    clearRefreshTokenCookie(res, true, 'none');
+
+    expect(cookie).toHaveBeenCalledWith(
+      COOKIE_NAMES.REFRESH_TOKEN,
+      'refresh.jwt',
+      expect.objectContaining({ secure: true, sameSite: 'none' }),
+    );
+    expect(clearCookie).toHaveBeenCalledWith(
+      COOKIE_NAMES.REFRESH_TOKEN,
+      expect.objectContaining({ secure: true, sameSite: 'none' }),
+    );
   });
 });
