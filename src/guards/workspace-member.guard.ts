@@ -1,4 +1,4 @@
-import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
+import { BadRequestException, CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
 import { Request } from 'express';
 import { WorkspacesService } from '../services/workspaces.service';
 import { ProjectEntity } from '../entities/project.entity';
@@ -17,7 +17,7 @@ export class WorkspaceMemberGuard implements CanActivate {
     const userId = request.user?.id;
 
     if (!userId) {
-      return false;
+      throw new UnauthorizedException('User not authenticated');
     }
 
     const fromParams = request.params.workspaceId;
@@ -26,7 +26,7 @@ export class WorkspaceMemberGuard implements CanActivate {
       request.project?.workspaceId;
 
     if (!workspaceId) {
-      return false;
+      throw new BadRequestException('Workspace ID is required');
     }
 
     await this.workspacesService.assertMemberOf(workspaceId, userId);
