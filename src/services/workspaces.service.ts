@@ -36,12 +36,15 @@ export class WorkspacesService {
   }
 
   async findById(id: string, userId: string): Promise<WorkspaceEntity> {
-    // assertMemberOf сам проверит существование воркспейса и права доступа
-    await this.assertMemberOf(id, userId);
-
     const workspace = await this.workspacesRepository.findById(id);
     if (!workspace) {
       throw new NotFoundException('Workspace not found');
+    }
+
+    const membership = await this.workspacesRepository.findMembership(id, userId);
+
+    if (!membership) {
+      throw new ForbiddenException('You are not a member of this workspace');
     }
     return workspace;
   }

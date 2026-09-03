@@ -101,32 +101,42 @@ describe('WorkspacesService', () => {
   });
 
   describe('findById', () => {
-    it('возвращает воркспейс', async () => {
-      mockWorkspacesRepository.findById.mockResolvedValue({ id: 'ws-1' });
+    it('возвращает воркспейс, если пользователь — участник', async () => {
+      const workspace = { id: 'ws-1' };
+      mockWorkspacesRepository.findById.mockResolvedValue(workspace);
       mockWorkspacesRepository.findMembership.mockResolvedValue(
         membership(Role.EDITOR),
       );
 
-      await expect(service.findById('ws-1', 'user-1')).resolves.toEqual({
-        id: 'ws-1',
-      });
+      await expect(service.findById('ws-1', 'user-1')).resolves.toBe(
+        workspace,
+      );
+
+      expect(mockWorkspacesRepository.findById).toHaveBeenCalledTimes(1);
+      expect(mockWorkspacesRepository.findById).toHaveBeenCalledWith('ws-1');
+      expect(mockWorkspacesRepository.findMembership).toHaveBeenCalledWith(
+        'ws-1',
+        'user-1',
+      );
     });
 
-    it('бросает 404, если воркспейс не найден', async () => {
+    it('бросает 404, если воркспейс не найден, и не смотрит membership', async () => {
       mockWorkspacesRepository.findById.mockResolvedValue(null);
 
       await expect(service.findById('ws-1', 'user-1')).rejects.toThrow(
         NotFoundException,
       );
+      expect(mockWorkspacesRepository.findMembership).not.toHaveBeenCalled();
     });
 
-    it('бросает 403, если пользователь не является участником воркспейса', async () => {
+    it('бросает 403, если воркспейс есть, а пользователь не участник', async () => {
       mockWorkspacesRepository.findById.mockResolvedValue({ id: 'ws-1' });
       mockWorkspacesRepository.findMembership.mockResolvedValue(null);
 
       await expect(service.findById('ws-1', 'user-1')).rejects.toThrow(
         ForbiddenException,
       );
+      expect(mockWorkspacesRepository.findById).toHaveBeenCalledTimes(1);
     });
   });
 
