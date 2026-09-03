@@ -20,15 +20,15 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { PagesService } from './pages.service';
+import { ApiWorkspaceForbidden } from '../../common/decorators/api-workspace-forbidden.decorator';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { WorkspacesService } from '../workspaces/workspaces.service';
 import { CreatePageDto } from './dto/create-page.dto';
 import { UpdatePageDto } from './dto/update-page.dto';
-import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { ApiWorkspaceForbidden } from '../../common/decorators/api-workspace-forbidden.decorator';
-import { PageEntity } from './entities/page.entity';
 import { PageContentEntity } from './entities/page-content.entity';
+import { PageEntity } from './entities/page.entity';
 import { PAGE_CONTENT_ROUTE } from './pages.routes';
+import { PagesService } from './pages.service';
 
 @ApiBearerAuth()
 @ApiTags('Pages')

@@ -1,20 +1,14 @@
 import { Injectable } from '@nestjs/common';
-import { Attachment } from '@prisma/client';
+import { Attachment, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
 export class AttachmentsRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(data: {
-    pageId: string;
-    workspaceId: string;
-    uploadedBy: string;
-    fileName: string;
-    contentType: string;
-    size: number;
-    key: string;
-  }): Promise<Attachment> {
+  async create(
+    data: Prisma.AttachmentUncheckedCreateInput,
+  ): Promise<Attachment> {
     return this.prisma.attachment.create({ data });
   }
 
@@ -22,10 +16,10 @@ export class AttachmentsRepository {
     return this.prisma.attachment.findUnique({ where: { id } });
   }
 
-  async markConfirmed(id: string): Promise<Attachment> {
+  async markConfirmed(id: string, size: number): Promise<Attachment> {
     return this.prisma.attachment.update({
       where: { id },
-      data: { status: 'CONFIRMED' },
+      data: { status: 'CONFIRMED', size },
     });
   }
 
