@@ -2,9 +2,9 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { HttpStatus, INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import type { App } from 'supertest/types';
-import { Redis } from 'ioredis';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
+import { RedisClient } from '../src/common/providers/redis-client';
 
 describe('Auth & Health (e2e)', () => {
   let app: INestApplication;
@@ -25,8 +25,7 @@ describe('Auth & Health (e2e)', () => {
   });
 
   afterAll(async () => {
-    const redis = app.get<Redis>('REDIS_CLIENT');
-    await redis.quit();
+    await app.get(RedisClient).quit();
     await app.get(PrismaService).$disconnect();
     await app.close();
   });

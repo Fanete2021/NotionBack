@@ -1,14 +1,19 @@
 import { Module, Global } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { HealthController } from './controllers/health.controller';
+import { ConfigModule } from '@nestjs/config';
+import { HealthController } from './health/health.controller';
 import { PrismaModule } from './prisma/prisma.module';
-import { AuthModule } from './modules/auth.module';
-import { UsersModule } from './modules/users.module';
-import { ProjectsModule } from './modules/projects.module';
-import { WorkspacesModule } from './modules/workspaces.module';
-import { JwtAuthGuard } from './guards/jwt-auth.guard';
-import { Redis } from 'ioredis';
+import { AuthModule } from './modules/auth/auth.module';
+import { UsersModule } from './modules/users/users.module';
+import { ProjectsModule } from './modules/projects/projects.module';
+import { WorkspacesModule } from './modules/workspaces/workspaces.module';
+import { WorkspaceInvitesModule } from './modules/workspace-invites/workspace-invites.module';
+import { PagesModule } from './modules/pages/pages.module';
+import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
+import { RedisClient } from './common/providers/redis-client';
+import appConfig from './config/app.config';
+import authConfig from './config/auth.config';
+import databaseConfig from './config/database.config';
 import * as Joi from 'joi';
 
 @Global()
@@ -16,6 +21,7 @@ import * as Joi from 'joi';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      load: [appConfig, authConfig, databaseConfig],
       validationSchema: Joi.object({
         PORT: Joi.number().default(8000),
         DATABASE_URL: Joi.string().required(),
@@ -28,8 +34,17 @@ import * as Joi from 'joi';
         REDIS_PORT: Joi.number().default(6379),
         CORS_ORIGINS: Joi.string().default('http://localhost:3000'),
         MAX_WORKSPACES_PER_USER: Joi.number().default(3),
+        MAX_PAGE_CONTENT_BYTES: Joi.number().default(1048576),
+        INVITE_TTL_SECONDS: Joi.number().integer().positive().default(86400),
+        MAX_INVITES_PER_WORKSPACE: Joi.number()
+          .integer()
+          .positive()
+          .default(10),
+        FRONT_URL: Joi.string().uri().default('http://localhost:3000'),
         COOKIE_SECURE: Joi.boolean().default(false),
-        COOKIE_SAME_SITE: Joi.string().default('lax'),
+        COOKIE_SAME_SITE: Joi.string()
+          .valid('lax', 'strict', 'none')
+          .default('lax'),
       }),
     }),
     PrismaModule,
@@ -37,24 +52,17 @@ import * as Joi from 'joi';
     UsersModule,
     ProjectsModule,
     WorkspacesModule,
+    WorkspaceInvitesModule,
+    PagesModule,
   ],
   controllers: [HealthController],
   providers: [
+    RedisClient,
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
     },
-    {
-      provide: 'REDIS_CLIENT',
-      inject: [ConfigService],
-      useFactory: (configService: ConfigService) => {
-        return new Redis({
-          host: configService.get<string>('REDIS_HOST'),
-          port: configService.get<number>('REDIS_PORT'),
-        });
-      },
-    },
   ],
-  exports: ['REDIS_CLIENT'],
+  exports: [RedisClient],
 })
 export class AppModule {}
