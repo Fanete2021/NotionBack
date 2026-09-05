@@ -9,13 +9,14 @@ import { Role, Prisma } from '@prisma/client';
 import { WorkspacesRepository } from './workspaces.repository';
 import { WorkspaceEntity } from './entities/workspace.entity';
 import { WorkspaceMemberEntity } from './entities/workspace-member.entity';
-import { UsersService } from '../users/users.service';
+import { UsersRepository } from '../users/users.repository';
+import { UpdateWorkspaceDto } from './dto/update-workspace.dto';
 
 @Injectable()
 export class WorkspacesService {
   constructor(
     private readonly workspacesRepository: WorkspacesRepository,
-    private readonly usersService: UsersService,
+    private readonly usersRepository: UsersRepository,
     private readonly configService: ConfigService,
   ) {}
 
@@ -35,10 +36,19 @@ export class WorkspacesService {
     return this.workspacesRepository.create(ownerId, name);
   }
 
-  async findById(id: string): Promise<WorkspaceEntity> {
+  async findById(id: string, userId: string): Promise<WorkspaceEntity> {
     const workspace = await this.workspacesRepository.findById(id);
     if (!workspace) {
       throw new NotFoundException('Workspace not found');
+    }
+
+    const membership = await this.workspacesRepository.findMembership(
+      id,
+      userId,
+    );
+
+    if (!membership) {
+      throw new ForbiddenException('You are not a member of this workspace');
     }
     return workspace;
   }
@@ -49,8 +59,15 @@ export class WorkspacesService {
 
   async update(
     id: string,
-    payload: Prisma.WorkspaceUpdateInput,
+    userId: string,
+    dto: UpdateWorkspaceDto,
   ): Promise<WorkspaceEntity> {
+    await this.assertIsOwner(id, userId);
+
+    const payload = {
+      ...(dto.name !== undefined && { name: dto.name }),
+      ...(dto.isPublic !== undefined && { isPublic: dto.isPublic }),
+    };
     const workspace = await this.workspacesRepository.update(id, payload);
     if (!workspace) {
       throw new NotFoundException('Workspace not found');
@@ -58,7 +75,9 @@ export class WorkspacesService {
     return workspace;
   }
 
-  async delete(id: string): Promise<void> {
+  async delete(id: string, userId: string): Promise<void> {
+    await this.assertIsOwner(id, userId);
+
     const deleted = await this.workspacesRepository.delete(id);
     if (!deleted) {
       throw new NotFoundException('Workspace not found');
@@ -87,7 +106,7 @@ export class WorkspacesService {
       );
     }
 
-    const user = await this.usersService.findById(userId);
+    const user = await this.usersRepository.findById(userId);
     if (!user) {
       throw new NotFoundException('User not found');
     }

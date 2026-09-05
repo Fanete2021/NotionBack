@@ -1,9 +1,13 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuthService } from './auth.service';
-import { UsersService } from '../users/users.service';
+import { UsersRepository } from '../users/users.repository';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { ConflictException, UnauthorizedException } from '@nestjs/common';
+import {
+  ConflictException,
+  Logger,
+  UnauthorizedException,
+} from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { TokenService } from './token.service';
 
@@ -12,9 +16,9 @@ jest.mock('bcrypt');
 describe('AuthService', () => {
   let authService: AuthService;
 
-  const mockUsersService = {
+  const mockUsersRepository = {
     findByEmail: jest.fn(),
-    createUser: jest.fn(),
+    create: jest.fn(),
     findById: jest.fn(),
   };
 
@@ -38,7 +42,7 @@ describe('AuthService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
-        { provide: UsersService, useValue: mockUsersService },
+        { provide: UsersRepository, useValue: mockUsersRepository },
         { provide: JwtService, useValue: mockJwtService },
         { provide: ConfigService, useValue: mockConfigService },
         { provide: TokenService, useValue: mockTokenService },
@@ -65,7 +69,7 @@ describe('AuthService', () => {
         passwordHash: 'hashedPass',
       };
 
-      mockUsersService.findByEmail.mockResolvedValue(fakeUser);
+      mockUsersRepository.findByEmail.mockResolvedValue(fakeUser);
       (bcrypt.compare as jest.Mock).mockResolvedValue(true);
       mockTokenService.generateTokens.mockResolvedValue({
         accessToken: 'fake_access_token',
@@ -75,7 +79,9 @@ describe('AuthService', () => {
 
       const result = await authService.login(loginDto);
 
-      expect(mockUsersService.findByEmail).toHaveBeenCalledWith(loginDto.email);
+      expect(mockUsersRepository.findByEmail).toHaveBeenCalledWith(
+        loginDto.email,
+      );
       expect(bcrypt.compare).toHaveBeenCalledWith(
         loginDto.password,
         fakeUser.passwordHash,
@@ -97,7 +103,7 @@ describe('AuthService', () => {
         passwordHash: 'hashedPass',
       };
 
-      mockUsersService.findByEmail.mockResolvedValue(fakeUser);
+      mockUsersRepository.findByEmail.mockResolvedValue(fakeUser);
       (bcrypt.compare as jest.Mock).mockResolvedValue(false);
 
       await expect(authService.login(loginDto)).rejects.toThrow(
@@ -108,7 +114,7 @@ describe('AuthService', () => {
     it('должен выбрасывать ошибку UnauthorizedException, если пользователь не найден', async () => {
       const loginDto = { email: 'notfound@test.com', password: 'password123' };
 
-      mockUsersService.findByEmail.mockResolvedValue(null);
+      mockUsersRepository.findByEmail.mockResolvedValue(null);
 
       await expect(authService.login(loginDto)).rejects.toThrow(
         UnauthorizedException,
@@ -132,9 +138,9 @@ describe('AuthService', () => {
         name: registerDto.name,
       };
 
-      mockUsersService.findByEmail.mockResolvedValue(null);
+      mockUsersRepository.findByEmail.mockResolvedValue(null);
       (bcrypt.hash as jest.Mock).mockResolvedValue('hashed');
-      mockUsersService.createUser.mockResolvedValue(fakeUser);
+      mockUsersRepository.create.mockResolvedValue(fakeUser);
       mockTokenService.generateTokens.mockResolvedValue({
         accessToken: 'fake_access',
         refreshToken: 'fake_refresh',
@@ -143,7 +149,7 @@ describe('AuthService', () => {
 
       const result = await authService.register(registerDto);
 
-      expect(mockUsersService.createUser).toHaveBeenCalled();
+      expect(mockUsersRepository.create).toHaveBeenCalled();
       expect(mockTokenService.generateTokens).toHaveBeenCalledWith({
         userId: '123',
         email: registerDto.email,
@@ -158,12 +164,12 @@ describe('AuthService', () => {
         name: 'Exist',
       };
 
-      mockUsersService.findByEmail.mockResolvedValue({ id: '1' });
+      mockUsersRepository.findByEmail.mockResolvedValue({ id: '1' });
 
       await expect(authService.register(registerDto)).rejects.toThrow(
         ConflictException,
       );
-      expect(mockUsersService.createUser).not.toHaveBeenCalled();
+      expect(mockUsersRepository.create).not.toHaveBeenCalled();
     });
   });
 
@@ -178,7 +184,7 @@ describe('AuthService', () => {
         userId,
         refreshTokenId: tokenId,
       });
-      mockUsersService.findById.mockResolvedValue(fakeUser);
+      mockUsersRepository.findById.mockResolvedValue(fakeUser);
       mockTokenService.generateTokens.mockResolvedValue({
         accessToken: 'new_access',
         refreshToken: 'new_refresh',
@@ -202,6 +208,34 @@ describe('AuthService', () => {
       await expect(
         authService.refresh({ token: 'bad-refresh-token' }),
       ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('должен выбрасывать UnauthorizedException, если пользователь не найден', async () => {
+      mockTokenService.validateRefreshToken.mockResolvedValue({
+        userId: '123',
+        refreshTokenId: 'refresh-jti',
+      });
+      mockUsersRepository.findById.mockResolvedValue(null);
+
+      await expect(
+        authService.refresh({ token: 'refresh.jwt.token' }),
+      ).rejects.toThrow(UnauthorizedException);
+      expect(mockTokenService.generateTokens).not.toHaveBeenCalled();
+    });
+
+    it('не маскирует сбой инфраструктуры как Invalid refresh token', async () => {
+      const redisError = new Error('Redis connection refused');
+      mockTokenService.validateRefreshToken.mockRejectedValue(redisError);
+      const errorSpy = jest
+        .spyOn(Logger.prototype, 'error')
+        .mockImplementation();
+
+      await expect(
+        authService.refresh({ token: 'refresh.jwt.token' }),
+      ).rejects.toThrow(redisError);
+
+      expect(errorSpy).toHaveBeenCalled();
+      errorSpy.mockRestore();
     });
   });
 

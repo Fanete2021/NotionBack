@@ -35,8 +35,13 @@ export class ProjectsService {
     return project;
   }
 
-  async update(id: string, data: UpdateProjectDto): Promise<ProjectEntity> {
-    const project = await this.projectsRepository.findById(id);
+  async update(
+    id: string,
+    data: UpdateProjectDto,
+    existingProject?: ProjectEntity,
+  ): Promise<ProjectEntity> {
+    const project =
+      existingProject ?? (await this.projectsRepository.findById(id));
     if (!project) {
       throw new NotFoundException('Project not found');
     }
@@ -121,8 +126,19 @@ export class ProjectsService {
     }
 
     const attach = (project: ProjectEntity): ProjectEntity => {
-      project.childProjects = (children.get(project.id) ?? []).map(attach);
-      return project;
+      const childProjects = (children.get(project.id) ?? []).map(attach);
+      return new ProjectEntity({
+        id: project.id,
+        workspaceId: project.workspaceId,
+        parentProjectId: project.parentProjectId,
+        name: project.name,
+        color: project.color,
+        icon: project.icon,
+        position: project.position,
+        createdAt: project.createdAt,
+        updatedAt: project.updatedAt,
+        childProjects,
+      });
     };
 
     return roots.map(attach);

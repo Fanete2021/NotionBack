@@ -4,6 +4,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { UserPayload } from '../../../common/types/user-payload.type';
 import { TokenPayload } from '../types/token.types';
+import { mapTokenPayloadToUser } from '../utils/auth.utils';
 
 @Injectable()
 export class AccessStrategy extends PassportStrategy(Strategy, 'jwt-access') {
@@ -11,11 +12,11 @@ export class AccessStrategy extends PassportStrategy(Strategy, 'jwt-access') {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: configService.get<string>('JWT_ACCESS_SECRET')!,
+      secretOrKey: configService.getOrThrow<string>('JWT_ACCESS_SECRET'),
     });
   }
 
   validate(payload: TokenPayload): UserPayload {
-    return { id: payload.sub, email: payload.email };
+    return mapTokenPayloadToUser(payload);
   }
 }

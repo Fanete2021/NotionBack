@@ -6,7 +6,7 @@ export class UpdateMemberRoleDto {
   @ApiProperty({
     enum: Role,
     example: Role.ADMIN,
-    description: 'New role for the member',
+    description: 'Новая роль участника',
   })
   @IsEnum(Role, { message: 'Role must be a valid role' })
   role!: Role;

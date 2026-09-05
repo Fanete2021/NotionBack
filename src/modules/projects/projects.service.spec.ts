@@ -196,6 +196,24 @@ describe('ProjectsService', () => {
       expect(result[0].childProjects).toHaveLength(1);
       expect(result[0].childProjects[0].id).toBe('child');
     });
+
+    it('не мутирует исходные объекты при сборке дерева', async () => {
+      const root = { id: 'root', parentProjectId: null, childProjects: [] };
+      const child = {
+        id: 'child',
+        parentProjectId: 'root',
+        childProjects: [],
+      };
+      mockProjectsRepository.findAllByWorkspaceId.mockResolvedValue([
+        root,
+        child,
+      ]);
+
+      await service.findAllByWorkspaceId('ws-1');
+
+      expect(root.childProjects).toEqual([]);
+      expect(child.childProjects).toEqual([]);
+    });
   });
 
   describe('delete', () => {

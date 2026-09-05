@@ -1,4 +1,4 @@
-import { NestFactory } from '@nestjs/core';
+import { NestFactory, Reflector } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { SwaggerModule, DocumentBuilder, OpenAPIObject } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
@@ -6,7 +6,11 @@ import * as express from 'express';
 import { AppModule } from './app.module';
 import { HttpExceptionsFilter } from './common/filters/http-exception.filter';
 import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter';
-import { ValidationPipe } from '@nestjs/common';
+import {
+  ClassSerializerInterceptor,
+  HttpStatus,
+  ValidationPipe,
+} from '@nestjs/common';
 import { PAGE_CONTENT_ROUTE } from './modules/pages/pages.routes';
 
 const GLOBAL_PREFIX = 'api';
@@ -63,7 +67,14 @@ async function bootstrap(): Promise<void> {
   app.use(bodyParserErrorHandler);
 
   app.useGlobalFilters(new PrismaExceptionFilter(), new HttpExceptionsFilter());
-  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+  app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      transform: true,
+      errorHttpStatusCode: HttpStatus.UNPROCESSABLE_ENTITY,
+    }),
+  );
   app.setGlobalPrefix(GLOBAL_PREFIX);
 
   const config = new DocumentBuilder()
@@ -73,11 +84,15 @@ async function bootstrap(): Promise<void> {
     .addServer('http://localhost:8000', 'Локальный сервер')
     .addServer('https://api.notion-alt.ru', 'Продакшн сервер (пример)')
     .addBearerAuth()
-    .addCookieAuth('refreshToken', {
-      type: 'apiKey',
-      in: 'cookie',
-      name: 'refreshToken',
-    })
+    .addCookieAuth(
+      'refreshToken',
+      {
+        type: 'apiKey',
+        in: 'cookie',
+        name: 'refreshToken',
+      },
+      'refreshToken',
+    )
     .build();
   const documentFactory = (): OpenAPIObject =>
     SwaggerModule.createDocument(app, config);

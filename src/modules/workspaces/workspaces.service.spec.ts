@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { WorkspacesService } from './workspaces.service';
 import { WorkspacesRepository } from './workspaces.repository';
-import { UsersService } from '../users/users.service';
+import { UsersRepository } from '../users/users.repository';
 import { ConfigService } from '@nestjs/config';
 import {
   ConflictException,
@@ -27,7 +27,7 @@ describe('WorkspacesService', () => {
     findMembership: jest.fn(),
   };
 
-  const mockUsersService = {
+  const mockUsersRepository = {
     findById: jest.fn(),
   };
 
@@ -54,7 +54,7 @@ describe('WorkspacesService', () => {
       providers: [
         WorkspacesService,
         { provide: WorkspacesRepository, useValue: mockWorkspacesRepository },
-        { provide: UsersService, useValue: mockUsersService },
+        { provide: UsersRepository, useValue: mockUsersRepository },
         { provide: ConfigService, useValue: mockConfigService },
       ],
     }).compile();
@@ -107,16 +107,40 @@ describe('WorkspacesService', () => {
   });
 
   describe('findById', () => {
-    it('возвращает воркспейс', async () => {
-      mockWorkspacesRepository.findById.mockResolvedValue({ id: 'ws-1' });
+    it('возвращает воркспейс, если пользователь — участник', async () => {
+      const workspace = { id: 'ws-1' };
+      mockWorkspacesRepository.findById.mockResolvedValue(workspace);
+      mockWorkspacesRepository.findMembership.mockResolvedValue(
+        membership(Role.EDITOR),
+      );
 
-      await expect(service.findById('ws-1')).resolves.toEqual({ id: 'ws-1' });
+      await expect(service.findById('ws-1', 'user-1')).resolves.toBe(workspace);
+
+      expect(mockWorkspacesRepository.findById).toHaveBeenCalledTimes(1);
+      expect(mockWorkspacesRepository.findById).toHaveBeenCalledWith('ws-1');
+      expect(mockWorkspacesRepository.findMembership).toHaveBeenCalledWith(
+        'ws-1',
+        'user-1',
+      );
     });
 
-    it('бросает 404, если воркспейс не найден', async () => {
+    it('бросает 404, если воркспейс не найден, и не смотрит membership', async () => {
       mockWorkspacesRepository.findById.mockResolvedValue(null);
 
-      await expect(service.findById('ws-1')).rejects.toThrow(NotFoundException);
+      await expect(service.findById('ws-1', 'user-1')).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(mockWorkspacesRepository.findMembership).not.toHaveBeenCalled();
+    });
+
+    it('бросает 403, если воркспейс есть, а пользователь не участник', async () => {
+      mockWorkspacesRepository.findById.mockResolvedValue({ id: 'ws-1' });
+      mockWorkspacesRepository.findMembership.mockResolvedValue(null);
+
+      await expect(service.findById('ws-1', 'user-1')).rejects.toThrow(
+        ForbiddenException,
+      );
+      expect(mockWorkspacesRepository.findById).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -134,36 +158,70 @@ describe('WorkspacesService', () => {
 
   describe('update', () => {
     it('обновляет воркспейс', async () => {
+      mockWorkspacesRepository.findMembership.mockResolvedValue(
+        membership(Role.OWNER),
+      );
       mockWorkspacesRepository.update.mockResolvedValue({
         id: 'ws-1',
         name: 'New name',
       });
 
       await expect(
-        service.update('ws-1', { name: 'New name' }),
+        service.update('ws-1', 'user-1', { name: 'New name' }),
       ).resolves.toEqual({ id: 'ws-1', name: 'New name' });
     });
 
     it('бросает 404, если воркспейс не найден', async () => {
+      mockWorkspacesRepository.findMembership.mockResolvedValue(
+        membership(Role.OWNER),
+      );
       mockWorkspacesRepository.update.mockResolvedValue(null);
 
-      await expect(service.update('ws-1', { name: 'X' })).rejects.toThrow(
-        NotFoundException,
+      await expect(
+        service.update('ws-1', 'user-1', { name: 'X' }),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('бросает 403, если обновляет не владелец воркспейса', async () => {
+      mockWorkspacesRepository.findMembership.mockResolvedValue(
+        membership(Role.EDITOR),
       );
+
+      await expect(
+        service.update('ws-1', 'user-1', { name: 'X' }),
+      ).rejects.toThrow(ForbiddenException);
     });
   });
 
   describe('delete', () => {
     it('удаляет воркспейс', async () => {
+      mockWorkspacesRepository.findMembership.mockResolvedValue(
+        membership(Role.OWNER),
+      );
       mockWorkspacesRepository.delete.mockResolvedValue(true);
 
-      await expect(service.delete('ws-1')).resolves.toBeUndefined();
+      await expect(service.delete('ws-1', 'user-1')).resolves.toBeUndefined();
     });
 
     it('бросает 404, если воркспейс не найден', async () => {
+      mockWorkspacesRepository.findMembership.mockResolvedValue(
+        membership(Role.OWNER),
+      );
       mockWorkspacesRepository.delete.mockResolvedValue(false);
 
-      await expect(service.delete('ws-1')).rejects.toThrow(NotFoundException);
+      await expect(service.delete('ws-1', 'user-1')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('бросает 403, если удаляет не владелец воркспейса', async () => {
+      mockWorkspacesRepository.findMembership.mockResolvedValue(
+        membership(Role.EDITOR),
+      );
+
+      await expect(service.delete('ws-1', 'user-1')).rejects.toThrow(
+        ForbiddenException,
+      );
     });
   });
 
@@ -182,7 +240,7 @@ describe('WorkspacesService', () => {
       mockWorkspacesRepository.findMembership.mockResolvedValue(
         membership(Role.OWNER),
       );
-      mockUsersService.findById.mockResolvedValue({ id: 'user-2' });
+      mockUsersRepository.findById.mockResolvedValue({ id: 'user-2' });
       mockWorkspacesRepository.addMember.mockResolvedValue({
         workspaceId: 'ws-1',
         userId: 'user-2',
@@ -203,7 +261,7 @@ describe('WorkspacesService', () => {
       mockWorkspacesRepository.findMembership.mockResolvedValue(
         membership(Role.OWNER),
       );
-      mockUsersService.findById.mockResolvedValue({ id: 'user-2' });
+      mockUsersRepository.findById.mockResolvedValue({ id: 'user-2' });
       mockWorkspacesRepository.addMember.mockResolvedValue({
         workspaceId: 'ws-1',
         userId: 'user-2',
@@ -223,7 +281,7 @@ describe('WorkspacesService', () => {
       mockWorkspacesRepository.findMembership.mockResolvedValue(
         membership(Role.ADMIN),
       );
-      mockUsersService.findById.mockResolvedValue({ id: 'user-2' });
+      mockUsersRepository.findById.mockResolvedValue({ id: 'user-2' });
       mockWorkspacesRepository.addMember.mockResolvedValue({
         workspaceId: 'ws-1',
         userId: 'user-2',
@@ -268,18 +326,18 @@ describe('WorkspacesService', () => {
       mockWorkspacesRepository.findMembership.mockResolvedValue(
         membership(Role.OWNER),
       );
-      mockUsersService.findById.mockResolvedValue(null);
+      mockUsersRepository.findById.mockResolvedValue(null);
 
       await expect(
         service.addMember('user-1', 'ws-1', 'ghost'),
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('бросает 409, если участник уже существует (P2002)', async () => {
+    it('превращает P2002 в 409, если участник уже существует', async () => {
       mockWorkspacesRepository.findMembership.mockResolvedValue(
         membership(Role.OWNER),
       );
-      mockUsersService.findById.mockResolvedValue({ id: 'user-2' });
+      mockUsersRepository.findById.mockResolvedValue({ id: 'user-2' });
       mockWorkspacesRepository.addMember.mockRejectedValue(p2002);
 
       await expect(
@@ -511,28 +569,6 @@ describe('WorkspacesService', () => {
       mockWorkspacesRepository.findMembership.mockResolvedValue(null);
 
       await expect(service.assertMemberOf('ws-1', 'user-1')).rejects.toThrow(
-        ForbiddenException,
-      );
-    });
-  });
-
-  describe('assertOwner', () => {
-    it('пропускает, если роль OWNER', async () => {
-      mockWorkspacesRepository.findMembership.mockResolvedValue(
-        membership(Role.OWNER),
-      );
-
-      await expect(
-        service.assertOwner('ws-1', 'user-1'),
-      ).resolves.toBeUndefined();
-    });
-
-    it('бросает 403, если роль не OWNER', async () => {
-      mockWorkspacesRepository.findMembership.mockResolvedValue(
-        membership(Role.EDITOR),
-      );
-
-      await expect(service.assertOwner('ws-1', 'user-1')).rejects.toThrow(
         ForbiddenException,
       );
     });

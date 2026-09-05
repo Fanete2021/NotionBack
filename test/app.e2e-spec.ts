@@ -1,13 +1,20 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication } from '@nestjs/common';
+import { HttpStatus, INestApplication } from '@nestjs/common';
 import request from 'supertest';
-import { App } from 'supertest/types';
-import { AppModule } from './../src/app.module';
+import type { App } from 'supertest/types';
+import { AppModule } from '../src/app.module';
+import { PrismaService } from '../src/prisma/prisma.service';
+import { RedisClient } from '../src/common/providers/redis-client';
 
-describe('AppController (e2e)', () => {
-  let app: INestApplication<App>;
+describe('Auth & Health (e2e)', () => {
+  let app: INestApplication;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
+    process.env.DATABASE_URL ??=
+      'postgresql://postgres:postgres@localhost:5432/notionback?schema=public';
+    process.env.JWT_ACCESS_SECRET ??= 'test-access-secret';
+    process.env.JWT_REFRESH_SECRET ??= 'test-refresh-secret';
+
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
@@ -17,14 +24,24 @@ describe('AppController (e2e)', () => {
     await app.init();
   });
 
-  it('/api (GET)', () => {
-    return request(app.getHttpServer())
-      .get('/api')
-      .expect(200)
-      .expect('Hello World!');
+  afterAll(async () => {
+    await app.get(RedisClient).quit();
+    await app.get(PrismaService).$disconnect();
+    await app.close();
   });
 
-  afterEach(async () => {
-    await app.close();
+  it('GET /api/health доступен без токена', () => {
+    return request(app.getHttpServer() as App)
+      .get('/api/health')
+      .expect(HttpStatus.OK)
+      .expect((res: { body: { status: string } }) => {
+        expect(res.body.status).toBe('ok');
+      });
+  });
+
+  it('GET /api/auth/me без токена возвращает 401, а не 500', () => {
+    return request(app.getHttpServer() as App)
+      .get('/api/auth/me')
+      .expect(HttpStatus.UNAUTHORIZED);
   });
 });

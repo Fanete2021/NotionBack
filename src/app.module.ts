@@ -1,9 +1,7 @@
 import { Module, Global } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
-import { AppController } from './app.controller';
 import { HealthController } from './health/health.controller';
-import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
@@ -43,6 +41,10 @@ import * as Joi from 'joi';
           .positive()
           .default(10),
         FRONT_URL: Joi.string().uri().default('http://localhost:3000'),
+        COOKIE_SECURE: Joi.boolean().default(false),
+        COOKIE_SAME_SITE: Joi.string()
+          .valid('lax', 'strict', 'none')
+          .default('lax'),
       }),
     }),
     PrismaModule,
@@ -53,9 +55,8 @@ import * as Joi from 'joi';
     WorkspaceInvitesModule,
     PagesModule,
   ],
-  controllers: [AppController, HealthController],
+  controllers: [HealthController],
   providers: [
-    AppService,
     RedisClient,
     {
       provide: APP_GUARD,

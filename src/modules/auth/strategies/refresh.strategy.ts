@@ -5,22 +5,23 @@ import { ConfigService } from '@nestjs/config';
 import { UserPayload } from '../../../common/types/user-payload.type';
 import { TokenPayload } from '../types/token.types';
 import type { Request } from 'express';
-import { getCookieValue } from '../../../common/utils/cookies';
+import { COOKIE_NAMES, getCookieValue } from '../../../common/utils/cookies';
+import { mapTokenPayloadToUser } from '../utils/auth.utils';
 
 @Injectable()
 export class RefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh') {
   constructor(configService: ConfigService) {
     super({
-      jwtFromRequest: (req: Request) => {
-        const refreshToken = getCookieValue(req, 'refreshToken');
+      jwtFromRequest: (req: Request): string | null => {
+        const refreshToken = getCookieValue(req, COOKIE_NAMES.REFRESH_TOKEN);
         return refreshToken ?? null;
       },
-      ignoreExpiration: true,
-      secretOrKey: configService.get<string>('JWT_REFRESH_SECRET')!,
+      ignoreExpiration: false,
+      secretOrKey: configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
     });
   }
 
   validate(payload: TokenPayload): UserPayload {
-    return { id: payload.sub, email: payload.email };
+    return mapTokenPayloadToUser(payload);
   }
 }

@@ -2,9 +2,11 @@ import {
   Injectable,
   UnauthorizedException,
   ConflictException,
+  HttpException,
+  Logger,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { UsersService } from '../users/users.service';
+import { UsersRepository } from '../users/users.repository';
 import * as bcrypt from 'bcrypt';
 import {
   TokenData,
@@ -23,18 +25,16 @@ import { CreateUserData } from '../users/types/users.types';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
-    private readonly usersService: UsersService,
+    private readonly usersRepository: UsersRepository,
     private readonly tokenService: TokenService,
     private readonly configService: ConfigService,
   ) {}
 
-  private async generateTokens(data: TokenData): Promise<TokenPair> {
-    return this.tokenService.generateTokens(data);
-  }
-
   async register(data: RegisterData): Promise<TokenPair> {
-    const existingUser = await this.usersService.findByEmail(data.email);
+    const existingUser = await this.usersRepository.findByEmail(data.email);
     if (existingUser) {
       throw new ConflictException('User with this email already exists');
     }
@@ -48,14 +48,14 @@ export class AuthService {
       avatarUrl: data.avatarUrl,
       passwordHash,
     };
-    const user = await this.usersService.createUser(createUserData);
+    const user = await this.usersRepository.create(createUserData);
 
     const tokenData: TokenData = { userId: user.id, email: user.email };
-    return this.generateTokens(tokenData);
+    return this.tokenService.generateTokens(tokenData);
   }
 
   async login(data: LoginData): Promise<TokenPair> {
-    const user = await this.usersService.findByEmail(data.email);
+    const user = await this.usersRepository.findByEmail(data.email);
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
     }
@@ -69,7 +69,7 @@ export class AuthService {
     }
 
     const tokenData: TokenData = { userId: user.id, email: user.email };
-    return this.generateTokens(tokenData);
+    return this.tokenService.generateTokens(tokenData);
   }
 
   async refresh(data: RefreshData): Promise<TokenPair> {
@@ -77,15 +77,23 @@ export class AuthService {
       const refreshSession = await this.tokenService.validateRefreshToken(
         data.token,
       );
-      const user = await this.usersService.findById(refreshSession.userId);
+      const user = await this.usersRepository.findById(refreshSession.userId);
       if (!user) {
         throw new UnauthorizedException('User not found');
       }
 
       const tokenData: TokenData = { userId: user.id, email: user.email };
-      return this.generateTokens(tokenData);
-    } catch {
-      throw new UnauthorizedException('Invalid refresh token');
+      return this.tokenService.generateTokens(tokenData);
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+
+      this.logger.error(
+        'Failed to refresh tokens',
+        error instanceof Error ? error.stack : undefined,
+      );
+      throw error;
     }
   }
 

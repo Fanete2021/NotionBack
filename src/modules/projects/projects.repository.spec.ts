@@ -6,8 +6,16 @@ import { ProjectEntity } from './entities/project.entity';
 describe('ProjectsRepository', () => {
   let repository: ProjectsRepository;
 
-  const mockProjectUpdate = jest.fn();
-  const mockTx = { project: { update: mockProjectUpdate } };
+  const mockTx = {
+    project: {
+      aggregate: jest.fn(),
+      create: jest.fn(),
+      findMany: jest.fn(),
+      update: jest.fn(),
+    },
+    $queryRaw: jest.fn(),
+    $executeRaw: jest.fn(),
+  };
 
   const mockPrisma = {
     project: {
@@ -50,36 +58,40 @@ describe('ProjectsRepository', () => {
     repository = module.get<ProjectsRepository>(ProjectsRepository);
 
     mockPrisma.$transaction.mockImplementation(
-      (callback: (tx: unknown) => unknown) => callback(mockTx),
+      (callback: (tx: typeof mockTx) => unknown) => callback(mockTx),
     );
+    mockTx.$queryRaw.mockResolvedValue([{ pg_advisory_xact_lock: true }]);
+    mockTx.$executeRaw.mockResolvedValue(1);
   });
 
   describe('create', () => {
-    it('вычисляет позицию как максимальную + 1', async () => {
-      mockPrisma.project.aggregate.mockResolvedValue({ _max: { position: 2 } });
-      mockPrisma.project.create.mockResolvedValue(projectFixture('p3', 3));
+    it('вычисляет позицию как максимальную + 1 внутри транзакции', async () => {
+      mockTx.project.aggregate.mockResolvedValue({ _max: { position: 2 } });
+      mockTx.project.create.mockResolvedValue(projectFixture('p3', 3));
 
       const result = await repository.create('ws-1', { name: 'P3' });
 
-      expect(mockPrisma.project.aggregate).toHaveBeenCalledWith({
+      expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
+      expect(mockTx.$queryRaw).toHaveBeenCalled();
+      expect(mockTx.project.aggregate).toHaveBeenCalledWith({
         where: { workspaceId: 'ws-1', parentProjectId: null },
         _max: { position: true },
       });
-      expect(mockPrisma.project.create).toHaveBeenCalledWith({
+      expect(mockTx.project.create).toHaveBeenCalledWith({
         data: { name: 'P3', workspaceId: 'ws-1', position: 3 },
       });
       expect(result).toBeInstanceOf(ProjectEntity);
     });
 
     it('вычисляет позицию 0, если проектов ещё нет', async () => {
-      mockPrisma.project.aggregate.mockResolvedValue({
+      mockTx.project.aggregate.mockResolvedValue({
         _max: { position: null },
       });
-      mockPrisma.project.create.mockResolvedValue(projectFixture('p1', 0));
+      mockTx.project.create.mockResolvedValue(projectFixture('p1', 0));
 
       const result = await repository.create('ws-1', { name: 'P1' });
 
-      expect(mockPrisma.project.create).toHaveBeenCalledWith({
+      expect(mockTx.project.create).toHaveBeenCalledWith({
         data: { name: 'P1', workspaceId: 'ws-1', position: 0 },
       });
       expect(result).toBeInstanceOf(ProjectEntity);
@@ -88,7 +100,7 @@ describe('ProjectsRepository', () => {
 
   describe('reorder', () => {
     it('возвращает null, если orderedIds не содержит всех соседей', async () => {
-      mockPrisma.project.findMany.mockResolvedValue([
+      mockTx.project.findMany.mockResolvedValue([
         projectFixture('p1', 0),
         projectFixture('p2', 1),
       ]);
@@ -96,48 +108,37 @@ describe('ProjectsRepository', () => {
       const result = await repository.reorder('ws-1', null, ['p1']);
 
       expect(result).toBeNull();
-      expect(mockPrisma.$transaction).not.toHaveBeenCalled();
+      expect(mockTx.$executeRaw).not.toHaveBeenCalled();
     });
 
     it('возвращает null, если orderedIds содержит лишние id', async () => {
-      mockPrisma.project.findMany.mockResolvedValue([projectFixture('p1', 0)]);
+      mockTx.project.findMany.mockResolvedValue([projectFixture('p1', 0)]);
 
       const result = await repository.reorder('ws-1', null, ['p1', 'p2']);
 
       expect(result).toBeNull();
-      expect(mockPrisma.$transaction).not.toHaveBeenCalled();
+      expect(mockTx.$executeRaw).not.toHaveBeenCalled();
     });
 
-    it('обновляет позиции в два прохода в транзакции и возвращает плоский список', async () => {
-      mockPrisma.project.findMany
+    it('обновляет позиции двумя bulk UPDATE и возвращает плоский список', async () => {
+      mockTx.project.findMany
         .mockResolvedValueOnce([
           projectFixture('p1', 0),
           projectFixture('p2', 1),
         ])
-        .mockResolvedValue([projectFixture('p1', 0), projectFixture('p2', 1)]);
+        .mockResolvedValue([projectFixture('p2', 0), projectFixture('p1', 1)]);
 
       const result = await repository.reorder('ws-1', null, ['p2', 'p1']);
 
       expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
+      expect(mockTx.project.update).not.toHaveBeenCalled();
+      expect(mockTx.$executeRaw).toHaveBeenCalledTimes(2);
+      const executeCalls = mockTx.$executeRaw.mock.calls as unknown[][];
+      expect(String(executeCalls[0][0])).toContain(
+        'SET "position" = "position" +',
+      );
+      expect(String(executeCalls[1][0])).toContain('FROM (VALUES');
 
-      // Фаза 1: сдвиг всех соседей на оффсет (чтобы уникальный ключ не конфликтовал)
-      expect(mockProjectUpdate).toHaveBeenNthCalledWith(1, {
-        where: { id: 'p1' },
-        data: { position: 0 + 2 },
-      });
-      expect(mockProjectUpdate).toHaveBeenNthCalledWith(2, {
-        where: { id: 'p2' },
-        data: { position: 1 + 2 },
-      });
-      // Фаза 2: финальные индексы
-      expect(mockProjectUpdate).toHaveBeenNthCalledWith(3, {
-        where: { id: 'p2' },
-        data: { position: 0 },
-      });
-      expect(mockProjectUpdate).toHaveBeenNthCalledWith(4, {
-        where: { id: 'p1' },
-        data: { position: 1 },
-      });
       expect(result).toHaveLength(2);
       expect(result?.[0]).toBeInstanceOf(ProjectEntity);
     });
