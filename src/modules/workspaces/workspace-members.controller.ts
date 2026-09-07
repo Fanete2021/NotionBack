@@ -11,7 +11,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
-import { WorkspacesService } from './workspaces.service';
+import { WorkspaceMembersService } from './workspace-members.service';
 import { AddWorkspaceMemberDto } from './dto/add-workspace-member.dto';
 import { UpdateMemberRoleDto } from './dto/update-member-role.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -29,14 +29,16 @@ import {
 @UseGuards(WorkspaceMemberGuard)
 @Controller('workspaces/:workspaceId/members')
 export class WorkspaceMembersController {
-  constructor(private readonly workspacesService: WorkspacesService) {}
+  constructor(
+    private readonly workspaceMembersService: WorkspaceMembersService,
+  ) {}
 
   @WorkspaceMemberListMembersResponse()
   @Get()
   listMembers(
     @Param('workspaceId') workspaceId: string,
   ): Promise<WorkspaceMemberEntity[]> {
-    return this.workspacesService.listMembers(workspaceId);
+    return this.workspaceMembersService.listMembers(workspaceId);
   }
 
   @WorkspaceMemberAddMemberResponse()
@@ -46,7 +48,7 @@ export class WorkspaceMembersController {
     @Param('workspaceId') workspaceId: string,
     @Body() dto: AddWorkspaceMemberDto,
   ): Promise<WorkspaceMemberEntity> {
-    return this.workspacesService.addMember(
+    return this.workspaceMembersService.addMember(
       userId,
       workspaceId,
       dto.userId,
@@ -62,7 +64,7 @@ export class WorkspaceMembersController {
     @Param('userId') memberId: string,
     @Body() dto: UpdateMemberRoleDto,
   ): Promise<WorkspaceMemberEntity> {
-    return this.workspacesService.changeMemberRole(
+    return this.workspaceMembersService.changeMemberRole(
       userId,
       workspaceId,
       memberId,
@@ -78,6 +80,10 @@ export class WorkspaceMembersController {
     @Param('workspaceId') workspaceId: string,
     @Param('userId') memberId: string,
   ): Promise<void> {
-    return this.workspacesService.removeMember(userId, workspaceId, memberId);
+    return this.workspaceMembersService.removeMember(
+      userId,
+      workspaceId,
+      memberId,
+    );
   }
 }

@@ -11,27 +11,26 @@ import {
   Put,
   Query,
 } from '@nestjs/common';
-import {
-  ApiBearerAuth,
-  ApiBody,
-  ApiOperation,
-  ApiParam,
-  ApiQuery,
-  ApiResponse,
-  ApiTags,
-} from '@nestjs/swagger';
 import { PagesService } from './pages.service';
 import { WorkspacesService } from '../workspaces/workspaces.service';
 import { CreatePageDto } from './dto/create-page.dto';
 import { UpdatePageDto } from './dto/update-page.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { ApiWorkspaceForbidden } from '../../common/decorators/api-workspace-forbidden.decorator';
 import { PageEntity } from './entities/page.entity';
 import { PageContentEntity } from './entities/page-content.entity';
 import { PAGE_CONTENT_ROUTE } from './pages.routes';
+import {
+  PagesControllerResponse,
+  PagesCreateResponse,
+  PagesDeleteResponse,
+  PagesFindAllByWorkspaceIdResponse,
+  PagesFindByIdResponse,
+  PagesGetContentResponse,
+  PagesUpdateContentResponse,
+  PagesUpdateResponse,
+} from './decorators/page-swagger.decorator';
 
-@ApiBearerAuth()
-@ApiTags('Pages')
+@PagesControllerResponse()
 @Controller()
 export class PagesController {
   constructor(
@@ -39,15 +38,8 @@ export class PagesController {
     private readonly workspacesService: WorkspacesService,
   ) {}
 
+  @PagesCreateResponse()
   @Post('pages')
-  @ApiOperation({ summary: 'Create a page in a project' })
-  @ApiResponse({
-    status: 201,
-    description: 'Page created',
-    type: PageEntity,
-  })
-  @ApiWorkspaceForbidden()
-  @ApiResponse({ status: 404, description: 'Project not found' })
   async create(
     @CurrentUser('id') userId: string,
     @Body() dto: CreatePageDto,
@@ -56,12 +48,8 @@ export class PagesController {
     return this.pagesService.create(dto.workspaceId, userId, dto);
   }
 
+  @PagesFindByIdResponse()
   @Get('pages/:id')
-  @ApiOperation({ summary: 'Get a page by id' })
-  @ApiParam({ name: 'id', type: String, description: 'Page id' })
-  @ApiResponse({ status: 200, type: PageEntity })
-  @ApiWorkspaceForbidden()
-  @ApiResponse({ status: 404, description: 'Page not found' })
   async findById(
     @CurrentUser('id') userId: string,
     @Param('id') id: string,
@@ -71,14 +59,8 @@ export class PagesController {
     return page;
   }
 
+  @PagesUpdateResponse()
   @Patch('pages/:id')
-  @ApiOperation({
-    summary: 'Update a page (title, icon, type, project)',
-  })
-  @ApiParam({ name: 'id', type: String, description: 'Page id' })
-  @ApiResponse({ status: 200, type: PageEntity })
-  @ApiWorkspaceForbidden()
-  @ApiResponse({ status: 404, description: 'Page or project not found' })
   async update(
     @CurrentUser('id') userId: string,
     @Param('id') id: string,
@@ -89,13 +71,9 @@ export class PagesController {
     return this.pagesService.update(page, dto);
   }
 
+  @PagesDeleteResponse()
   @Delete('pages/:id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Soft-delete a page (moves it to trash)' })
-  @ApiParam({ name: 'id', type: String, description: 'Page id' })
-  @ApiResponse({ status: 204, description: 'Page deleted' })
-  @ApiWorkspaceForbidden()
-  @ApiResponse({ status: 404, description: 'Page not found' })
   async delete(
     @CurrentUser('id') userId: string,
     @Param('id') id: string,
@@ -105,12 +83,8 @@ export class PagesController {
     await this.pagesService.delete(page);
   }
 
+  @PagesGetContentResponse()
   @Get(PAGE_CONTENT_ROUTE)
-  @ApiOperation({ summary: 'Get a page content (TipTap JSON)' })
-  @ApiParam({ name: 'id', type: String, description: 'Page id' })
-  @ApiResponse({ status: 200, type: PageContentEntity })
-  @ApiWorkspaceForbidden()
-  @ApiResponse({ status: 404, description: 'Page not found' })
   async getContent(
     @CurrentUser('id') userId: string,
     @Param('id') id: string,
@@ -120,20 +94,8 @@ export class PagesController {
     return this.pagesService.getContent(page);
   }
 
+  @PagesUpdateContentResponse()
   @Put(PAGE_CONTENT_ROUTE)
-  @ApiOperation({ summary: 'Overwrite a page content (TipTap JSON)' })
-  @ApiParam({ name: 'id', type: String, description: 'Page id' })
-  @ApiBody({
-    schema: { type: 'object', example: { type: 'doc', content: [] } },
-    description: 'TipTap document JSON',
-  })
-  @ApiResponse({ status: 200, type: PageContentEntity })
-  @ApiWorkspaceForbidden()
-  @ApiResponse({ status: 404, description: 'Page not found' })
-  @ApiResponse({
-    status: 413,
-    description: 'Page content exceeds the size limit',
-  })
   async updateContent(
     @CurrentUser('id') userId: string,
     @Param('id') id: string,
@@ -144,23 +106,8 @@ export class PagesController {
     return this.pagesService.updateContent(page, body);
   }
 
+  @PagesFindAllByWorkspaceIdResponse()
   @Get('workspaces/:workspaceId/pages')
-  @ApiOperation({
-    summary: 'Get pages of a workspace (optionally of a project)',
-  })
-  @ApiParam({
-    name: 'workspaceId',
-    type: String,
-    description: 'Workspace id',
-  })
-  @ApiQuery({
-    name: 'projectId',
-    required: false,
-    type: String,
-    description: 'Filter by project id',
-  })
-  @ApiResponse({ status: 200, type: [PageEntity] })
-  @ApiWorkspaceForbidden()
   async findAllByWorkspaceId(
     @CurrentUser('id') userId: string,
     @Param('workspaceId') workspaceId: string,

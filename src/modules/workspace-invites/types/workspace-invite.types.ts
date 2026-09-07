@@ -10,3 +10,9 @@ export interface StoredWorkspaceInvite {
   role: Role;
   createdBy: string;
 }
+
+export interface ConsumedWorkspaceInvite {
+  raw: string;
+  stored: StoredWorkspaceInvite;
+  remainingTtl: number;
+}

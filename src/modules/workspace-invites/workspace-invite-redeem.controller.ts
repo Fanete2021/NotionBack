@@ -8,13 +8,15 @@ import {
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { WorkspaceMemberEntity } from '../workspaces/entities/workspace-member.entity';
 import { RedeemWorkspaceInviteDto } from './dto/redeem-workspace-invite.dto';
-import { WorkspaceInvitesService } from './workspace-invites.service';
+import { WorkspaceInviteRedeemService } from './workspace-invite-redeem.service';
 
 @ApiBearerAuth()
 @ApiTags('Workspace Invites')
 @Controller('invites')
 export class WorkspaceInviteRedeemController {
-  constructor(private readonly invitesService: WorkspaceInvitesService) {}
+  constructor(
+    private readonly inviteRedeemService: WorkspaceInviteRedeemService,
+  ) {}
 
   @Post('redeem')
   @ApiOperation({ summary: 'Join a workspace by an invite token' })
@@ -29,6 +31,6 @@ export class WorkspaceInviteRedeemController {
     @CurrentUser('id') userId: string,
     @Body() dto: RedeemWorkspaceInviteDto,
   ): Promise<WorkspaceMemberEntity> {
-    return this.invitesService.redeem(userId, dto.token);
+    return this.inviteRedeemService.redeem(userId, dto.token);
   }
 }
