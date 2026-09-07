@@ -8,6 +8,7 @@ export type RegisterData = {
 export type LoginData = {
   email: string;
   password: string;
+  rememberMe?: boolean;
 };
 
 export type LogoutData = {

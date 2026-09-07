@@ -54,8 +54,8 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ): Promise<AuthResponseDto> {
     const result = await this.authService.register(dto);
-    const { refreshToken, ...responseBody } = result;
-    this.handleSetCookie(res, refreshToken);
+    const { refreshToken, rememberMe, ...responseBody } = result;
+    this.handleSetCookie(res, refreshToken, rememberMe);
     return responseBody;
   }
 
@@ -68,8 +68,8 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ): Promise<AuthResponseDto> {
     const result = await this.authService.login(dto);
-    const { refreshToken, ...responseBody } = result;
-    this.handleSetCookie(res, refreshToken);
+    const { refreshToken, rememberMe, ...responseBody } = result;
+    this.handleSetCookie(res, refreshToken, rememberMe);
     return responseBody;
   }
 
@@ -89,8 +89,8 @@ export class AuthController {
 
     const refreshData: RefreshData = { token: oldRefreshToken };
     const result = await this.authService.refresh(refreshData);
-    const { refreshToken, ...responseBody } = result;
-    this.handleSetCookie(res, refreshToken);
+    const { refreshToken, rememberMe, ...responseBody } = result;
+    this.handleSetCookie(res, refreshToken, rememberMe);
     return responseBody;
   }
 
@@ -133,11 +133,14 @@ export class AuthController {
     return req.user as UserPayload;
   }
 
-  private handleSetCookie(res: Response, token: string): void {
-    const maxAgeSeconds = this.configService.get<number>(
-      'JWT_REFRESH_EXPIRES_IN',
-      2592000,
-    );
+  private handleSetCookie(
+    res: Response,
+    token: string,
+    rememberMe: boolean,
+  ): void {
+    const maxAgeSeconds = rememberMe
+      ? this.configService.get<number>('JWT_REFRESH_EXPIRES_IN', 2592000)
+      : null;
     const secure = this.configService.get<boolean>('COOKIE_SECURE', false);
     const sameSite = this.configService.get<SameSite>(
       'COOKIE_SAME_SITE',

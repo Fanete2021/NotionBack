@@ -35,13 +35,13 @@ export function getCookieValue(
 export function setRefreshTokenCookie(
   res: Response,
   token: string,
-  maxAgeSeconds: number,
+  maxAgeSeconds: number | null,
   secure: boolean,
   sameSite: SameSite,
 ): void {
   res.cookie(COOKIE_NAMES.REFRESH_TOKEN, token, {
     ...REFRESH_COOKIE_OPTIONS,
-    maxAge: maxAgeSeconds * 1000,
+    ...(maxAgeSeconds !== null ? { maxAge: maxAgeSeconds * 1000 } : {}),
     secure,
     sameSite,
   });

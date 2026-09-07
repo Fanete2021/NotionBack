@@ -50,7 +50,11 @@ export class AuthService {
     };
     const user = await this.usersRepository.create(createUserData);
 
-    const tokenData: TokenData = { userId: user.id, email: user.email };
+    const tokenData: TokenData = {
+      userId: user.id,
+      email: user.email,
+      rememberMe: true,
+    };
     return this.tokenService.generateTokens(tokenData);
   }
 
@@ -68,7 +72,11 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const tokenData: TokenData = { userId: user.id, email: user.email };
+    const tokenData: TokenData = {
+      userId: user.id,
+      email: user.email,
+      rememberMe: data.rememberMe ?? false,
+    };
     return this.tokenService.generateTokens(tokenData);
   }
 
@@ -82,7 +90,11 @@ export class AuthService {
         throw new UnauthorizedException('User not found');
       }
 
-      const tokenData: TokenData = { userId: user.id, email: user.email };
+      const tokenData: TokenData = {
+        userId: user.id,
+        email: user.email,
+        rememberMe: refreshSession.rememberMe,
+      };
       return this.tokenService.generateTokens(tokenData);
     } catch (error) {
       if (error instanceof HttpException) {

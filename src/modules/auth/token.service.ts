@@ -10,6 +10,11 @@ import {
   RefreshTokenPayload,
 } from './types/token.types';
 
+const REFRESH_SESSION_FLAG = {
+  PERSISTENT: '1',
+  SESSION: '0',
+} as const;
+
 @Injectable()
 export class TokenService {
   constructor(
@@ -47,7 +52,9 @@ export class TokenService {
     const sessionSetKey = this.userSessionsKey(data.userId);
     await this.redis.set(
       this.refreshTokenKey(data.userId, refreshTokenId),
-      '1',
+      data.rememberMe
+        ? REFRESH_SESSION_FLAG.PERSISTENT
+        : REFRESH_SESSION_FLAG.SESSION,
       'EX',
       refreshExpiresIn,
     );
@@ -57,6 +64,7 @@ export class TokenService {
     return {
       accessToken,
       refreshToken,
+      rememberMe: data.rememberMe,
       user: { id: data.userId, email: data.email },
     };
   }
@@ -73,9 +81,9 @@ export class TokenService {
       decodedRefreshToken.sub,
       refreshTokenId,
     );
-    const isTokenValid = await this.redis.exists(redisKey);
+    const storedValue = await this.redis.get(redisKey);
 
-    if (!isTokenValid) {
+    if (storedValue === null) {
       throw new UnauthorizedException('Invalid refresh token');
     }
 
@@ -88,6 +96,7 @@ export class TokenService {
     return {
       userId: decodedRefreshToken.sub,
       refreshTokenId,
+      rememberMe: storedValue !== REFRESH_SESSION_FLAG.SESSION,
     };
   }
 
