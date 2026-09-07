@@ -1,9 +1,14 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma, Role, Workspace, WorkspaceMember } from '@prisma/client';
+import { Prisma, Role, Workspace } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
-import { WorkspaceMemberEntity } from './entities/workspace-member.entity';
+import {
+  WorkspaceMemberEntity,
+  WorkspaceMemberUserEntity,
+} from './entities/workspace-member.entity';
 import { WorkspaceEntity } from './entities/workspace.entity';
 import { isNotFoundError } from '../../common/utils/prisma.utils';
+import { MEMBER_USER_SELECT } from './constants/workspace-member.constants';
+import { WorkspaceMemberWithUser } from './types/workspace-member.types';
 
 @Injectable()
 export class WorkspacesRepository {
@@ -95,6 +100,7 @@ export class WorkspacesRepository {
   ): Promise<WorkspaceMemberEntity> {
     const member = await this.prisma.workspaceMember.create({
       data: { workspaceId, userId, role },
+      include: { user: { select: MEMBER_USER_SELECT } },
     });
 
     return this.mapMemberToEntity(member);
@@ -103,6 +109,7 @@ export class WorkspacesRepository {
   async findAllMembers(workspaceId: string): Promise<WorkspaceMemberEntity[]> {
     const members = await this.prisma.workspaceMember.findMany({
       where: { workspaceId },
+      include: { user: { select: MEMBER_USER_SELECT } },
       orderBy: { createdAt: 'asc' },
     });
 
@@ -120,6 +127,7 @@ export class WorkspacesRepository {
           workspaceId_userId: { workspaceId, userId },
         },
         data: { role },
+        include: { user: { select: MEMBER_USER_SELECT } },
       })
       .catch((error) => {
         if (isNotFoundError(error)) {
@@ -174,13 +182,23 @@ export class WorkspacesRepository {
     );
   }
 
-  private mapMemberToEntity(member: WorkspaceMember): WorkspaceMemberEntity {
+  private mapMemberToEntity(
+    member: WorkspaceMemberWithUser,
+  ): WorkspaceMemberEntity {
     return new WorkspaceMemberEntity(
       member.id,
       member.workspaceId,
       member.userId,
       member.role,
       member.createdAt,
+      member.user
+        ? new WorkspaceMemberUserEntity({
+            id: member.user.id,
+            name: member.user.name,
+            email: member.user.email,
+            avatarUrl: member.user.avatarUrl,
+          })
+        : undefined,
     );
   }
 }
