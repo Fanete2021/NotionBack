@@ -11,19 +11,19 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
-import { WorkspaceMembersService } from '@modules/workspaces/workspace-members.service';
-import { AddWorkspaceMemberDto } from '@modules/workspaces/dto';
-import { UpdateMemberRoleDto } from '@modules/workspaces/dto';
+import { WorkspaceMembersService } from '@modules/workspace-members/workspace-members.service';
+import { AddWorkspaceMemberDto } from '@modules/workspace-members/dto';
+import { UpdateMemberRoleDto } from '@modules/workspace-members/dto';
 import { CurrentUser } from '@common/decorators';
-import { WorkspaceMemberEntity } from '@modules/workspaces/entities';
-import { WorkspaceMemberGuard } from '@modules/workspaces/guards';
+import { WorkspaceMemberEntity } from '@modules/workspace-members/entities';
+import { WorkspaceMemberGuard } from '@modules/workspace-members/guards';
 import {
   WorkspaceMemberControllerResponse,
   WorkspaceMemberListMembersResponse,
   WorkspaceMemberAddMemberResponse,
   WorkspaceMemberChangeMemberRoleResponse,
   WorkspaceMemberRemoveMemberResponse,
-} from '@modules/workspaces/decorators';
+} from '@modules/workspace-members/decorators';
 
 @WorkspaceMemberControllerResponse()
 @UseGuards(WorkspaceMemberGuard)

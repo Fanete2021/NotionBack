@@ -14,7 +14,7 @@ import {
 import { ProjectsService } from '@modules/projects/projects.service';
 import { UpdateProjectDto } from '@modules/projects/dto';
 import { ProjectEntity } from '@modules/projects/entities';
-import { WorkspaceMemberGuard } from '@modules/workspaces/guards';
+import { WorkspaceMemberGuard } from '@modules/workspace-members/guards';
 import { WorkspaceProjectGuard } from '@modules/projects/guards';
 import {
   ProjectControllerResponse,

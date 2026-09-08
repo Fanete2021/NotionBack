@@ -6,7 +6,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { CurrentUser } from '@common/decorators';
-import { WorkspaceMemberEntity } from '@modules/workspaces/entities';
+import { WorkspaceMemberEntity } from '@modules/workspace-members/entities';
 import { RedeemWorkspaceInviteDto } from '@modules/workspace-invites/dto';
 import { WorkspaceInviteRedeemService } from '@modules/workspace-invites/workspace-invite-redeem.service';
 

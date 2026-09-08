@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { WorkspaceMembersService } from '@modules/workspaces/workspace-members.service';
+import { WorkspaceMembersService } from '@modules/workspace-members/workspace-members.service';
 import { WorkspacesService } from '@modules/workspaces/workspaces.service';
-import { WorkspaceMembersRepository } from '@modules/workspaces/workspace-members.repository';
+import { WorkspaceMembersRepository } from '@modules/workspace-members/workspace-members.repository';
 import { WorkspacesRepository } from '@modules/workspaces/workspaces.repository';
 import { UsersRepository } from '@modules/users/users.repository';
 import { PrismaService } from '../../prisma';

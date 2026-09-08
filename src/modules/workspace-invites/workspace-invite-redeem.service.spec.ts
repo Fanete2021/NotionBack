@@ -4,7 +4,7 @@ import { Role } from '@prisma/client';
 import { createHash, randomBytes } from 'crypto';
 import { WorkspaceInviteRedeemService } from '@modules/workspace-invites/workspace-invite-redeem.service';
 import { WorkspaceInvitesRepository } from '@modules/workspace-invites/workspace-invites.repository';
-import { WorkspaceMembersService } from '@modules/workspaces/workspace-members.service';
+import { WorkspaceMembersService } from '@modules/workspace-members/workspace-members.service';
 import { RedisClient } from '@common/providers';
 import { TemporaryInviteStore } from '@modules/workspace-invites/temporary-invite.store';
 

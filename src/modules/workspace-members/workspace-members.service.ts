@@ -1,20 +1,23 @@
 import {
+  Inject,
   Injectable,
   NotFoundException,
   ForbiddenException,
+  forwardRef,
 } from '@nestjs/common';
 import { Role } from '@prisma/client';
-import { WorkspaceMembersRepository } from '@modules/workspaces/workspace-members.repository';
-import { WorkspaceMemberEntity } from '@modules/workspaces/entities';
+import { WorkspaceMembersRepository } from '@modules/workspace-members/workspace-members.repository';
+import { WorkspaceMemberEntity } from '@modules/workspace-members/entities';
 import { UsersRepository } from '@modules/users/users.repository';
 import { WorkspacesService } from '@modules/workspaces/workspaces.service';
-import { rethrowAddMemberError } from '@modules/workspaces/utils';
+import { rethrowAddMemberError } from '@modules/workspace-members/utils';
 
 @Injectable()
 export class WorkspaceMembersService {
   constructor(
     private readonly workspaceMembersRepository: WorkspaceMembersRepository,
     private readonly usersRepository: UsersRepository,
+    @Inject(forwardRef(() => WorkspacesService))
     private readonly workspacesService: WorkspacesService,
   ) {}
 

@@ -3,7 +3,7 @@ import { InternalServerErrorException } from '@nestjs/common';
 import { ProjectsController } from '@modules/projects/projects.controller';
 import { ProjectsService } from '@modules/projects/projects.service';
 import { ProjectEntity } from '@modules/projects/entities';
-import { WorkspaceMemberGuard } from '@modules/workspaces/guards';
+import { WorkspaceMemberGuard } from '@modules/workspace-members/guards';
 import { WorkspaceProjectGuard } from '@modules/projects/guards';
 import { AuthenticatedRequest } from '@modules/projects/types';
 

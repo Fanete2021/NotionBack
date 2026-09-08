@@ -6,7 +6,7 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { WorkspaceMemberEntity } from '@modules/workspaces/entities';
+import { WorkspaceMemberEntity } from '@modules/workspace-members/entities';
 import { ApiUnauthorizedResponse } from '@common/decorators/swagger';
 import { ApiForbiddenResponse } from '@common/decorators/swagger';
 import { ApiInternalServerErrorResponse } from '@common/decorators/swagger';

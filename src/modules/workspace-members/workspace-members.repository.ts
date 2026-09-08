@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma, Role, WorkspaceMember } from '@prisma/client';
 import { PrismaService } from '../../prisma';
-import { WorkspaceMemberEntity } from '@modules/workspaces/entities';
+import { WorkspaceMemberEntity } from '@modules/workspace-members/entities';
 import { isNotFoundError } from '@common/utils';
 
 type TransactionClient = Prisma.TransactionClient;

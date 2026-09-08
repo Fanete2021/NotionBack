@@ -7,9 +7,9 @@ import { ConfigService } from '@nestjs/config';
 import { Role } from '@prisma/client';
 import { PrismaService } from '../../prisma';
 import { WorkspacesRepository } from '@modules/workspaces/workspaces.repository';
-import { WorkspaceMembersRepository } from '@modules/workspaces/workspace-members.repository';
+import { WorkspaceMembersRepository } from '@modules/workspace-members/workspace-members.repository';
 import { WorkspaceEntity } from '@modules/workspaces/entities';
-import { WorkspaceMemberEntity } from '@modules/workspaces/entities';
+import { WorkspaceMemberEntity } from '@modules/workspace-members/entities';
 import { UpdateWorkspaceDto } from '@modules/workspaces/dto';
 
 @Injectable()
