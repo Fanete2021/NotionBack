@@ -1,26 +1,42 @@
 import { ApiProperty } from '@nestjs/swagger';
+import type { UploadUrlResult } from '../../s3';
 
-export class PresignAttachmentResultEntity {
+class PresignUploadHeaders {
+  @ApiProperty({ example: 'image/png' })
+  readonly 'Content-Type'!: string;
+
+  @ApiProperty({ example: 'status=PENDING' })
+  readonly 'X-Amz-Tagging'!: string;
+}
+
+class PresignAttachmentResultEntity {
   @ApiProperty({ example: '3fa85f64-5717-4562-b3fc-2c963f66afa6' })
   readonly attachmentId: string;
 
   @ApiProperty({
-    example:
-      'http://localhost:9000/notion-attachments/workspaces/...?X-Amz-Signature=...',
-    description: 'Presigned PUT url. Valid for 5 minutes',
+    example: 'http://localhost:9000/notion-attachments/workspaces/...',
+    description: 'Presigned URL for file upload',
   })
   readonly uploadUrl: string;
 
   @ApiProperty({
-    example:
-      'http://localhost:9000/notion-attachments/workspaces/ws/pages/page/uuid.png',
-    description: 'Final public file URL available after confirm',
+    example: 'PUT',
+    description: 'HTTP method to use',
   })
-  readonly publicUrl: string;
+  readonly method: 'PUT';
 
-  constructor(attachmentId: string, uploadUrl: string, publicUrl: string) {
+  @ApiProperty({
+    type: PresignUploadHeaders,
+    description: 'Headers that MUST be included in PUT request',
+  })
+  readonly headers: Record<string, string>;
+
+  constructor(attachmentId: string, upload: UploadUrlResult) {
     this.attachmentId = attachmentId;
-    this.uploadUrl = uploadUrl;
-    this.publicUrl = publicUrl;
+    this.uploadUrl = upload.url;
+    this.method = upload.method;
+    this.headers = upload.headers;
   }
 }
+
+export { PresignAttachmentResultEntity };

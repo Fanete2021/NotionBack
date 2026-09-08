@@ -3,7 +3,6 @@ import { Global, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { S3_CLIENT, S3_CONFIG } from './constants';
 import {
-  S3CleanupService,
   S3ObjectService,
   S3StorageService,
   S3UrlService,
@@ -46,7 +45,6 @@ import { S3Config } from './types';
     },
     S3UrlService,
     S3ObjectService,
-    S3CleanupService,
     S3ValidationService,
     S3StorageService,
   ],
@@ -54,7 +52,6 @@ import { S3Config } from './types';
     S3StorageService,
     S3UrlService,
     S3ObjectService,
-    S3CleanupService,
     S3ValidationService,
   ],
 })

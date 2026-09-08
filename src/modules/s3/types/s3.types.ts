@@ -44,6 +44,13 @@ interface DeleteBatchResult {
   failedKeys?: string[];
 }
 
+interface UploadUrlResult {
+  url: string;
+  method: 'PUT';
+  headers: Record<string, string>;
+  contentType: string;
+}
+
 export type {
   DeleteBatchResult,
   S3Config,
@@ -52,4 +59,5 @@ export type {
   S3Object,
   SizeValidationResult,
   StoredObjectInfo,
+  UploadUrlResult,
 };

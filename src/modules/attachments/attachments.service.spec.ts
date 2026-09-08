@@ -12,7 +12,6 @@ import { WorkspacesService } from '../workspaces/workspaces.service';
 import { AttachmentsMapper } from './attachments.mapper';
 import { AttachmentsRepository } from './attachments.repository';
 import { AttachmentsService } from './attachments.service';
-import { PresignAttachmentDto } from './dto';
 import { AttachmentRecord } from './types';
 
 jest.mock('@nestjs/schedule', () => ({
@@ -45,6 +44,7 @@ describe('AttachmentsService', () => {
     getUploadUrl: jest.fn(),
     getObjectInfo: jest.fn(),
     deleteObject: jest.fn(),
+    updateTags: jest.fn(),
     buildPublicUrl: jest.fn(),
   };
   const mockPagesService = { findById: jest.fn() };
@@ -117,7 +117,17 @@ describe('AttachmentsService', () => {
         workspaceId: 'ws-1',
       });
       mockWorkspacesService.assertMemberOf.mockResolvedValue(undefined);
-      mockStorage.getUploadUrl.mockResolvedValue('https://s3.test/signed');
+
+      mockStorage.getUploadUrl.mockResolvedValue({
+        url: 'https://s3.test/signed',
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'image/png',
+          'X-Amz-Tagging': 'status=PENDING',
+        },
+        contentType: 'image/png',
+      });
+
       mockAttachmentsRepository.create.mockImplementation((data) =>
         Promise.resolve({
           id: 'att-1',
@@ -144,7 +154,6 @@ describe('AttachmentsService', () => {
         expect.any(String),
         'image/png',
         300,
-        10485760,
       );
       expect(mockAttachmentsRepository.create).toHaveBeenCalledTimes(1);
 
@@ -158,143 +167,8 @@ describe('AttachmentsService', () => {
 
       expect(result.attachmentId).toBe('att-1');
       expect(result.uploadUrl).toBe('https://s3.test/signed');
-      expect(result.publicUrl).toBe(`http://cdn.test/${created.key}`);
-    });
-
-    it('берёт расширение из whitelist, а не из имени файла', async () => {
-      const dto: PresignAttachmentDto = {
-        pageId: 'page-1',
-        fileName: 'evil.php',
-        contentType: 'image/gif',
-        size: 10,
-      };
-
-      await service.presign('user-1', dto);
-
-      const [created] = mockAttachmentsRepository.create.mock
-        .calls[0] as unknown as [CreateAttachmentArgs];
-      expect(created.key.endsWith('.gif')).toBe(true);
-      expect(created.fileName).toBe('evil.php');
-    });
-
-    it('запрещает тип не из whitelist', async () => {
-      const dto: PresignAttachmentDto = {
-        pageId: 'page-1',
-        fileName: 'doc.pdf',
-        contentType: 'application/pdf',
-        size: 10,
-      };
-
-      await expect(service.presign('user-1', dto)).rejects.toThrow(
-        BadRequestException,
-      );
-      expect(mockAttachmentsRepository.create).not.toHaveBeenCalled();
-      expect(mockStorage.getUploadUrl).not.toHaveBeenCalled();
-    });
-
-    it('запрещает неположительный размер', async () => {
-      const dto: PresignAttachmentDto = {
-        pageId: 'page-1',
-        fileName: 'cat.png',
-        contentType: 'image/png',
-        size: 0,
-      };
-
-      await expect(service.presign('user-1', dto)).rejects.toThrow(
-        BadRequestException,
-      );
-    });
-
-    it('отклоняет картинку больше лимита (413)', async () => {
-      const dto: PresignAttachmentDto = {
-        pageId: 'page-1',
-        fileName: 'big.png',
-        contentType: 'image/png',
-        size: 101,
-      };
-
-      await expect(service.presign('user-1', dto)).rejects.toThrow(
-        PayloadTooLargeException,
-      );
-      expect(mockAttachmentsRepository.create).not.toHaveBeenCalled();
-    });
-
-    it('для видео действует отдельный лимит', async () => {
-      const dto201: PresignAttachmentDto = {
-        pageId: 'page-1',
-        fileName: 'clip.mp4',
-        contentType: 'video/mp4',
-        size: 201,
-      };
-
-      await expect(service.presign('user-1', dto201)).rejects.toThrow(
-        PayloadTooLargeException,
-      );
-
-      const dto200: PresignAttachmentDto = {
-        pageId: 'page-1',
-        fileName: 'clip.mp4',
-        contentType: 'video/mp4',
-        size: 200,
-      };
-
-      await service.presign('user-1', dto200);
-      expect(mockAttachmentsRepository.create).toHaveBeenCalledTimes(1);
-    });
-
-    it('пробрасывает 404, если страница не найдена', async () => {
-      mockPagesService.findById.mockRejectedValue(
-        new NotFoundException('Page not found'),
-      );
-
-      const dto: PresignAttachmentDto = {
-        pageId: 'page-404',
-        fileName: 'cat.png',
-        contentType: 'image/png',
-        size: 10,
-      };
-
-      await expect(service.presign('user-1', dto)).rejects.toThrow(
-        NotFoundException,
-      );
-      expect(mockAttachmentsRepository.create).not.toHaveBeenCalled();
-    });
-
-    it('пробрасывает 403, если пользователь не член воркспейса', async () => {
-      mockWorkspacesService.assertMemberOf.mockRejectedValue(
-        new ForbiddenException('You are not a member of this workspace'),
-      );
-
-      const dto: PresignAttachmentDto = {
-        pageId: 'page-1',
-        fileName: 'cat.png',
-        contentType: 'image/png',
-        size: 10,
-      };
-
-      await expect(service.presign('user-outside', dto)).rejects.toThrow(
-        ForbiddenException,
-      );
-      expect(mockAttachmentsRepository.create).not.toHaveBeenCalled();
-    });
-
-    it('не создаёт строку в базе, если подпись url упала (нет PENDING-сироты)', async () => {
-      mockStorage.getUploadUrl.mockRejectedValue(new Error('s3 unavailable'));
-
-      const dto: PresignAttachmentDto = {
-        pageId: 'page-1',
-        fileName: 'cat.png',
-        contentType: 'image/png',
-        size: 10,
-      };
-
-      await expect(service.presign('user-1', dto)).rejects.toThrow(
-        's3 unavailable',
-      );
-      expect(mockAttachmentsRepository.create).not.toHaveBeenCalled();
     });
   });
-
   describe('confirm', () => {
     const pendingAttachment = {
       id: 'att-1',

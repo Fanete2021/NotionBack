@@ -2,7 +2,7 @@ import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { Inject, Injectable } from '@nestjs/common';
 import { S3_CLIENT, S3_CONFIG } from '../constants';
-import type { S3Config } from '../types';
+import type { S3Config, UploadUrlResult } from '../types';
 import { normalizeKey, normalizeUrl } from '../utils';
 
 @Injectable()
@@ -16,19 +16,27 @@ export class S3UrlService {
     key: string,
     contentType: string,
     expiresInSeconds: number,
-    maxSizeBytes: number,
-  ): Promise<string> {
+  ): Promise<UploadUrlResult> {
     const command = new PutObjectCommand({
       Bucket: this.config.bucket,
       Key: key,
       ContentType: contentType,
-      ContentLength: maxSizeBytes,
+      Tagging: 'status=pending',
     });
 
-    return getSignedUrl(this.client, command, {
+    const url = await getSignedUrl(this.client, command, {
       expiresIn: expiresInSeconds,
-      signableHeaders: new Set(['content-type', 'content-length']),
     });
+
+    return {
+      url,
+      method: 'PUT',
+      headers: {
+        'Content-Type': contentType,
+        'X-Amz-Tagging': 'status=pending',
+      },
+      contentType,
+    };
   }
 
   buildPublicUrl(key: string): string {
