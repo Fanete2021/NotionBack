@@ -13,7 +13,6 @@ describe('ProjectsRepository', () => {
       findMany: jest.fn(),
       update: jest.fn(),
     },
-    $queryRaw: jest.fn(),
     $executeRaw: jest.fn(),
   };
 
@@ -60,7 +59,6 @@ describe('ProjectsRepository', () => {
     mockPrisma.$transaction.mockImplementation(
       (callback: (tx: typeof mockTx) => unknown) => callback(mockTx),
     );
-    mockTx.$queryRaw.mockResolvedValue([{ pg_advisory_xact_lock: true }]);
     mockTx.$executeRaw.mockResolvedValue(1);
   });
 
@@ -72,7 +70,7 @@ describe('ProjectsRepository', () => {
       const result = await repository.create('ws-1', { name: 'P3' });
 
       expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
-      expect(mockTx.$queryRaw).toHaveBeenCalled();
+      expect(mockTx.$executeRaw).toHaveBeenCalled();
       expect(mockTx.project.aggregate).toHaveBeenCalledWith({
         where: { workspaceId: 'ws-1', parentProjectId: null },
         _max: { position: true },
@@ -108,7 +106,10 @@ describe('ProjectsRepository', () => {
       const result = await repository.reorder('ws-1', null, ['p1']);
 
       expect(result).toBeNull();
-      expect(mockTx.$executeRaw).not.toHaveBeenCalled();
+      const ranUpdate = (mockTx.$executeRaw.mock.calls as unknown[][]).some(
+        (call) => String(call[0]).includes('UPDATE "projects"'),
+      );
+      expect(ranUpdate).toBe(false);
     });
 
     it('возвращает null, если orderedIds содержит лишние id', async () => {
@@ -117,7 +118,10 @@ describe('ProjectsRepository', () => {
       const result = await repository.reorder('ws-1', null, ['p1', 'p2']);
 
       expect(result).toBeNull();
-      expect(mockTx.$executeRaw).not.toHaveBeenCalled();
+      const ranUpdate = (mockTx.$executeRaw.mock.calls as unknown[][]).some(
+        (call) => String(call[0]).includes('UPDATE "projects"'),
+      );
+      expect(ranUpdate).toBe(false);
     });
 
     it('обновляет позиции двумя bulk UPDATE и возвращает плоский список', async () => {
@@ -132,12 +136,13 @@ describe('ProjectsRepository', () => {
 
       expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
       expect(mockTx.project.update).not.toHaveBeenCalled();
-      expect(mockTx.$executeRaw).toHaveBeenCalledTimes(2);
+      expect(mockTx.$executeRaw).toHaveBeenCalledTimes(3);
       const executeCalls = mockTx.$executeRaw.mock.calls as unknown[][];
-      expect(String(executeCalls[0][0])).toContain(
+      expect(String(executeCalls[0][0])).toContain('pg_advisory_xact_lock');
+      expect(String(executeCalls[1][0])).toContain(
         'SET "position" = "position" +',
       );
-      expect(String(executeCalls[1][0])).toContain('FROM (VALUES');
+      expect(String(executeCalls[2][0])).toContain('FROM (VALUES');
 
       expect(result).toHaveLength(2);
       expect(result?.[0]).toBeInstanceOf(ProjectEntity);
