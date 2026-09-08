@@ -4,8 +4,7 @@ import { SwaggerModule, DocumentBuilder, OpenAPIObject } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import * as express from 'express';
 import { AppModule } from './app.module';
-import { HttpExceptionsFilter } from '@common/filters';
-import { PrismaExceptionFilter } from '@common/filters';
+import { HttpExceptionsFilter, PrismaExceptionFilter } from './filters';
 import {
   ClassSerializerInterceptor,
   HttpStatus,
