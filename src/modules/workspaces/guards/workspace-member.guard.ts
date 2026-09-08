@@ -5,8 +5,8 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
-import { WorkspacesService } from '../workspaces.service';
-import { AuthenticatedRequest } from '../../projects/types';
+import { WorkspacesService } from '@modules/workspaces/workspaces.service';
+import { AuthenticatedRequest } from '@modules/projects/types';
 
 @Injectable()
 export class WorkspaceMemberGuard implements CanActivate {

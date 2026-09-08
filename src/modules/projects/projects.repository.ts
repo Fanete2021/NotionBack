@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma, Project } from '@prisma/client';
 import { PrismaService } from '../../prisma';
-import { ProjectEntity } from './entities';
-import { isNotFoundError } from '../../common/utils';
-import { CreateProjectData } from './types';
+import { ProjectEntity } from '@modules/projects/entities';
+import { isNotFoundError } from '@common/utils';
+import { CreateProjectData } from '@modules/projects/types';
 
 @Injectable()
 export class ProjectsRepository {

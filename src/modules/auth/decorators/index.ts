@@ -5,4 +5,4 @@ export {
   RefreshResponse,
   LogoutResponse,
   MeResponse,
-} from './auth-swagger.decorator';
+} from '@modules/auth/decorators/auth-swagger.decorator';

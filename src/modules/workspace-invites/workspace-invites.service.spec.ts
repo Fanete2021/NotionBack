@@ -3,12 +3,12 @@ import { ConfigService } from '@nestjs/config';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { Role } from '@prisma/client';
 import { createHash } from 'crypto';
-import { WorkspaceInvitesService } from './workspace-invites.service';
-import { WorkspaceInvitesRepository } from './workspace-invites.repository';
-import { WorkspacesService } from '../workspaces/workspaces.service';
-import { RedisClient } from '../../common/providers';
-import { TemporaryInviteStore } from './temporary-invite.store';
-import { WorkspaceInviteType } from './types';
+import { WorkspaceInvitesService } from '@modules/workspace-invites/workspace-invites.service';
+import { WorkspaceInvitesRepository } from '@modules/workspace-invites/workspace-invites.repository';
+import { WorkspacesService } from '@modules/workspaces/workspaces.service';
+import { RedisClient } from '@common/providers';
+import { TemporaryInviteStore } from '@modules/workspace-invites/temporary-invite.store';
+import { WorkspaceInviteType } from '@modules/workspace-invites/types';
 
 describe('WorkspaceInvitesService', () => {
   let service: WorkspaceInvitesService;

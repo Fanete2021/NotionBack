@@ -1,5 +1,5 @@
-export { ApiValidationErrorResponse } from './api-bad-request.decorator';
-export { ApiForbiddenResponse } from './api-forbidden.decorator';
-export { ApiInternalServerErrorResponse } from './api-internal-server-error.decorator';
-export { ApiNotFoundResponse } from './api-not-found.decorator';
-export { ApiUnauthorizedResponse } from './api-unauthorized.decorator';
+export { ApiValidationErrorResponse } from '@common/decorators/swagger/api-bad-request.decorator';
+export { ApiForbiddenResponse } from '@common/decorators/swagger/api-forbidden.decorator';
+export { ApiInternalServerErrorResponse } from '@common/decorators/swagger/api-internal-server-error.decorator';
+export { ApiNotFoundResponse } from '@common/decorators/swagger/api-not-found.decorator';
+export { ApiUnauthorizedResponse } from '@common/decorators/swagger/api-unauthorized.decorator';

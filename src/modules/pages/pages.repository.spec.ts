@@ -1,9 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { PagesRepository } from './pages.repository';
+import { PagesRepository } from '@modules/pages/pages.repository';
 import { PrismaService } from '../../prisma';
 import { PageType, Prisma } from '@prisma/client';
-import { PageEntity } from './entities';
-import { PageContentEntity } from './entities';
+import { PageEntity } from '@modules/pages/entities';
+import { PageContentEntity } from '@modules/pages/entities';
 
 describe('PagesRepository', () => {
   let repository: PagesRepository;

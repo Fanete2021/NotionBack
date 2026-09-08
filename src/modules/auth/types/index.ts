@@ -3,7 +3,7 @@ export type {
   LoginData,
   LogoutData,
   LogoutResult,
-} from './auth.types';
+} from '@modules/auth/types/auth.types';
 export type {
   TokenData,
   RefreshData,
@@ -12,4 +12,4 @@ export type {
   RefreshSession,
   TokenPayload,
   RefreshTokenPayload,
-} from './token.types';
+} from '@modules/auth/types/token.types';

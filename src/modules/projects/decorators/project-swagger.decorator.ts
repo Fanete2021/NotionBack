@@ -8,9 +8,9 @@ import {
   ApiParam,
   ApiResponse,
 } from '@nestjs/swagger';
-import { ApiNotFoundResponse } from '../../../common/decorators/swagger';
-import { ApiForbiddenResponse } from '../../../common/decorators/swagger';
-import { ProjectEntity } from '../entities';
+import { ApiNotFoundResponse } from '@common/decorators/swagger';
+import { ApiForbiddenResponse } from '@common/decorators/swagger';
+import { ProjectEntity } from '@modules/projects/entities';
 
 export function ProjectControllerResponse() {
   return applyDecorators(

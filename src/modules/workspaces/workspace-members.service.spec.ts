@@ -1,8 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { WorkspaceMembersService } from './workspace-members.service';
-import { WorkspacesService } from './workspaces.service';
-import { WorkspacesRepository } from './workspaces.repository';
-import { UsersRepository } from '../users/users.repository';
+import { WorkspaceMembersService } from '@modules/workspaces/workspace-members.service';
+import { WorkspacesService } from '@modules/workspaces/workspaces.service';
+import { WorkspacesRepository } from '@modules/workspaces/workspaces.repository';
+import { UsersRepository } from '@modules/users/users.repository';
 import { ConfigService } from '@nestjs/config';
 import {
   ConflictException,

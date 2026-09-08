@@ -1,6 +1,6 @@
 import { applyDecorators, HttpStatus } from '@nestjs/common';
 import { ApiResponse } from '@nestjs/swagger';
-import { ErrorResponseDto } from '../../dto';
+import { ErrorResponseDto } from '@common/dto';
 
 export function ApiInternalServerErrorResponse(
   description = 'Внутренняя ошибка сервера',

@@ -5,10 +5,10 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { CurrentUser } from '../../common/decorators';
-import { WorkspaceMemberEntity } from '../workspaces/entities';
-import { RedeemWorkspaceInviteDto } from './dto';
-import { WorkspaceInviteRedeemService } from './workspace-invite-redeem.service';
+import { CurrentUser } from '@common/decorators';
+import { WorkspaceMemberEntity } from '@modules/workspaces/entities';
+import { RedeemWorkspaceInviteDto } from '@modules/workspace-invites/dto';
+import { WorkspaceInviteRedeemService } from '@modules/workspace-invites/workspace-invite-redeem.service';
 
 @ApiBearerAuth()
 @ApiTags('Workspace Invites')

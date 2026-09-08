@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { WorkspacesService } from './workspaces.service';
-import { WorkspacesRepository } from './workspaces.repository';
+import { WorkspacesService } from '@modules/workspaces/workspaces.service';
+import { WorkspacesRepository } from '@modules/workspaces/workspaces.repository';
 import { ConfigService } from '@nestjs/config';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { Role } from '@prisma/client';

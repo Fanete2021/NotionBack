@@ -3,10 +3,10 @@ export {
   ProjectFindByIdResponse,
   ProjectUpdateResponse,
   ProjectDeleteResponse,
-} from './project-swagger.decorator';
+} from '@modules/projects/decorators/project-swagger.decorator';
 export {
   WorkspaceProjectsControllerResponse,
   WorkspaceProjectsCreateProjectResponse,
   WorkspaceProjectsFindAllByWorkspaceIdResponse,
   WorkspaceProjectsReorderProjectsResponse,
-} from './workspace-projects-swagger.decorators';
+} from '@modules/projects/decorators/workspace-projects-swagger.decorators';

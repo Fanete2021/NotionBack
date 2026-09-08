@@ -1,11 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { InternalServerErrorException } from '@nestjs/common';
-import { ProjectsController } from './projects.controller';
-import { ProjectsService } from './projects.service';
-import { ProjectEntity } from './entities';
-import { WorkspaceMemberGuard } from '../workspaces/guards';
-import { WorkspaceProjectGuard } from './guards';
-import { AuthenticatedRequest } from './types';
+import { ProjectsController } from '@modules/projects/projects.controller';
+import { ProjectsService } from '@modules/projects/projects.service';
+import { ProjectEntity } from '@modules/projects/entities';
+import { WorkspaceMemberGuard } from '@modules/workspaces/guards';
+import { WorkspaceProjectGuard } from '@modules/projects/guards';
+import { AuthenticatedRequest } from '@modules/projects/types';
 
 describe('ProjectsController', () => {
   let controller: ProjectsController;

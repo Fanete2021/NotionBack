@@ -6,15 +6,15 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { Role } from '@prisma/client';
 import { randomBytes } from 'crypto';
-import { WorkspacesService } from '../workspaces/workspaces.service';
-import { WorkspaceInvitesRepository } from './workspace-invites.repository';
-import { WorkspaceInviteEntity } from './entities';
-import { WorkspaceInviteSummaryEntity } from './entities';
-import { WorkspaceInviteType } from './types';
-import { WORKSPACE_INVITE_ROLES } from './constants';
-import { hashInviteToken } from './utils';
-import { buildInviteUrl } from './utils';
-import { TemporaryInviteStore } from './temporary-invite.store';
+import { WorkspacesService } from '@modules/workspaces/workspaces.service';
+import { WorkspaceInvitesRepository } from '@modules/workspace-invites/workspace-invites.repository';
+import { WorkspaceInviteEntity } from '@modules/workspace-invites/entities';
+import { WorkspaceInviteSummaryEntity } from '@modules/workspace-invites/entities';
+import { WorkspaceInviteType } from '@modules/workspace-invites/types';
+import { WORKSPACE_INVITE_ROLES } from '@modules/workspace-invites/constants';
+import { hashInviteToken } from '@modules/workspace-invites/utils';
+import { buildInviteUrl } from '@modules/workspace-invites/utils';
+import { TemporaryInviteStore } from '@modules/workspace-invites/temporary-invite.store';
 
 @Injectable()
 export class WorkspaceInvitesService {

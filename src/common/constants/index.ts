@@ -1,1 +1,1 @@
-export { COOKIE_NAMES, REFRESH_COOKIE_OPTIONS } from './cookie.constants';
+export { COOKIE_NAMES, REFRESH_COOKIE_OPTIONS } from '@common/constants/cookie.constants';

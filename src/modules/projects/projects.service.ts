@@ -4,11 +4,11 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { CreateProjectData } from './types';
-import { ProjectsRepository } from './projects.repository';
-import { ProjectEntity } from './entities';
-import { UpdateProjectDto } from './dto';
-import { ReorderProjectsDto } from './dto';
+import { CreateProjectData } from '@modules/projects/types';
+import { ProjectsRepository } from '@modules/projects/projects.repository';
+import { ProjectEntity } from '@modules/projects/entities';
+import { UpdateProjectDto } from '@modules/projects/dto';
+import { ReorderProjectsDto } from '@modules/projects/dto';
 
 @Injectable()
 export class ProjectsService {

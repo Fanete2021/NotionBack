@@ -1,2 +1,2 @@
-export { AccessStrategy } from './access.strategy';
-export { RefreshStrategy } from './refresh.strategy';
+export { AccessStrategy } from '@modules/auth/strategies/access.strategy';
+export { RefreshStrategy } from '@modules/auth/strategies/refresh.strategy';

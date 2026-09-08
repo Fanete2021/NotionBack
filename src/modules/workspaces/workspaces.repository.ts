@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma, Role, Workspace, WorkspaceMember } from '@prisma/client';
 import { PrismaService } from '../../prisma';
-import { WorkspaceMemberEntity } from './entities';
-import { WorkspaceEntity } from './entities';
-import { isNotFoundError } from '../../common/utils';
+import { WorkspaceMemberEntity } from '@modules/workspaces/entities';
+import { WorkspaceEntity } from '@modules/workspaces/entities';
+import { isNotFoundError } from '@common/utils';
 
 @Injectable()
 export class WorkspacesRepository {

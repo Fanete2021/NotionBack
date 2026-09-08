@@ -4,14 +4,14 @@ import { SwaggerModule, DocumentBuilder, OpenAPIObject } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import * as express from 'express';
 import { AppModule } from './app.module';
-import { HttpExceptionsFilter } from './common/filters';
-import { PrismaExceptionFilter } from './common/filters';
+import { HttpExceptionsFilter } from '@common/filters';
+import { PrismaExceptionFilter } from '@common/filters';
 import {
   ClassSerializerInterceptor,
   HttpStatus,
   ValidationPipe,
 } from '@nestjs/common';
-import { PAGE_CONTENT_ROUTE } from './modules/pages/constants';
+import { PAGE_CONTENT_ROUTE } from '@modules/pages/constants';
 
 const GLOBAL_PREFIX = 'api';
 

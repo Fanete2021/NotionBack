@@ -1,14 +1,14 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { RedisClient } from '../../common/providers';
+import { RedisClient } from '@common/providers';
 import {
   RevokeData,
   TokenData,
   TokenPair,
   RefreshSession,
   RefreshTokenPayload,
-} from './types';
+} from '@modules/auth/types';
 
 @Injectable()
 export class TokenService {

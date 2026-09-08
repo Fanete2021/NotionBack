@@ -2,7 +2,7 @@ import type { Response } from 'express';
 import {
   COOKIE_NAMES,
   REFRESH_COOKIE_OPTIONS,
-} from '../constants';
+} from '@common/constants';
 import { setRefreshTokenCookie } from '.';
 
 describe('setRefreshTokenCookie', () => {

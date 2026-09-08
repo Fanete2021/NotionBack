@@ -3,9 +3,9 @@ import {
   ExecutionContext,
   UnauthorizedException,
 } from '@nestjs/common';
-import { ProjectEntity } from '../../projects/entities';
-import { AuthenticatedRequest } from '../../projects/types';
-import { WorkspacesService } from '../workspaces.service';
+import { ProjectEntity } from '@modules/projects/entities';
+import { AuthenticatedRequest } from '@modules/projects/types';
+import { WorkspacesService } from '@modules/workspaces/workspaces.service';
 import { WorkspaceMemberGuard } from '.';
 
 describe('WorkspaceMemberGuard', () => {

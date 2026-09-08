@@ -1,7 +1,7 @@
 import { ExecutionContext, NotFoundException } from '@nestjs/common';
-import { ProjectEntity } from '../entities';
-import { ProjectsService } from '../projects.service';
-import { AuthenticatedRequest } from '../types';
+import { ProjectEntity } from '@modules/projects/entities';
+import { ProjectsService } from '@modules/projects/projects.service';
+import { AuthenticatedRequest } from '@modules/projects/types';
 import { WorkspaceProjectGuard } from '.';
 
 describe('WorkspaceProjectGuard', () => {

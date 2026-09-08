@@ -1,5 +1,5 @@
 import { getCookieValue } from '.';
-import { CookieName } from '../types';
+import { CookieName } from '@common/types';
 import type { Request } from 'express';
 
 describe('getCookieValue', () => {

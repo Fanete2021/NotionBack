@@ -1,1 +1,1 @@
-export { rethrowAddMemberError } from './rethrow-add-member-error';
+export { rethrowAddMemberError } from '@modules/workspaces/utils/rethrow-add-member-error';

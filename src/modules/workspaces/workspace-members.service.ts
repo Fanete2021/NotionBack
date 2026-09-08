@@ -4,11 +4,11 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { Role } from '@prisma/client';
-import { WorkspacesRepository } from './workspaces.repository';
-import { WorkspaceMemberEntity } from './entities';
-import { UsersRepository } from '../users/users.repository';
-import { WorkspacesService } from './workspaces.service';
-import { rethrowAddMemberError } from './utils';
+import { WorkspacesRepository } from '@modules/workspaces/workspaces.repository';
+import { WorkspaceMemberEntity } from '@modules/workspaces/entities';
+import { UsersRepository } from '@modules/users/users.repository';
+import { WorkspacesService } from '@modules/workspaces/workspaces.service';
+import { rethrowAddMemberError } from '@modules/workspaces/utils';
 
 @Injectable()
 export class WorkspaceMembersService {

@@ -2,8 +2,8 @@ import type { Response } from 'express';
 import {
   COOKIE_NAMES,
   REFRESH_COOKIE_OPTIONS,
-} from '../constants';
-import { SameSite } from '../types';
+} from '@common/constants';
+import { SameSite } from '@common/types';
 
 function clearRefreshTokenCookie(
   res: Response,

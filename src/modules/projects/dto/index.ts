@@ -1,3 +1,3 @@
-export { CreateProjectDto } from './create-project.dto';
-export { ReorderProjectsDto } from './reorder-projects.dto';
-export { UpdateProjectDto } from './update-project.dto';
+export { CreateProjectDto } from '@modules/projects/dto/create-project.dto';
+export { ReorderProjectsDto } from '@modules/projects/dto/reorder-projects.dto';
+export { UpdateProjectDto } from '@modules/projects/dto/update-project.dto';

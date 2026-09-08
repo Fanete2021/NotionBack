@@ -2,11 +2,11 @@ import { Test } from '@nestjs/testing';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Role } from '@prisma/client';
 import { createHash, randomBytes } from 'crypto';
-import { WorkspaceInviteRedeemService } from './workspace-invite-redeem.service';
-import { WorkspaceInvitesRepository } from './workspace-invites.repository';
-import { WorkspaceMembersService } from '../workspaces/workspace-members.service';
-import { RedisClient } from '../../common/providers';
-import { TemporaryInviteStore } from './temporary-invite.store';
+import { WorkspaceInviteRedeemService } from '@modules/workspace-invites/workspace-invite-redeem.service';
+import { WorkspaceInvitesRepository } from '@modules/workspace-invites/workspace-invites.repository';
+import { WorkspaceMembersService } from '@modules/workspaces/workspace-members.service';
+import { RedisClient } from '@common/providers';
+import { TemporaryInviteStore } from '@modules/workspace-invites/temporary-invite.store';
 
 describe('WorkspaceInviteRedeemService', () => {
   let service: WorkspaceInviteRedeemService;

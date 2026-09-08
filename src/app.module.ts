@@ -3,14 +3,14 @@ import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { HealthController } from './health/health.controller';
 import { PrismaModule } from './prisma';
-import { AuthModule } from './modules/auth/auth.module';
-import { UsersModule } from './modules/users/users.module';
-import { ProjectsModule } from './modules/projects/projects.module';
-import { WorkspacesModule } from './modules/workspaces/workspaces.module';
-import { WorkspaceInvitesModule } from './modules/workspace-invites/workspace-invites.module';
-import { PagesModule } from './modules/pages/pages.module';
-import { JwtAuthGuard } from './common/guards';
-import { RedisClient } from './common/providers';
+import { AuthModule } from '@modules/auth/auth.module';
+import { UsersModule } from '@modules/users/users.module';
+import { ProjectsModule } from '@modules/projects/projects.module';
+import { WorkspacesModule } from '@modules/workspaces/workspaces.module';
+import { WorkspaceInvitesModule } from '@modules/workspace-invites/workspace-invites.module';
+import { PagesModule } from '@modules/pages/pages.module';
+import { JwtAuthGuard } from '@common/guards';
+import { RedisClient } from '@common/providers';
 import {
   appConfig,
   authConfig,

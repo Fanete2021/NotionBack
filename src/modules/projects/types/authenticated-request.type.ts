@@ -1,6 +1,6 @@
 import { Request } from 'express';
-import { ProjectEntity } from '../entities';
-import { UserPayload } from '../../../common/types';
+import { ProjectEntity } from '@modules/projects/entities';
+import { UserPayload } from '@common/types';
 
 type AuthenticatedRequest = Request & {
   user?: UserPayload;

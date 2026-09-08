@@ -2,4 +2,4 @@ export {
   WorkspaceInviteType,
   type StoredWorkspaceInvite,
   type ConsumedWorkspaceInvite,
-} from './workspace-invite.types';
+} from '@modules/workspace-invites/types/workspace-invite.types';

@@ -7,4 +7,4 @@ export {
   PagesGetContentResponse,
   PagesUpdateContentResponse,
   PagesFindAllByWorkspaceIdResponse,
-} from './page-swagger.decorator';
+} from '@modules/pages/decorators/page-swagger.decorator';

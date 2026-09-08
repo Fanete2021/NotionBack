@@ -5,10 +5,10 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Role } from '@prisma/client';
-import { WorkspacesRepository } from './workspaces.repository';
-import { WorkspaceEntity } from './entities';
-import { WorkspaceMemberEntity } from './entities';
-import { UpdateWorkspaceDto } from './dto';
+import { WorkspacesRepository } from '@modules/workspaces/workspaces.repository';
+import { WorkspaceEntity } from '@modules/workspaces/entities';
+import { WorkspaceMemberEntity } from '@modules/workspaces/entities';
+import { UpdateWorkspaceDto } from '@modules/workspaces/dto';
 
 @Injectable()
 export class WorkspacesService {

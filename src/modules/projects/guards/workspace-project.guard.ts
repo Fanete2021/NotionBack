@@ -4,8 +4,8 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { ProjectsService } from '../projects.service';
-import { AuthenticatedRequest } from '../types';
+import { ProjectsService } from '@modules/projects/projects.service';
+import { AuthenticatedRequest } from '@modules/projects/types';
 
 @Injectable()
 export class WorkspaceProjectGuard implements CanActivate {

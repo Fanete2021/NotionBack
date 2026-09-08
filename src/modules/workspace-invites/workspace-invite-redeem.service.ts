@@ -1,10 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Role } from '@prisma/client';
-import { WorkspaceMembersService } from '../workspaces/workspace-members.service';
-import { WorkspaceMemberEntity } from '../workspaces/entities';
-import { WorkspaceInvitesRepository } from './workspace-invites.repository';
-import { TemporaryInviteStore } from './temporary-invite.store';
-import { hashInviteToken } from './utils';
+import { WorkspaceMembersService } from '@modules/workspaces/workspace-members.service';
+import { WorkspaceMemberEntity } from '@modules/workspaces/entities';
+import { WorkspaceInvitesRepository } from '@modules/workspace-invites/workspace-invites.repository';
+import { TemporaryInviteStore } from '@modules/workspace-invites/temporary-invite.store';
+import { hashInviteToken } from '@modules/workspace-invites/utils';
 
 @Injectable()
 export class WorkspaceInviteRedeemService {

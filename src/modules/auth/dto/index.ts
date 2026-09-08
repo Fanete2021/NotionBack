@@ -2,7 +2,7 @@ export {
   AuthUserDto,
   AuthResponseDto,
   MessageResponseDto,
-} from './auth-response.dto';
-export { LoginDto } from './login.dto';
-export { LogoutDto } from './logout.dto';
-export { RegisterDto } from './register.dto';
+} from '@modules/auth/dto/auth-response.dto';
+export { LoginDto } from '@modules/auth/dto/login.dto';
+export { LogoutDto } from '@modules/auth/dto/logout.dto';
+export { RegisterDto } from '@modules/auth/dto/register.dto';

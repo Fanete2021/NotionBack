@@ -2,12 +2,12 @@ import { Strategy } from 'passport-jwt';
 import { PassportStrategy } from '@nestjs/passport';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { UserPayload } from '../../../common/types';
-import { TokenPayload } from '../types';
+import { UserPayload } from '@common/types';
+import { TokenPayload } from '@modules/auth/types';
 import type { Request } from 'express';
-import { COOKIE_NAMES } from '../../../common/constants';
-import { getCookieValue } from '../../../common/utils';
-import { mapTokenPayloadToUser } from '../utils';
+import { COOKIE_NAMES } from '@common/constants';
+import { getCookieValue } from '@common/utils';
+import { mapTokenPayloadToUser } from '@modules/auth/utils';
 
 @Injectable()
 export class RefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh') {
