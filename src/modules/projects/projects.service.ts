@@ -4,7 +4,8 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { CreateProjectData, ProjectsRepository } from './projects.repository';
+import { CreateProjectData } from './types/projects.types';
+import { ProjectsRepository } from './projects.repository';
 import { ProjectEntity } from './entities/project.entity';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { ReorderProjectsDto } from './dto/reorder-projects.dto';

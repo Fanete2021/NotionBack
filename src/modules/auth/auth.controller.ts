@@ -21,13 +21,11 @@ import type { Request, Response } from 'express';
 import type { UserPayload } from '../../common/types/user-payload.type';
 import { LogoutData, LogoutResult } from './types/auth.types';
 import { RefreshData } from './types/token.types';
-import {
-  COOKIE_NAMES,
-  getCookieValue,
-  setRefreshTokenCookie,
-  clearRefreshTokenCookie,
-  SameSite,
-} from '../../common/utils/cookies';
+import { COOKIE_NAMES } from '../../common/constants/cookie.constants';
+import { SameSite } from '../../common/types/cookie.types';
+import { getCookieValue } from '../../common/utils/get-cookie-value';
+import { setRefreshTokenCookie } from '../../common/utils/set-refresh-token-cookie';
+import { clearRefreshTokenCookie } from '../../common/utils/clear-refresh-token-cookie';
 import { Public } from '../../common/decorators/public.decorator';
 import {
   AuthControllerResponse,

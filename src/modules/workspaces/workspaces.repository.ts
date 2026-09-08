@@ -3,7 +3,7 @@ import { Prisma, Role, Workspace, WorkspaceMember } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { WorkspaceMemberEntity } from './entities/workspace-member.entity';
 import { WorkspaceEntity } from './entities/workspace.entity';
-import { isNotFoundError } from '../../common/utils/prisma.utils';
+import { isNotFoundError } from '../../common/utils/is-not-found-error';
 
 @Injectable()
 export class WorkspacesRepository {

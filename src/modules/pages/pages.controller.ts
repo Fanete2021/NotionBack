@@ -18,7 +18,7 @@ import { UpdatePageDto } from './dto/update-page.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { PageEntity } from './entities/page.entity';
 import { PageContentEntity } from './entities/page-content.entity';
-import { PAGE_CONTENT_ROUTE } from './pages.routes';
+import { PAGE_CONTENT_ROUTE } from './constants/pages.constants';
 import {
   PagesControllerResponse,
   PagesCreateResponse,

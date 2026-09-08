@@ -4,10 +4,8 @@ import { ProjectsController } from './projects.controller';
 import { ProjectsService } from './projects.service';
 import { ProjectEntity } from './entities/project.entity';
 import { WorkspaceMemberGuard } from '../workspaces/guards/workspace-member.guard';
-import type { Request } from 'express';
 import { WorkspaceProjectGuard } from './guards/workspace-project.guard';
-
-type AuthenticatedRequest = Request & { project?: ProjectEntity };
+import { AuthenticatedRequest } from './types/authenticated-request.type';
 
 describe('ProjectsController', () => {
   let controller: ProjectsController;

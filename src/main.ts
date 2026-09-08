@@ -11,7 +11,7 @@ import {
   HttpStatus,
   ValidationPipe,
 } from '@nestjs/common';
-import { PAGE_CONTENT_ROUTE } from './modules/pages/pages.routes';
+import { PAGE_CONTENT_ROUTE } from './modules/pages/constants/pages.constants';
 
 const GLOBAL_PREFIX = 'api';
 

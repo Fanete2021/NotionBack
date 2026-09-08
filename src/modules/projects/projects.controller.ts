@@ -11,7 +11,6 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { Request } from 'express';
 import { ProjectsService } from './projects.service';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { ProjectEntity } from './entities/project.entity';
@@ -23,10 +22,7 @@ import {
   ProjectFindByIdResponse,
   ProjectUpdateResponse,
 } from './decorators/project-swagger.decorator';
-
-interface AuthenticatedRequest extends Request {
-  project?: ProjectEntity;
-}
+import type { AuthenticatedRequest } from './types/authenticated-request.type';
 
 @ProjectControllerResponse()
 @UseGuards(WorkspaceProjectGuard, WorkspaceMemberGuard)

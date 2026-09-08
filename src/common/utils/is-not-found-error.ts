@@ -1,6 +1,6 @@
 import { Prisma } from '@prisma/client';
 
-export function isNotFoundError(
+function isNotFoundError(
   error: unknown,
 ): error is Prisma.PrismaClientKnownRequestError {
   return (
@@ -8,3 +8,5 @@ export function isNotFoundError(
     error.code === 'P2025'
   );
 }
+
+export { isNotFoundError };

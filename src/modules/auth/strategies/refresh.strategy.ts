@@ -5,8 +5,9 @@ import { ConfigService } from '@nestjs/config';
 import { UserPayload } from '../../../common/types/user-payload.type';
 import { TokenPayload } from '../types/token.types';
 import type { Request } from 'express';
-import { COOKIE_NAMES, getCookieValue } from '../../../common/utils/cookies';
-import { mapTokenPayloadToUser } from '../utils/auth.utils';
+import { COOKIE_NAMES } from '../../../common/constants/cookie.constants';
+import { getCookieValue } from '../../../common/utils/get-cookie-value';
+import { mapTokenPayloadToUser } from '../utils/map-token-payload-to-user';
 
 @Injectable()
 export class RefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh') {

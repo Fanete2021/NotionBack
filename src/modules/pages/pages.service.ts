@@ -6,7 +6,8 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
-import { EMPTY_DOCUMENT, PagesRepository } from './pages.repository';
+import { EMPTY_DOCUMENT } from './constants/pages.constants';
+import { PagesRepository } from './pages.repository';
 import { ProjectsRepository } from '../projects/projects.repository';
 import { PageEntity } from './entities/page.entity';
 import { PageContentEntity } from './entities/page-content.entity';
