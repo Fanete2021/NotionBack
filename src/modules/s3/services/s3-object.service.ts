@@ -1,6 +1,8 @@
 import {
   DeleteObjectCommand,
+  GetObjectTaggingCommand,
   HeadObjectCommand,
+  PutObjectTaggingCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
 import { Inject, Injectable, Logger } from '@nestjs/common';
@@ -59,5 +61,54 @@ export class S3ObjectService {
   async objectExists(key: string): Promise<boolean> {
     const info = await this.getObjectInfo(key);
     return info !== null;
+  }
+
+  async getTags(key: string): Promise<Record<string, string>> {
+    try {
+      const response = await this.client.send(
+        new GetObjectTaggingCommand({
+          Bucket: this.config.bucket,
+          Key: key,
+        }),
+      );
+
+      const tags: Record<string, string> = {};
+      response.TagSet?.forEach((tag) => {
+        if (tag.Key && tag.Value) {
+          tags[tag.Key] = tag.Value;
+        }
+      });
+
+      return tags;
+    } catch (error) {
+      this.logger.error(`Failed to get tags for ${key}`, error);
+      throw error;
+    }
+  }
+
+  async setTags(key: string, tags: Record<string, string>): Promise<void> {
+    await this.client.send(
+      new PutObjectTaggingCommand({
+        Bucket: this.config.bucket,
+        Key: key,
+        Tagging: {
+          TagSet: Object.entries(tags).map(([Key, Value]) => ({ Key, Value })),
+        },
+      }),
+    );
+  }
+
+  async updateTags(
+    key: string,
+    tagsToUpdate: Record<string, string>,
+  ): Promise<void> {
+    const currentTags = await this.getTags(key);
+
+    const updatedTags = {
+      ...currentTags,
+      ...tagsToUpdate,
+    };
+
+    await this.setTags(key, updatedTags);
   }
 }

@@ -6,7 +6,7 @@ import {
   PayloadTooLargeException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { randomUUID } from 'crypto';
+import { AttachmentStatus } from '@prisma/client';
 import { PagesService } from '../pages/pages.service';
 import { S3StorageService } from '../s3/services';
 import { WorkspacesService } from '../workspaces/workspaces.service';
@@ -15,15 +15,14 @@ import { AttachmentsRepository } from './attachments.repository';
 import {
   ALLOWED_CONTENT_TYPES,
   AttachmentKind,
-  DEFAULT_IMAGE_MAX_BYTES,
+  DEFAULT_IMAGE_MAX_SIZE,
   DEFAULT_PRESIGN_EXPIRES_SECONDS,
-  DEFAULT_VIDEO_MAX_BYTES,
-  MAX_ATTACHMENT_SIZE,
+  DEFAULT_VIDEO_MAX_SIZE,
 } from './constants';
 import { PresignAttachmentDto } from './dto';
-import { AttachmentEntity } from './entities/attachment.entity';
-import { PresignAttachmentResultEntity } from './entities/presign-attachment-result.entity';
+import { AttachmentEntity, PresignAttachmentResultEntity } from './entities';
 import { AllowedContentType, AttachmentRecord } from './types';
+import { buildStorageKey } from './utils';
 
 @Injectable()
 export class AttachmentsService {
@@ -47,16 +46,12 @@ export class AttachmentsService {
 
     await this.assertWorkspaceMember(page.workspaceId, userId);
 
-    const key = this.buildStorageKey(
-      page.workspaceId,
-      page.id,
-      allowed.extension,
-    );
-    const uploadUrl = await this.storage.getUploadUrl(
+    const key = buildStorageKey(page.workspaceId, page.id, allowed.extension);
+
+    const presignedUrl = await this.storage.getUploadUrl(
       key,
       contentType,
       this.getPresignExpiresSeconds(),
-      MAX_ATTACHMENT_SIZE,
     );
 
     const attachment = await this.attachmentsRepository.create({
@@ -69,11 +64,7 @@ export class AttachmentsService {
       key,
     });
 
-    return new PresignAttachmentResultEntity(
-      attachment.id,
-      uploadUrl,
-      this.storage.buildPublicUrl(key),
-    );
+    return new PresignAttachmentResultEntity(attachment.id, presignedUrl);
   }
 
   async confirm(
@@ -90,7 +81,7 @@ export class AttachmentsService {
       throw new ForbiddenException('Only the uploader can confirm');
     }
 
-    if (attachment.status === 'CONFIRMED') {
+    if (attachment.status === AttachmentStatus.CONFIRMED) {
       return this.attachmentsMapper.toEntity(attachment);
     }
 
@@ -102,6 +93,10 @@ export class AttachmentsService {
     }
 
     await this.validateStoredFile(attachment, stored.size, stored.contentType);
+
+    await this.storage.updateTags(attachment.key, {
+      status: 'confirmed',
+    });
 
     const confirmed = await this.attachmentsRepository.markConfirmed(
       attachment.id,
@@ -176,8 +171,8 @@ export class AttachmentsService {
 
     const defaultLimit =
       kind === AttachmentKind.IMAGE
-        ? DEFAULT_IMAGE_MAX_BYTES
-        : DEFAULT_VIDEO_MAX_BYTES;
+        ? DEFAULT_IMAGE_MAX_SIZE
+        : DEFAULT_VIDEO_MAX_SIZE;
 
     return this.configService.get<number>(configKey, defaultLimit);
   }
@@ -187,14 +182,6 @@ export class AttachmentsService {
       'ATTACHMENT_PRESIGN_EXPIRES_SECONDS',
       DEFAULT_PRESIGN_EXPIRES_SECONDS,
     );
-  }
-
-  private buildStorageKey(
-    workspaceId: string,
-    pageId: string,
-    extension: string,
-  ): string {
-    return `workspaces/${workspaceId}/pages/${pageId}/${randomUUID()}.${extension}`;
   }
 
   private async assertWorkspaceMember(

@@ -17,7 +17,7 @@ import { TokenService } from './token.service';
       useFactory: (configService: ConfigService) => ({
         secret: configService.get<string>('JWT_ACCESS_SECRET')!,
         signOptions: {
-          expiresIn: '30d',
+          expiresIn: '15m',
         },
       }),
     }),

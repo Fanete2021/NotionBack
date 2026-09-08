@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Attachment, Prisma } from '@prisma/client';
+import { Attachment, AttachmentStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
@@ -19,7 +19,7 @@ export class AttachmentsRepository {
   async markConfirmed(id: string, size: number): Promise<Attachment> {
     return this.prisma.attachment.update({
       where: { id },
-      data: { status: 'CONFIRMED', size },
+      data: { status: AttachmentStatus.CONFIRMED, size },
     });
   }
 
