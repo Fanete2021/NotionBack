@@ -8,12 +8,12 @@ import { Role } from '@prisma/client';
 import { randomBytes } from 'crypto';
 import { WorkspacesService } from '../workspaces/workspaces.service';
 import { WorkspaceInvitesRepository } from './workspace-invites.repository';
-import { WorkspaceInviteEntity } from './entities/workspace-invite.entity';
-import { WorkspaceInviteSummaryEntity } from './entities/workspace-invite-summary.entity';
-import { WorkspaceInviteType } from './types/workspace-invite.types';
-import { WORKSPACE_INVITE_ROLES } from './constants/workspace-invite.constants';
-import { hashInviteToken } from './utils/hash-invite-token';
-import { buildInviteUrl } from './utils/build-invite-url';
+import { WorkspaceInviteEntity } from './entities';
+import { WorkspaceInviteSummaryEntity } from './entities';
+import { WorkspaceInviteType } from './types';
+import { WORKSPACE_INVITE_ROLES } from './constants';
+import { hashInviteToken } from './utils';
+import { buildInviteUrl } from './utils';
 import { TemporaryInviteStore } from './temporary-invite.store';
 
 @Injectable()

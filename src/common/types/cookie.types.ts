@@ -1,4 +1,4 @@
-import { COOKIE_NAMES } from '../constants/cookie.constants';
+import { COOKIE_NAMES } from '../constants';
 
 type CookieName = (typeof COOKIE_NAMES)[keyof typeof COOKIE_NAMES];
 

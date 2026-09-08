@@ -1,9 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { Prisma, Role } from '@prisma/client';
 import { WorkspacesRepository } from './workspaces.repository';
-import { PrismaService } from '../../prisma/prisma.service';
-import { WorkspaceEntity } from './entities/workspace.entity';
-import { WorkspaceMemberEntity } from './entities/workspace-member.entity';
+import { PrismaService } from '../../prisma';
+import { WorkspaceEntity } from './entities';
+import { WorkspaceMemberEntity } from './entities';
 
 describe('WorkspacesRepository', () => {
   let repository: WorkspacesRepository;

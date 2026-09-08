@@ -1,5 +1,5 @@
-import { getCookieValue } from './get-cookie-value';
-import { CookieName } from '../types/cookie.types';
+import { getCookieValue } from '.';
+import { CookieName } from '../types';
 import type { Request } from 'express';
 
 describe('getCookieValue', () => {

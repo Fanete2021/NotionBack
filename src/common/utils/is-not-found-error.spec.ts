@@ -1,5 +1,5 @@
 import { Prisma } from '@prisma/client';
-import { isNotFoundError } from './is-not-found-error';
+import { isNotFoundError } from '.';
 
 describe('isNotFoundError', () => {
   it('возвращает true для P2025', () => {

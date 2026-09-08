@@ -6,9 +6,9 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { ApiUnauthorizedResponse } from '../../../common/decorators/swagger/api-unauthorized.decorator';
-import { ApiInternalServerErrorResponse } from '../../../common/decorators/swagger/api-internal-server-error.decorator';
-import { WorkspaceEntity } from '../entities/workspace.entity';
+import { ApiUnauthorizedResponse } from '../../../common/decorators/swagger';
+import { ApiInternalServerErrorResponse } from '../../../common/decorators/swagger';
+import { WorkspaceEntity } from '../entities';
 
 export function WorkspacesControllerResponse() {
   return applyDecorators(

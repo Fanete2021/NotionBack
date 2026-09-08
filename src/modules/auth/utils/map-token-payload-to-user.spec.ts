@@ -1,4 +1,4 @@
-import { mapTokenPayloadToUser } from './map-token-payload-to-user';
+import { mapTokenPayloadToUser } from '.';
 
 describe('mapTokenPayloadToUser', () => {
   it('маппит sub и email в UserPayload', () => {

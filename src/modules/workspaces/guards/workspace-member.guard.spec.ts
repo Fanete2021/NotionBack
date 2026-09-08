@@ -3,10 +3,10 @@ import {
   ExecutionContext,
   UnauthorizedException,
 } from '@nestjs/common';
-import { ProjectEntity } from '../../projects/entities/project.entity';
-import { AuthenticatedRequest } from '../../projects/types/authenticated-request.type';
+import { ProjectEntity } from '../../projects/entities';
+import { AuthenticatedRequest } from '../../projects/types';
 import { WorkspacesService } from '../workspaces.service';
-import { WorkspaceMemberGuard } from './workspace-member.guard';
+import { WorkspaceMemberGuard } from '.';
 
 describe('WorkspaceMemberGuard', () => {
   let guard: WorkspaceMemberGuard;

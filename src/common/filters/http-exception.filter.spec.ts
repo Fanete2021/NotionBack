@@ -1,4 +1,4 @@
-import { HttpExceptionsFilter } from './http-exception.filter';
+import { HttpExceptionsFilter } from '.';
 import {
   ArgumentsHost,
   HttpException,

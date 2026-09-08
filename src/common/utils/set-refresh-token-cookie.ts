@@ -2,8 +2,8 @@ import type { Response } from 'express';
 import {
   COOKIE_NAMES,
   REFRESH_COOKIE_OPTIONS,
-} from '../constants/cookie.constants';
-import { SameSite } from '../types/cookie.types';
+} from '../constants';
+import { SameSite } from '../types';
 
 function setRefreshTokenCookie(
   res: Response,

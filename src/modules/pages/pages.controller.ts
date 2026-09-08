@@ -13,12 +13,12 @@ import {
 } from '@nestjs/common';
 import { PagesService } from './pages.service';
 import { WorkspacesService } from '../workspaces/workspaces.service';
-import { CreatePageDto } from './dto/create-page.dto';
-import { UpdatePageDto } from './dto/update-page.dto';
-import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { PageEntity } from './entities/page.entity';
-import { PageContentEntity } from './entities/page-content.entity';
-import { PAGE_CONTENT_ROUTE } from './constants/pages.constants';
+import { CreatePageDto } from './dto';
+import { UpdatePageDto } from './dto';
+import { CurrentUser } from '../../common/decorators';
+import { PageEntity } from './entities';
+import { PageContentEntity } from './entities';
+import { PAGE_CONTENT_ROUTE } from './constants';
 import {
   PagesControllerResponse,
   PagesCreateResponse,
@@ -28,7 +28,7 @@ import {
   PagesGetContentResponse,
   PagesUpdateContentResponse,
   PagesUpdateResponse,
-} from './decorators/page-swagger.decorator';
+} from './decorators';
 
 @PagesControllerResponse()
 @Controller()

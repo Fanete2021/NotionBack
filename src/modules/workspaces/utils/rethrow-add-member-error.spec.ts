@@ -1,6 +1,6 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { rethrowAddMemberError } from './rethrow-add-member-error';
+import { rethrowAddMemberError } from '.';
 
 describe('rethrowAddMemberError', () => {
   it('бросает ConflictException для P2002', () => {

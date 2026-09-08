@@ -1,14 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Role } from '@prisma/client';
-import { RedisClient } from '../../common/providers/redis-client';
+import { RedisClient } from '../../common/providers';
 import {
   WORKSPACE_INVITE_KEY_PREFIX,
   WORKSPACE_INVITE_ROLES,
-} from './constants/workspace-invite.constants';
+} from './constants';
 import {
   ConsumedWorkspaceInvite,
   StoredWorkspaceInvite,
-} from './types/workspace-invite.types';
+} from './types';
 
 @Injectable()
 export class TemporaryInviteStore {

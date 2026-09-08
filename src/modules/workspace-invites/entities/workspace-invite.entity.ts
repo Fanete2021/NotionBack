@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
-import { WorkspaceInviteType } from '../types/workspace-invite.types';
+import { WorkspaceInviteType } from '../types';
 
 export class WorkspaceInviteEntity {
   @ApiProperty({

@@ -1,5 +1,5 @@
-import { UserPayload } from '../../../common/types/user-payload.type';
-import { TokenPayload } from '../types/token.types';
+import { UserPayload } from '../../../common/types';
+import { TokenPayload } from '../types';
 
 function mapTokenPayloadToUser(payload: TokenPayload): UserPayload {
   return { id: payload.sub, email: payload.email };

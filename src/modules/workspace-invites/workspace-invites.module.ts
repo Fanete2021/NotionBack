@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { PrismaModule } from '../../prisma/prisma.module';
+import { PrismaModule } from '../../prisma';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { WorkspaceInviteRedeemController } from './workspace-invite-redeem.controller';
 import { WorkspaceInvitesController } from './workspace-invites.controller';

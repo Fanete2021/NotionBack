@@ -12,17 +12,17 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ProjectsService } from './projects.service';
-import { UpdateProjectDto } from './dto/update-project.dto';
-import { ProjectEntity } from './entities/project.entity';
-import { WorkspaceMemberGuard } from '../workspaces/guards/workspace-member.guard';
-import { WorkspaceProjectGuard } from './guards/workspace-project.guard';
+import { UpdateProjectDto } from './dto';
+import { ProjectEntity } from './entities';
+import { WorkspaceMemberGuard } from '../workspaces/guards';
+import { WorkspaceProjectGuard } from './guards';
 import {
   ProjectControllerResponse,
   ProjectDeleteResponse,
   ProjectFindByIdResponse,
   ProjectUpdateResponse,
-} from './decorators/project-swagger.decorator';
-import type { AuthenticatedRequest } from './types/authenticated-request.type';
+} from './decorators';
+import type { AuthenticatedRequest } from './types';
 
 @ProjectControllerResponse()
 @UseGuards(WorkspaceProjectGuard, WorkspaceMemberGuard)

@@ -5,10 +5,10 @@ import {
 } from '@nestjs/common';
 import { Role } from '@prisma/client';
 import { WorkspacesRepository } from './workspaces.repository';
-import { WorkspaceMemberEntity } from './entities/workspace-member.entity';
+import { WorkspaceMemberEntity } from './entities';
 import { UsersRepository } from '../users/users.repository';
 import { WorkspacesService } from './workspaces.service';
-import { rethrowAddMemberError } from './utils/rethrow-add-member-error';
+import { rethrowAddMemberError } from './utils';
 
 @Injectable()
 export class WorkspaceMembersService {

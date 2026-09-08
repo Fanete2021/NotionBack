@@ -8,7 +8,7 @@ import {
   NotFoundException,
   PayloadTooLargeException,
 } from '@nestjs/common';
-import { PageEntity } from './entities/page.entity';
+import { PageEntity } from './entities';
 
 describe('PagesService', () => {
   let service: PagesService;

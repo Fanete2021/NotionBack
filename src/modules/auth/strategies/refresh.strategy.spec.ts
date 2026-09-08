@@ -1,5 +1,5 @@
 import { ConfigService } from '@nestjs/config';
-import { RefreshStrategy } from './refresh.strategy';
+import { RefreshStrategy } from '.';
 
 describe('RefreshStrategy', () => {
   const configService = {

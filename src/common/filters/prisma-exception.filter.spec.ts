@@ -1,4 +1,4 @@
-import { PrismaExceptionFilter } from './prisma-exception.filter';
+import { PrismaExceptionFilter } from '.';
 import { Prisma } from '@prisma/client';
 import { ArgumentsHost } from '@nestjs/common';
 

@@ -13,15 +13,15 @@ import {
   TokenPair,
   RefreshData,
   RevokeData,
-} from './types/token.types';
+} from './types';
 import { TokenService } from './token.service';
 import {
   LoginData,
   LogoutData,
   LogoutResult,
   RegisterData,
-} from './types/auth.types';
-import { CreateUserData } from '../users/types/users.types';
+} from './types';
+import { CreateUserData } from '../users/types';
 
 @Injectable()
 export class AuthService {

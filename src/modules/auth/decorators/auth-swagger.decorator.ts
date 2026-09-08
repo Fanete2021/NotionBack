@@ -11,13 +11,13 @@ import {
   AuthResponseDto,
   AuthUserDto,
   MessageResponseDto,
-} from '../dto/auth-response.dto';
-import { ErrorResponseDto } from '../../../common/dto/error-response.dto';
-import { RegisterDto } from '../dto/register.dto';
-import { ApiValidationErrorResponse } from '../../../common/decorators/swagger/api-bad-request.decorator';
-import { LoginDto } from '../dto/login.dto';
-import { LogoutDto } from '../dto/logout.dto';
-import { ApiInternalServerErrorResponse } from '../../../common/decorators/swagger/api-internal-server-error.decorator';
+} from '../dto';
+import { ErrorResponseDto } from '../../../common/dto';
+import { RegisterDto } from '../dto';
+import { ApiValidationErrorResponse } from '../../../common/decorators/swagger';
+import { LoginDto } from '../dto';
+import { LogoutDto } from '../dto';
+import { ApiInternalServerErrorResponse } from '../../../common/decorators/swagger';
 
 export function AuthControllerResponse() {
   return applyDecorators(

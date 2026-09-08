@@ -1,6 +1,6 @@
 import { applyDecorators } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { ApiInternalServerErrorResponse } from '../../common/decorators/swagger/api-internal-server-error.decorator';
+import { ApiInternalServerErrorResponse } from '../../common/decorators/swagger';
 
 export function HealthControllerResponse() {
   return applyDecorators(ApiTags('Health'), ApiInternalServerErrorResponse());

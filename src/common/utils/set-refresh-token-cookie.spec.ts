@@ -2,8 +2,8 @@ import type { Response } from 'express';
 import {
   COOKIE_NAMES,
   REFRESH_COOKIE_OPTIONS,
-} from '../constants/cookie.constants';
-import { setRefreshTokenCookie } from './set-refresh-token-cookie';
+} from '../constants';
+import { setRefreshTokenCookie } from '.';
 
 describe('setRefreshTokenCookie', () => {
   const cookie = jest.fn();

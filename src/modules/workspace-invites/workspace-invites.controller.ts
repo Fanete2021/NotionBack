@@ -15,10 +15,10 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { CreateWorkspaceInviteDto } from './dto/create-workspace-invite.dto';
-import { WorkspaceInviteEntity } from './entities/workspace-invite.entity';
-import { WorkspaceInviteSummaryEntity } from './entities/workspace-invite-summary.entity';
+import { CurrentUser } from '../../common/decorators';
+import { CreateWorkspaceInviteDto } from './dto';
+import { WorkspaceInviteEntity } from './entities';
+import { WorkspaceInviteSummaryEntity } from './entities';
 import { WorkspaceInvitesService } from './workspace-invites.service';
 
 @ApiBearerAuth()

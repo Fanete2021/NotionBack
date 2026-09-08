@@ -1,5 +1,5 @@
 import type { Request } from 'express';
-import { CookieName } from '../types/cookie.types';
+import { CookieName } from '../types';
 
 function getCookieValue(
   req: Request | { headers?: { cookie?: string } },

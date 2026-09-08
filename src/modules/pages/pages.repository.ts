@@ -1,11 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { Page, PageContent, Prisma } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
-import { PageEntity } from './entities/page.entity';
-import { PageContentEntity } from './entities/page-content.entity';
-import { EMPTY_DOCUMENT } from './constants/pages.constants';
-import { CreatePageData } from './types/pages.types';
-import { isNotFoundError } from '../../common/utils/is-not-found-error';
+import { PrismaService } from '../../prisma';
+import { PageEntity } from './entities';
+import { PageContentEntity } from './entities';
+import { EMPTY_DOCUMENT } from './constants';
+import { CreatePageData } from './types';
+import { isNotFoundError } from '../../common/utils';
 
 @Injectable()
 export class PagesRepository {

@@ -8,16 +8,16 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ProjectsService } from './projects.service';
-import { CreateProjectDto } from './dto/create-project.dto';
-import { ReorderProjectsDto } from './dto/reorder-projects.dto';
-import { ProjectEntity } from './entities/project.entity';
-import { WorkspaceMemberGuard } from '../workspaces/guards/workspace-member.guard';
+import { CreateProjectDto } from './dto';
+import { ReorderProjectsDto } from './dto';
+import { ProjectEntity } from './entities';
+import { WorkspaceMemberGuard } from '../workspaces/guards';
 import {
   WorkspaceProjectsControllerResponse,
   WorkspaceProjectsCreateProjectResponse,
   WorkspaceProjectsFindAllByWorkspaceIdResponse,
   WorkspaceProjectsReorderProjectsResponse,
-} from './decorators/workspace-projects-swagger.decorators';
+} from './decorators';
 
 @WorkspaceProjectsControllerResponse()
 @UseGuards(WorkspaceMemberGuard)

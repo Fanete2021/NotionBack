@@ -11,11 +11,11 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { WorkspacesService } from './workspaces.service';
-import { CreateWorkspaceDto } from './dto/create-workspace.dto';
-import { UpdateWorkspaceDto } from './dto/update-workspace.dto';
-import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { WorkspaceEntity } from './entities/workspace.entity';
-import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { CreateWorkspaceDto } from './dto';
+import { UpdateWorkspaceDto } from './dto';
+import { CurrentUser } from '../../common/decorators';
+import { WorkspaceEntity } from './entities';
+import { JwtAuthGuard } from '../../common/guards';
 import {
   WorkspacesControllerResponse,
   WorkspacesCreateWorkspaceResponse,
@@ -23,7 +23,7 @@ import {
   WorkspacesFindByIdResponse,
   WorkspacesUpdateResponse,
   WorkspacesDeleteResponse,
-} from './decorators/workspace-swagger.decorator';
+} from './decorators';
 
 @WorkspacesControllerResponse()
 @UseGuards(JwtAuthGuard)

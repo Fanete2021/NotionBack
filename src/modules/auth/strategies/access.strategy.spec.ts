@@ -1,5 +1,5 @@
 import { ConfigService } from '@nestjs/config';
-import { AccessStrategy } from './access.strategy';
+import { AccessStrategy } from '.';
 
 describe('AccessStrategy', () => {
   const configService = {

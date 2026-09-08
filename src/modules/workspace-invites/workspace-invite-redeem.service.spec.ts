@@ -5,7 +5,7 @@ import { createHash, randomBytes } from 'crypto';
 import { WorkspaceInviteRedeemService } from './workspace-invite-redeem.service';
 import { WorkspaceInvitesRepository } from './workspace-invites.repository';
 import { WorkspaceMembersService } from '../workspaces/workspace-members.service';
-import { RedisClient } from '../../common/providers/redis-client';
+import { RedisClient } from '../../common/providers';
 import { TemporaryInviteStore } from './temporary-invite.store';
 
 describe('WorkspaceInviteRedeemService', () => {

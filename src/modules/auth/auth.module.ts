@@ -5,8 +5,8 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { TokenService } from './token.service';
 import { UsersModule } from '../users/users.module';
-import { AccessStrategy } from './strategies/access.strategy';
-import { RefreshStrategy } from './strategies/refresh.strategy';
+import { AccessStrategy } from './strategies';
+import { RefreshStrategy } from './strategies';
 
 @Module({
   imports: [

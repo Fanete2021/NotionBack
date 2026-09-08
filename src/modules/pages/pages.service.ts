@@ -6,13 +6,13 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
-import { EMPTY_DOCUMENT } from './constants/pages.constants';
+import { EMPTY_DOCUMENT } from './constants';
 import { PagesRepository } from './pages.repository';
 import { ProjectsRepository } from '../projects/projects.repository';
-import { PageEntity } from './entities/page.entity';
-import { PageContentEntity } from './entities/page-content.entity';
-import { CreatePageDto } from './dto/create-page.dto';
-import { UpdatePageDto } from './dto/update-page.dto';
+import { PageEntity } from './entities';
+import { PageContentEntity } from './entities';
+import { CreatePageDto } from './dto';
+import { UpdatePageDto } from './dto';
 
 @Injectable()
 export class PagesService {

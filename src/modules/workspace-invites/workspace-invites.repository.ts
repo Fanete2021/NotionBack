@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma, Role, WorkspaceInvite } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
-import { WorkspaceInviteSummaryEntity } from './entities/workspace-invite-summary.entity';
+import { PrismaService } from '../../prisma';
+import { WorkspaceInviteSummaryEntity } from './entities';
 
 @Injectable()
 export class WorkspaceInvitesRepository {

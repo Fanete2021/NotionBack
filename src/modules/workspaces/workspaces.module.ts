@@ -4,9 +4,9 @@ import { WorkspaceMembersController } from './workspace-members.controller';
 import { WorkspacesService } from './workspaces.service';
 import { WorkspaceMembersService } from './workspace-members.service';
 import { WorkspacesRepository } from './workspaces.repository';
-import { WorkspaceMemberGuard } from './guards/workspace-member.guard';
+import { WorkspaceMemberGuard } from './guards';
 import { UsersModule } from '../users/users.module';
-import { PrismaModule } from '../../prisma/prisma.module';
+import { PrismaModule } from '../../prisma';
 
 @Module({
   imports: [PrismaModule, UsersModule],

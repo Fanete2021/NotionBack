@@ -6,9 +6,9 @@ import { createHash } from 'crypto';
 import { WorkspaceInvitesService } from './workspace-invites.service';
 import { WorkspaceInvitesRepository } from './workspace-invites.repository';
 import { WorkspacesService } from '../workspaces/workspaces.service';
-import { RedisClient } from '../../common/providers/redis-client';
+import { RedisClient } from '../../common/providers';
 import { TemporaryInviteStore } from './temporary-invite.store';
-import { WorkspaceInviteType } from './types/workspace-invite.types';
+import { WorkspaceInviteType } from './types';
 
 describe('WorkspaceInvitesService', () => {
   let service: WorkspaceInvitesService;
