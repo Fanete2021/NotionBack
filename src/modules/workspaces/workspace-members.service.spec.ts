@@ -1,8 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { WorkspaceMembersService } from '@modules/workspaces/workspace-members.service';
 import { WorkspacesService } from '@modules/workspaces/workspaces.service';
+import { WorkspaceMembersRepository } from '@modules/workspaces/workspace-members.repository';
 import { WorkspacesRepository } from '@modules/workspaces/workspaces.repository';
 import { UsersRepository } from '@modules/users/users.repository';
+import { PrismaService } from '../../prisma';
 import { ConfigService } from '@nestjs/config';
 import {
   ConflictException,
@@ -14,12 +16,15 @@ import { Prisma, Role } from '@prisma/client';
 describe('WorkspaceMembersService', () => {
   let service: WorkspaceMembersService;
 
-  const mockWorkspacesRepository = {
+  const mockWorkspaceMembersRepository = {
     addMember: jest.fn(),
     findAllMembers: jest.fn(),
     changeRole: jest.fn(),
     removeMember: jest.fn(),
     findMembership: jest.fn(),
+  };
+
+  const mockWorkspacesRepository = {
     findById: jest.fn(),
   };
 
@@ -47,7 +52,19 @@ describe('WorkspaceMembersService', () => {
         WorkspaceMembersService,
         WorkspacesService,
         { provide: WorkspacesRepository, useValue: mockWorkspacesRepository },
+        {
+          provide: WorkspaceMembersRepository,
+          useValue: mockWorkspaceMembersRepository,
+        },
         { provide: UsersRepository, useValue: mockUsersRepository },
+        {
+          provide: PrismaService,
+          useValue: {
+            $transaction: jest.fn((callback: (tx: object) => unknown) =>
+              callback({}),
+            ),
+          },
+        },
         { provide: ConfigService, useValue: { get: jest.fn() } },
       ],
     }).compile();
@@ -57,7 +74,7 @@ describe('WorkspaceMembersService', () => {
 
   describe('listMembers', () => {
     it('возвращает участников воркспейса', async () => {
-      mockWorkspacesRepository.findAllMembers.mockResolvedValue([
+      mockWorkspaceMembersRepository.findAllMembers.mockResolvedValue([
         { workspaceId: 'ws-1', userId: 'user-1' },
       ]);
 
@@ -67,11 +84,11 @@ describe('WorkspaceMembersService', () => {
 
   describe('addMember', () => {
     it('owner добавляет участника с ролью по умолчанию EDITOR', async () => {
-      mockWorkspacesRepository.findMembership.mockResolvedValue(
+      mockWorkspaceMembersRepository.findMembership.mockResolvedValue(
         membership(Role.OWNER),
       );
       mockUsersRepository.findById.mockResolvedValue({ id: 'user-2' });
-      mockWorkspacesRepository.addMember.mockResolvedValue({
+      mockWorkspaceMembersRepository.addMember.mockResolvedValue({
         workspaceId: 'ws-1',
         userId: 'user-2',
         role: Role.EDITOR,
@@ -79,7 +96,7 @@ describe('WorkspaceMembersService', () => {
 
       const result = await service.addMember('user-1', 'ws-1', 'user-2');
 
-      expect(mockWorkspacesRepository.addMember).toHaveBeenCalledWith(
+      expect(mockWorkspaceMembersRepository.addMember).toHaveBeenCalledWith(
         'ws-1',
         'user-2',
         Role.EDITOR,
@@ -88,11 +105,11 @@ describe('WorkspaceMembersService', () => {
     });
 
     it('owner может назначить ADMIN', async () => {
-      mockWorkspacesRepository.findMembership.mockResolvedValue(
+      mockWorkspaceMembersRepository.findMembership.mockResolvedValue(
         membership(Role.OWNER),
       );
       mockUsersRepository.findById.mockResolvedValue({ id: 'user-2' });
-      mockWorkspacesRepository.addMember.mockResolvedValue({
+      mockWorkspaceMembersRepository.addMember.mockResolvedValue({
         workspaceId: 'ws-1',
         userId: 'user-2',
         role: Role.ADMIN,
@@ -100,7 +117,7 @@ describe('WorkspaceMembersService', () => {
 
       await service.addMember('user-1', 'ws-1', 'user-2', Role.ADMIN);
 
-      expect(mockWorkspacesRepository.addMember).toHaveBeenCalledWith(
+      expect(mockWorkspaceMembersRepository.addMember).toHaveBeenCalledWith(
         'ws-1',
         'user-2',
         Role.ADMIN,
@@ -108,11 +125,11 @@ describe('WorkspaceMembersService', () => {
     });
 
     it('admin добавляет участника', async () => {
-      mockWorkspacesRepository.findMembership.mockResolvedValue(
+      mockWorkspaceMembersRepository.findMembership.mockResolvedValue(
         membership(Role.ADMIN),
       );
       mockUsersRepository.findById.mockResolvedValue({ id: 'user-2' });
-      mockWorkspacesRepository.addMember.mockResolvedValue({
+      mockWorkspaceMembersRepository.addMember.mockResolvedValue({
         workspaceId: 'ws-1',
         userId: 'user-2',
       });
@@ -121,29 +138,29 @@ describe('WorkspaceMembersService', () => {
     });
 
     it('admin не может назначить ADMIN', async () => {
-      mockWorkspacesRepository.findMembership.mockResolvedValue(
+      mockWorkspaceMembersRepository.findMembership.mockResolvedValue(
         membership(Role.ADMIN),
       );
 
       await expect(
         service.addMember('user-1', 'ws-1', 'user-2', Role.ADMIN),
       ).rejects.toThrow(ForbiddenException);
-      expect(mockWorkspacesRepository.addMember).not.toHaveBeenCalled();
+      expect(mockWorkspaceMembersRepository.addMember).not.toHaveBeenCalled();
     });
 
     it('никто не может назначить роль OWNER', async () => {
-      mockWorkspacesRepository.findMembership.mockResolvedValue(
+      mockWorkspaceMembersRepository.findMembership.mockResolvedValue(
         membership(Role.OWNER),
       );
 
       await expect(
         service.addMember('user-1', 'ws-1', 'user-2', Role.OWNER),
       ).rejects.toThrow(ForbiddenException);
-      expect(mockWorkspacesRepository.addMember).not.toHaveBeenCalled();
+      expect(mockWorkspaceMembersRepository.addMember).not.toHaveBeenCalled();
     });
 
     it('простой участник не может добавлять участников', async () => {
-      mockWorkspacesRepository.findMembership.mockResolvedValue(
+      mockWorkspaceMembersRepository.findMembership.mockResolvedValue(
         membership(Role.EDITOR),
       );
 
@@ -153,7 +170,7 @@ describe('WorkspaceMembersService', () => {
     });
 
     it('бросает 404, если пользователь не найден', async () => {
-      mockWorkspacesRepository.findMembership.mockResolvedValue(
+      mockWorkspaceMembersRepository.findMembership.mockResolvedValue(
         membership(Role.OWNER),
       );
       mockUsersRepository.findById.mockResolvedValue(null);
@@ -164,11 +181,11 @@ describe('WorkspaceMembersService', () => {
     });
 
     it('превращает P2002 в 409, если участник уже существует', async () => {
-      mockWorkspacesRepository.findMembership.mockResolvedValue(
+      mockWorkspaceMembersRepository.findMembership.mockResolvedValue(
         membership(Role.OWNER),
       );
       mockUsersRepository.findById.mockResolvedValue({ id: 'user-2' });
-      mockWorkspacesRepository.addMember.mockRejectedValue(p2002);
+      mockWorkspaceMembersRepository.addMember.mockRejectedValue(p2002);
 
       await expect(
         service.addMember('user-1', 'ws-1', 'user-2'),
@@ -178,10 +195,10 @@ describe('WorkspaceMembersService', () => {
 
   describe('changeMemberRole', () => {
     it('owner меняет роль участника', async () => {
-      mockWorkspacesRepository.findMembership
+      mockWorkspaceMembersRepository.findMembership
         .mockResolvedValueOnce(membership(Role.OWNER))
         .mockResolvedValueOnce(membership(Role.EDITOR));
-      mockWorkspacesRepository.changeRole.mockResolvedValue({
+      mockWorkspaceMembersRepository.changeRole.mockResolvedValue({
         workspaceId: 'ws-1',
         userId: 'user-2',
         role: Role.VIEWER,
@@ -194,7 +211,7 @@ describe('WorkspaceMembersService', () => {
         Role.VIEWER,
       );
 
-      expect(mockWorkspacesRepository.changeRole).toHaveBeenCalledWith(
+      expect(mockWorkspaceMembersRepository.changeRole).toHaveBeenCalledWith(
         'ws-1',
         'user-2',
         Role.VIEWER,
@@ -203,11 +220,11 @@ describe('WorkspaceMembersService', () => {
     });
 
     it('owner может назначить админа из участника', async () => {
-      mockWorkspacesRepository.findMembership
+      mockWorkspaceMembersRepository.findMembership
         .mockResolvedValueOnce(membership(Role.OWNER))
         .mockResolvedValueOnce(membership(Role.EDITOR))
         .mockResolvedValueOnce(membership(Role.OWNER));
-      mockWorkspacesRepository.changeRole.mockResolvedValue({
+      mockWorkspaceMembersRepository.changeRole.mockResolvedValue({
         workspaceId: 'ws-1',
         userId: 'user-2',
         role: Role.ADMIN,
@@ -215,7 +232,7 @@ describe('WorkspaceMembersService', () => {
 
       await service.changeMemberRole('user-1', 'ws-1', 'user-2', Role.ADMIN);
 
-      expect(mockWorkspacesRepository.changeRole).toHaveBeenCalledWith(
+      expect(mockWorkspaceMembersRepository.changeRole).toHaveBeenCalledWith(
         'ws-1',
         'user-2',
         Role.ADMIN,
@@ -223,10 +240,10 @@ describe('WorkspaceMembersService', () => {
     });
 
     it('admin меняет роль обычного участника', async () => {
-      mockWorkspacesRepository.findMembership
+      mockWorkspaceMembersRepository.findMembership
         .mockResolvedValueOnce(membership(Role.ADMIN))
         .mockResolvedValueOnce(membership(Role.EDITOR));
-      mockWorkspacesRepository.changeRole.mockResolvedValue({
+      mockWorkspaceMembersRepository.changeRole.mockResolvedValue({
         workspaceId: 'ws-1',
         userId: 'user-2',
         role: Role.VIEWER,
@@ -236,7 +253,7 @@ describe('WorkspaceMembersService', () => {
     });
 
     it('admin не может менять роль другого admin', async () => {
-      mockWorkspacesRepository.findMembership
+      mockWorkspaceMembersRepository.findMembership
         .mockResolvedValueOnce(membership(Role.ADMIN))
         .mockResolvedValueOnce(membership(Role.ADMIN));
 
@@ -246,7 +263,7 @@ describe('WorkspaceMembersService', () => {
     });
 
     it('admin не может назначить ADMIN', async () => {
-      mockWorkspacesRepository.findMembership
+      mockWorkspaceMembersRepository.findMembership
         .mockResolvedValueOnce(membership(Role.ADMIN))
         .mockResolvedValueOnce(membership(Role.EDITOR))
         .mockResolvedValue(membership(Role.EDITOR));
@@ -257,18 +274,18 @@ describe('WorkspaceMembersService', () => {
     });
 
     it('нельзя назначить роль OWNER другому участнику', async () => {
-      mockWorkspacesRepository.findMembership
+      mockWorkspaceMembersRepository.findMembership
         .mockResolvedValueOnce(membership(Role.OWNER))
         .mockResolvedValueOnce(membership(Role.EDITOR));
 
       await expect(
         service.changeMemberRole('user-1', 'ws-1', 'user-2', Role.OWNER),
       ).rejects.toThrow(ForbiddenException);
-      expect(mockWorkspacesRepository.changeRole).not.toHaveBeenCalled();
+      expect(mockWorkspaceMembersRepository.changeRole).not.toHaveBeenCalled();
     });
 
     it('нельзя менять свою собственную роль', async () => {
-      mockWorkspacesRepository.findMembership.mockResolvedValue(
+      mockWorkspaceMembersRepository.findMembership.mockResolvedValue(
         membership(Role.OWNER),
       );
 
@@ -278,7 +295,7 @@ describe('WorkspaceMembersService', () => {
     });
 
     it('нельзя менять роль OWNER', async () => {
-      mockWorkspacesRepository.findMembership
+      mockWorkspaceMembersRepository.findMembership
         .mockResolvedValueOnce(membership(Role.OWNER))
         .mockResolvedValueOnce({
           workspaceId: 'ws-1',
@@ -292,7 +309,7 @@ describe('WorkspaceMembersService', () => {
     });
 
     it('бросает 404, если целевое членство не найдено', async () => {
-      mockWorkspacesRepository.findMembership
+      mockWorkspaceMembersRepository.findMembership
         .mockResolvedValueOnce(membership(Role.OWNER))
         .mockResolvedValueOnce(null);
 
@@ -304,25 +321,25 @@ describe('WorkspaceMembersService', () => {
 
   describe('removeMember', () => {
     it('owner удаляет участника', async () => {
-      mockWorkspacesRepository.findMembership
+      mockWorkspaceMembersRepository.findMembership
         .mockResolvedValueOnce(membership(Role.OWNER))
         .mockResolvedValueOnce(membership(Role.EDITOR));
-      mockWorkspacesRepository.removeMember.mockResolvedValue(true);
+      mockWorkspaceMembersRepository.removeMember.mockResolvedValue(true);
 
       await expect(
         service.removeMember('user-1', 'ws-1', 'user-2'),
       ).resolves.toBeUndefined();
-      expect(mockWorkspacesRepository.removeMember).toHaveBeenCalledWith(
+      expect(mockWorkspaceMembersRepository.removeMember).toHaveBeenCalledWith(
         'ws-1',
         'user-2',
       );
     });
 
     it('admin удаляет обычного участника', async () => {
-      mockWorkspacesRepository.findMembership
+      mockWorkspaceMembersRepository.findMembership
         .mockResolvedValueOnce(membership(Role.ADMIN))
         .mockResolvedValueOnce(membership(Role.EDITOR));
-      mockWorkspacesRepository.removeMember.mockResolvedValue(true);
+      mockWorkspaceMembersRepository.removeMember.mockResolvedValue(true);
 
       await expect(
         service.removeMember('user-1', 'ws-1', 'user-2'),
@@ -330,7 +347,7 @@ describe('WorkspaceMembersService', () => {
     });
 
     it('admin не может удалить другого admin', async () => {
-      mockWorkspacesRepository.findMembership
+      mockWorkspaceMembersRepository.findMembership
         .mockResolvedValueOnce(membership(Role.ADMIN))
         .mockResolvedValueOnce(membership(Role.ADMIN));
 
@@ -340,7 +357,7 @@ describe('WorkspaceMembersService', () => {
     });
 
     it('нельзя удалить самого себя', async () => {
-      mockWorkspacesRepository.findMembership.mockResolvedValue(
+      mockWorkspaceMembersRepository.findMembership.mockResolvedValue(
         membership(Role.OWNER),
       );
 
@@ -350,7 +367,7 @@ describe('WorkspaceMembersService', () => {
     });
 
     it('нельзя удалить OWNER', async () => {
-      mockWorkspacesRepository.findMembership
+      mockWorkspaceMembersRepository.findMembership
         .mockResolvedValueOnce(membership(Role.OWNER))
         .mockResolvedValueOnce({
           workspaceId: 'ws-1',
@@ -364,7 +381,7 @@ describe('WorkspaceMembersService', () => {
     });
 
     it('бросает 404, если членство не найдено', async () => {
-      mockWorkspacesRepository.findMembership
+      mockWorkspaceMembersRepository.findMembership
         .mockResolvedValueOnce(membership(Role.OWNER))
         .mockResolvedValueOnce(null);
 

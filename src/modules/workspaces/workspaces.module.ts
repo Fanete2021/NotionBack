@@ -4,6 +4,7 @@ import { WorkspaceMembersController } from '@modules/workspaces/workspace-member
 import { WorkspacesService } from '@modules/workspaces/workspaces.service';
 import { WorkspaceMembersService } from '@modules/workspaces/workspace-members.service';
 import { WorkspacesRepository } from '@modules/workspaces/workspaces.repository';
+import { WorkspaceMembersRepository } from '@modules/workspaces/workspace-members.repository';
 import { WorkspaceMemberGuard } from '@modules/workspaces/guards';
 import { UsersModule } from '@modules/users/users.module';
 import { PrismaModule } from '../../prisma';
@@ -15,6 +16,7 @@ import { PrismaModule } from '../../prisma';
     WorkspacesService,
     WorkspaceMembersService,
     WorkspacesRepository,
+    WorkspaceMembersRepository,
     WorkspaceMemberGuard,
   ],
   exports: [WorkspacesService, WorkspaceMembersService],

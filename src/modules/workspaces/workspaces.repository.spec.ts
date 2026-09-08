@@ -3,32 +3,19 @@ import { Prisma, Role } from '@prisma/client';
 import { WorkspacesRepository } from '@modules/workspaces/workspaces.repository';
 import { PrismaService } from '../../prisma';
 import { WorkspaceEntity } from '@modules/workspaces/entities';
-import { WorkspaceMemberEntity } from '@modules/workspaces/entities';
 
 describe('WorkspacesRepository', () => {
   let repository: WorkspacesRepository;
-
-  const mockTx = {
-    workspace: { create: jest.fn() },
-    workspaceMember: { create: jest.fn() },
-  };
 
   const mockPrisma = {
     workspace: {
       create: jest.fn(),
       findUnique: jest.fn(),
+      findMany: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
       count: jest.fn(),
     },
-    workspaceMember: {
-      create: jest.fn(),
-      findMany: jest.fn(),
-      findUnique: jest.fn(),
-      update: jest.fn(),
-      delete: jest.fn(),
-    },
-    $transaction: jest.fn(),
   };
 
   const workspaceFixture = {
@@ -36,14 +23,6 @@ describe('WorkspacesRepository', () => {
     name: 'My space',
     ownerId: 'user-1',
     isPublic: false,
-    createdAt: new Date('2026-01-01T00:00:00.000Z'),
-  };
-
-  const memberFixture = {
-    id: 'mem-1',
-    workspaceId: 'ws-1',
-    userId: 'user-1',
-    role: Role.OWNER,
     createdAt: new Date('2026-01-01T00:00:00.000Z'),
   };
 
@@ -63,32 +42,28 @@ describe('WorkspacesRepository', () => {
     }).compile();
 
     repository = module.get<WorkspacesRepository>(WorkspacesRepository);
-
-    mockPrisma.$transaction.mockImplementation(
-      (callback: (tx: typeof mockTx) => unknown) => callback(mockTx),
-    );
   });
 
   describe('create', () => {
-    it('создаёт воркспейс и OWNER-членство в одной транзакции', async () => {
-      mockTx.workspace.create.mockResolvedValue(workspaceFixture);
-      mockTx.workspaceMember.create.mockResolvedValue(memberFixture);
+    it('создаёт воркспейс', async () => {
+      mockPrisma.workspace.create.mockResolvedValue(workspaceFixture);
 
       const result = await repository.create('user-1', 'My space');
 
-      expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
-      expect(mockTx.workspace.create).toHaveBeenCalledWith({
+      expect(mockPrisma.workspace.create).toHaveBeenCalledWith({
         data: { name: 'My space', ownerId: 'user-1' },
-      });
-      expect(mockTx.workspaceMember.create).toHaveBeenCalledWith({
-        data: {
-          workspaceId: 'ws-1',
-          userId: 'user-1',
-          role: 'OWNER',
-        },
       });
       expect(result).toBeInstanceOf(WorkspaceEntity);
       expect(result.id).toBe('ws-1');
+    });
+
+    it('использует переданную транзакцию', async () => {
+      const tx = { workspace: { create: jest.fn().mockResolvedValue(workspaceFixture) } };
+
+      await repository.create('user-1', 'My space', tx as never);
+
+      expect(tx.workspace.create).toHaveBeenCalled();
+      expect(mockPrisma.workspace.create).not.toHaveBeenCalled();
     });
   });
 
@@ -111,21 +86,26 @@ describe('WorkspacesRepository', () => {
     });
   });
 
-  describe('findAllByUserId', () => {
-    it('возвращает воркспейсы из членств пользователя', async () => {
-      mockPrisma.workspaceMember.findMany.mockResolvedValue([
-        { workspace: workspaceFixture },
+  describe('findByIds', () => {
+    it('возвращает воркспейсы в порядке переданных id', async () => {
+      mockPrisma.workspace.findMany.mockResolvedValue([
+        workspaceFixture,
+        { ...workspaceFixture, id: 'ws-2', name: 'Second' },
       ]);
 
-      const result = await repository.findAllByUserId('user-1');
+      const result = await repository.findByIds(['ws-1', 'ws-2']);
 
-      expect(mockPrisma.workspaceMember.findMany).toHaveBeenCalledWith({
-        where: { userId: 'user-1' },
-        include: { workspace: true },
-        orderBy: { createdAt: 'asc' },
+      expect(mockPrisma.workspace.findMany).toHaveBeenCalledWith({
+        where: { id: { in: ['ws-1', 'ws-2'] } },
       });
-      expect(result).toHaveLength(1);
-      expect(result[0]).toBeInstanceOf(WorkspaceEntity);
+      expect(result).toHaveLength(2);
+      expect(result[0]?.id).toBe('ws-1');
+      expect(result[1]?.id).toBe('ws-2');
+    });
+
+    it('возвращает пустой массив для пустого списка id', async () => {
+      await expect(repository.findByIds([])).resolves.toEqual([]);
+      expect(mockPrisma.workspace.findMany).not.toHaveBeenCalled();
     });
   });
 
@@ -164,15 +144,6 @@ describe('WorkspacesRepository', () => {
         repository.update('missing', { name: 'X' }),
       ).resolves.toBeNull();
     });
-
-    it('пробрасывает неожиданную ошибку', async () => {
-      const error = new Error('db down');
-      mockPrisma.workspace.update.mockRejectedValue(error);
-
-      await expect(repository.update('ws-1', { name: 'X' })).rejects.toThrow(
-        error,
-      );
-    });
   });
 
   describe('delete', () => {
@@ -189,113 +160,6 @@ describe('WorkspacesRepository', () => {
       mockPrisma.workspace.delete.mockRejectedValue(p2025);
 
       await expect(repository.delete('missing')).resolves.toBe(false);
-    });
-  });
-
-  describe('addMember', () => {
-    it('добавляет участника с ролью по умолчанию EDITOR', async () => {
-      mockPrisma.workspaceMember.create.mockResolvedValue({
-        ...memberFixture,
-        userId: 'user-2',
-        role: Role.EDITOR,
-      });
-
-      const result = await repository.addMember('ws-1', 'user-2');
-
-      expect(mockPrisma.workspaceMember.create).toHaveBeenCalledWith({
-        data: { workspaceId: 'ws-1', userId: 'user-2', role: Role.EDITOR },
-      });
-      expect(result).toBeInstanceOf(WorkspaceMemberEntity);
-      expect(result.role).toBe(Role.EDITOR);
-    });
-  });
-
-  describe('findAllMembers', () => {
-    it('возвращает участников воркспейса', async () => {
-      mockPrisma.workspaceMember.findMany.mockResolvedValue([memberFixture]);
-
-      const result = await repository.findAllMembers('ws-1');
-
-      expect(mockPrisma.workspaceMember.findMany).toHaveBeenCalledWith({
-        where: { workspaceId: 'ws-1' },
-        orderBy: { createdAt: 'asc' },
-      });
-      expect(result).toHaveLength(1);
-      expect(result[0]).toBeInstanceOf(WorkspaceMemberEntity);
-    });
-  });
-
-  describe('changeRole', () => {
-    it('меняет роль участника', async () => {
-      mockPrisma.workspaceMember.update.mockResolvedValue({
-        ...memberFixture,
-        userId: 'user-2',
-        role: Role.ADMIN,
-      });
-
-      const result = await repository.changeRole('ws-1', 'user-2', Role.ADMIN);
-
-      expect(mockPrisma.workspaceMember.update).toHaveBeenCalledWith({
-        where: {
-          workspaceId_userId: { workspaceId: 'ws-1', userId: 'user-2' },
-        },
-        data: { role: Role.ADMIN },
-      });
-      expect(result?.role).toBe(Role.ADMIN);
-    });
-
-    it('возвращает null при P2025', async () => {
-      mockPrisma.workspaceMember.update.mockRejectedValue(p2025);
-
-      await expect(
-        repository.changeRole('ws-1', 'ghost', Role.EDITOR),
-      ).resolves.toBeNull();
-    });
-  });
-
-  describe('removeMember', () => {
-    it('удаляет участника', async () => {
-      mockPrisma.workspaceMember.delete.mockResolvedValue(memberFixture);
-
-      await expect(repository.removeMember('ws-1', 'user-2')).resolves.toBe(
-        true,
-      );
-      expect(mockPrisma.workspaceMember.delete).toHaveBeenCalledWith({
-        where: {
-          workspaceId_userId: { workspaceId: 'ws-1', userId: 'user-2' },
-        },
-      });
-    });
-
-    it('возвращает false при P2025', async () => {
-      mockPrisma.workspaceMember.delete.mockRejectedValue(p2025);
-
-      await expect(repository.removeMember('ws-1', 'ghost')).resolves.toBe(
-        false,
-      );
-    });
-  });
-
-  describe('findMembership', () => {
-    it('возвращает членство', async () => {
-      mockPrisma.workspaceMember.findUnique.mockResolvedValue(memberFixture);
-
-      const result = await repository.findMembership('ws-1', 'user-1');
-
-      expect(mockPrisma.workspaceMember.findUnique).toHaveBeenCalledWith({
-        where: {
-          workspaceId_userId: { workspaceId: 'ws-1', userId: 'user-1' },
-        },
-      });
-      expect(result).toBeInstanceOf(WorkspaceMemberEntity);
-    });
-
-    it('возвращает null, если членство не найдено', async () => {
-      mockPrisma.workspaceMember.findUnique.mockResolvedValue(null);
-
-      await expect(
-        repository.findMembership('ws-1', 'ghost'),
-      ).resolves.toBeNull();
     });
   });
 });

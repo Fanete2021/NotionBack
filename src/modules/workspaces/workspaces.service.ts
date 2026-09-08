@@ -5,7 +5,9 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Role } from '@prisma/client';
+import { PrismaService } from '../../prisma';
 import { WorkspacesRepository } from '@modules/workspaces/workspaces.repository';
+import { WorkspaceMembersRepository } from '@modules/workspaces/workspace-members.repository';
 import { WorkspaceEntity } from '@modules/workspaces/entities';
 import { WorkspaceMemberEntity } from '@modules/workspaces/entities';
 import { UpdateWorkspaceDto } from '@modules/workspaces/dto';
@@ -13,7 +15,9 @@ import { UpdateWorkspaceDto } from '@modules/workspaces/dto';
 @Injectable()
 export class WorkspacesService {
   constructor(
+    private readonly prisma: PrismaService,
     private readonly workspacesRepository: WorkspacesRepository,
+    private readonly workspaceMembersRepository: WorkspaceMembersRepository,
     private readonly configService: ConfigService,
   ) {}
 
@@ -30,7 +34,20 @@ export class WorkspacesService {
       );
     }
 
-    return this.workspacesRepository.create(ownerId, name);
+    return this.prisma.$transaction(async (tx) => {
+      const workspace = await this.workspacesRepository.create(
+        ownerId,
+        name,
+        tx,
+      );
+      await this.workspaceMembersRepository.addMember(
+        workspace.id,
+        ownerId,
+        Role.OWNER,
+        tx,
+      );
+      return workspace;
+    });
   }
 
   async findById(id: string, userId: string): Promise<WorkspaceEntity> {
@@ -39,7 +56,7 @@ export class WorkspacesService {
       throw new NotFoundException('Workspace not found');
     }
 
-    const membership = await this.workspacesRepository.findMembership(
+    const membership = await this.workspaceMembersRepository.findMembership(
       id,
       userId,
     );
@@ -51,7 +68,13 @@ export class WorkspacesService {
   }
 
   async findAllByUserId(userId: string): Promise<WorkspaceEntity[]> {
-    return this.workspacesRepository.findAllByUserId(userId);
+    const memberships =
+      await this.workspaceMembersRepository.findAllByUserId(userId);
+    const workspaceIds = memberships.map(
+      (membership) => membership.workspaceId,
+    );
+
+    return this.workspacesRepository.findByIds(workspaceIds);
   }
 
   async update(
@@ -87,7 +110,7 @@ export class WorkspacesService {
       throw new NotFoundException('Workspace not found');
     }
 
-    const membership = await this.workspacesRepository.findMembership(
+    const membership = await this.workspaceMembersRepository.findMembership(
       workspaceId,
       userId,
     );
@@ -105,7 +128,7 @@ export class WorkspacesService {
     workspaceId: string,
     actorId: string,
   ): Promise<WorkspaceMemberEntity> {
-    const membership = await this.workspacesRepository.findMembership(
+    const membership = await this.workspaceMembersRepository.findMembership(
       workspaceId,
       actorId,
     );
@@ -125,7 +148,7 @@ export class WorkspacesService {
     workspaceId: string,
     userId: string,
   ): Promise<WorkspaceMemberEntity> {
-    const membership = await this.workspacesRepository.findMembership(
+    const membership = await this.workspaceMembersRepository.findMembership(
       workspaceId,
       userId,
     );

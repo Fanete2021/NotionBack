@@ -4,7 +4,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { Role } from '@prisma/client';
-import { WorkspacesRepository } from '@modules/workspaces/workspaces.repository';
+import { WorkspaceMembersRepository } from '@modules/workspaces/workspace-members.repository';
 import { WorkspaceMemberEntity } from '@modules/workspaces/entities';
 import { UsersRepository } from '@modules/users/users.repository';
 import { WorkspacesService } from '@modules/workspaces/workspaces.service';
@@ -13,13 +13,13 @@ import { rethrowAddMemberError } from '@modules/workspaces/utils';
 @Injectable()
 export class WorkspaceMembersService {
   constructor(
-    private readonly workspacesRepository: WorkspacesRepository,
+    private readonly workspaceMembersRepository: WorkspaceMembersRepository,
     private readonly usersRepository: UsersRepository,
     private readonly workspacesService: WorkspacesService,
   ) {}
 
   async listMembers(workspaceId: string): Promise<WorkspaceMemberEntity[]> {
-    return this.workspacesRepository.findAllMembers(workspaceId);
+    return this.workspaceMembersRepository.findAllMembers(workspaceId);
   }
 
   async addMember(
@@ -46,7 +46,7 @@ export class WorkspaceMembersService {
     }
 
     try {
-      return await this.workspacesRepository.addMember(
+      return await this.workspaceMembersRepository.addMember(
         workspaceId,
         userId,
         role,
@@ -62,7 +62,7 @@ export class WorkspaceMembersService {
     role: Role,
   ): Promise<WorkspaceMemberEntity> {
     try {
-      return await this.workspacesRepository.addMember(
+      return await this.workspaceMembersRepository.addMember(
         workspaceId,
         userId,
         role,
@@ -87,7 +87,7 @@ export class WorkspaceMembersService {
       throw new ForbiddenException('You cannot change your own role');
     }
 
-    const targetMembership = await this.workspacesRepository.findMembership(
+    const targetMembership = await this.workspaceMembersRepository.findMembership(
       workspaceId,
       userId,
     );
@@ -107,7 +107,7 @@ export class WorkspaceMembersService {
       );
     }
 
-    const updated = await this.workspacesRepository.changeRole(
+    const updated = await this.workspaceMembersRepository.changeRole(
       workspaceId,
       userId,
       role,
@@ -132,7 +132,7 @@ export class WorkspaceMembersService {
       throw new ForbiddenException('You cannot remove yourself');
     }
 
-    const targetMembership = await this.workspacesRepository.findMembership(
+    const targetMembership = await this.workspaceMembersRepository.findMembership(
       workspaceId,
       userId,
     );
@@ -142,7 +142,7 @@ export class WorkspaceMembersService {
 
     this.assertCanChangeRole(actorMembership, targetMembership);
 
-    const removed = await this.workspacesRepository.removeMember(
+    const removed = await this.workspaceMembersRepository.removeMember(
       workspaceId,
       userId,
     );
