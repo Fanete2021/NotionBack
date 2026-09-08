@@ -1,18 +1,18 @@
-export type TokenData = {
+type TokenData = {
   userId: string;
   email: string;
 };
 
-export type RefreshData = {
+type RefreshData = {
   token: string;
 };
 
-export type RevokeData = {
+type RevokeData = {
   userId: string;
   token?: string;
 };
 
-export type TokenPair = {
+type TokenPair = {
   accessToken: string;
   refreshToken: string;
   user: {
@@ -21,18 +21,28 @@ export type TokenPair = {
   };
 };
 
-export type RefreshSession = {
+type RefreshSession = {
   userId: string;
   refreshTokenId: string;
 };
 
-export type TokenPayload = {
+type TokenPayload = {
   sub: string;
   email: string;
 };
 
-export type RefreshTokenPayload = {
+type RefreshTokenPayload = {
   sub: string;
   email: string;
   jti: string;
+};
+
+export type {
+  TokenData,
+  RefreshData,
+  RevokeData,
+  TokenPair,
+  RefreshSession,
+  TokenPayload,
+  RefreshTokenPayload,
 };
