@@ -1,31 +1,26 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma, Role, Workspace } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
-import { WorkspaceMemberEntity } from './entities/workspace-member.entity';
-import { WorkspaceEntity } from './entities/workspace.entity';
-import { isNotFoundError } from '../../common/utils/prisma.utils';
-import { MEMBER_USER_SELECT } from './constants/workspace-member.constants';
-import { WorkspaceMemberWithUser } from './types/workspace-member.types';
-import { WorkspaceMemberUserEntity } from './entities/workspace-member-user.entity';
+import { Prisma, Workspace } from '@prisma/client';
+import { PrismaService } from '../../prisma';
+import { WorkspaceEntity } from '@modules/workspaces/entities';
+import { isNotFoundError } from '@common/utils';
+
+type TransactionClient = Prisma.TransactionClient;
 
 @Injectable()
 export class WorkspacesRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(ownerId: string, name: string): Promise<WorkspaceEntity> {
-    const result = await this.prisma.$transaction(async (tx) => {
-      const workspace = await tx.workspace.create({
-        data: { name, ownerId },
-      });
-
-      await tx.workspaceMember.create({
-        data: { workspaceId: workspace.id, userId: ownerId, role: 'OWNER' },
-      });
-
-      return workspace;
+  async create(
+    ownerId: string,
+    name: string,
+    tx?: TransactionClient,
+  ): Promise<WorkspaceEntity> {
+    const client = tx ?? this.prisma;
+    const workspace = await client.workspace.create({
+      data: { name, ownerId },
     });
 
-    return this.mapToEntity(result);
+    return this.mapToEntity(workspace);
   }
 
   async findById(id: string): Promise<WorkspaceEntity | null> {
@@ -38,6 +33,24 @@ export class WorkspacesRepository {
     }
 
     return this.mapToEntity(workspace);
+  }
+
+  async findByIds(ids: string[]): Promise<WorkspaceEntity[]> {
+    if (ids.length === 0) {
+      return [];
+    }
+
+    const workspaces = await this.prisma.workspace.findMany({
+      where: { id: { in: ids } },
+    });
+    const byId = new Map(
+      workspaces.map((workspace) => [workspace.id, workspace]),
+    );
+
+    return ids
+      .map((id) => byId.get(id))
+      .filter((workspace): workspace is Workspace => workspace !== undefined)
+      .map((workspace) => this.mapToEntity(workspace));
   }
 
   async findAllByUserId(userId: string): Promise<WorkspaceEntity[]> {
@@ -91,85 +104,6 @@ export class WorkspacesRepository {
     }
   }
 
-  async addMember(
-    workspaceId: string,
-    userId: string,
-    role: Role = Role.EDITOR,
-  ): Promise<WorkspaceMemberEntity> {
-    const member = await this.prisma.workspaceMember.create({
-      data: { workspaceId, userId, role },
-      include: { user: { select: MEMBER_USER_SELECT } },
-    });
-
-    return this.mapMemberToEntity(member);
-  }
-
-  async findAllMembers(workspaceId: string): Promise<WorkspaceMemberEntity[]> {
-    const members = await this.prisma.workspaceMember.findMany({
-      where: { workspaceId },
-      include: { user: { select: MEMBER_USER_SELECT } },
-      orderBy: { createdAt: 'asc' },
-    });
-
-    return members.map((member) => this.mapMemberToEntity(member));
-  }
-
-  async changeRole(
-    workspaceId: string,
-    userId: string,
-    role: Role,
-  ): Promise<WorkspaceMemberEntity | null> {
-    const member = await this.prisma.workspaceMember
-      .update({
-        where: {
-          workspaceId_userId: { workspaceId, userId },
-        },
-        data: { role },
-        include: { user: { select: MEMBER_USER_SELECT } },
-      })
-      .catch((error) => {
-        if (isNotFoundError(error)) {
-          return null;
-        }
-        throw error;
-      });
-
-    return member ? this.mapMemberToEntity(member) : null;
-  }
-
-  async removeMember(workspaceId: string, userId: string): Promise<boolean> {
-    try {
-      await this.prisma.workspaceMember.delete({
-        where: {
-          workspaceId_userId: { workspaceId, userId },
-        },
-      });
-      return true;
-    } catch (error) {
-      if (isNotFoundError(error)) {
-        return false;
-      }
-      throw error;
-    }
-  }
-
-  async findMembership(
-    workspaceId: string,
-    userId: string,
-  ): Promise<WorkspaceMemberEntity | null> {
-    const member = await this.prisma.workspaceMember.findUnique({
-      where: {
-        workspaceId_userId: { workspaceId, userId },
-      },
-    });
-
-    if (!member) {
-      return null;
-    }
-
-    return this.mapMemberToEntity(member);
-  }
-
   private mapToEntity(workspace: Workspace): WorkspaceEntity {
     return new WorkspaceEntity(
       workspace.id,
@@ -177,24 +111,6 @@ export class WorkspacesRepository {
       workspace.ownerId,
       workspace.isPublic,
       workspace.createdAt,
-    );
-  }
-
-  private mapMemberToEntity(
-    member: WorkspaceMemberWithUser,
-  ): WorkspaceMemberEntity {
-    return new WorkspaceMemberEntity(
-      member.id,
-      member.role,
-      member.createdAt,
-      member.user
-        ? new WorkspaceMemberUserEntity({
-            id: member.user.id,
-            name: member.user.name,
-            email: member.user.email,
-            avatarUrl: member.user.avatarUrl,
-          })
-        : undefined,
     );
   }
 }

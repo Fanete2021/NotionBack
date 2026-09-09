@@ -1,20 +1,22 @@
-export type RegisterData = {
+type RegisterData = {
   email: string;
   password: string;
   name: string;
   avatarUrl?: string;
 };
 
-export type LoginData = {
+type LoginData = {
   email: string;
   password: string;
 };
 
-export type LogoutData = {
+type LogoutData = {
   userId: string;
   token?: string;
 };
 
-export type LogoutResult = {
+type LogoutResult = {
   message: string;
 };
+
+export type { RegisterData, LoginData, LogoutData, LogoutResult };

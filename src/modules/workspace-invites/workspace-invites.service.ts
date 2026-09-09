@@ -1,41 +1,27 @@
 import {
   ForbiddenException,
   Injectable,
-  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Role } from '@prisma/client';
-import { createHash, randomBytes } from 'crypto';
-import { RedisClient } from '../../common/providers/redis-client';
-import { WorkspacesService } from '../workspaces/workspaces.service';
-import { WorkspaceMemberEntity } from '../workspaces/entities/workspace-member.entity';
-import { WorkspaceInvitesRepository } from './workspace-invites.repository';
-import { WorkspaceInviteEntity } from './entities/workspace-invite.entity';
-import { WorkspaceInviteSummaryEntity } from './entities/workspace-invite-summary.entity';
-import {
-  WorkspaceInviteType,
-  StoredWorkspaceInvite,
-} from './types/workspace-invite.types';
-
-const WORKSPACE_INVITE_KEY_PREFIX = 'workspace_invite:';
-
-const WORKSPACE_INVITE_ROLES: readonly Role[] = [Role.VIEWER, Role.EDITOR];
-
-interface ConsumedWorkspaceInvite {
-  raw: string;
-  stored: StoredWorkspaceInvite;
-  remainingTtl: number;
-}
+import { randomBytes } from 'crypto';
+import { WorkspacesService } from '@modules/workspaces/workspaces.service';
+import { WorkspaceInvitesRepository } from '@modules/workspace-invites/workspace-invites.repository';
+import { WorkspaceInviteEntity } from '@modules/workspace-invites/entities';
+import { WorkspaceInviteSummaryEntity } from '@modules/workspace-invites/entities';
+import { WorkspaceInviteType } from '@modules/workspace-invites/types';
+import { WORKSPACE_INVITE_ROLES } from '@modules/workspace-invites/constants';
+import { hashInviteToken } from '@modules/workspace-invites/utils';
+import { buildInviteUrl } from '@modules/workspace-invites/utils';
+import { TemporaryInviteStore } from '@modules/workspace-invites/temporary-invite.store';
 
 @Injectable()
 export class WorkspaceInvitesService {
-  private readonly logger = new Logger(WorkspaceInvitesService.name);
-
   constructor(
     private readonly invitesRepository: WorkspaceInvitesRepository,
     private readonly workspacesService: WorkspacesService,
-    private readonly redis: RedisClient,
+    private readonly temporaryInvites: TemporaryInviteStore,
     private readonly configService: ConfigService,
   ) {}
 
@@ -54,29 +40,24 @@ export class WorkspaceInvitesService {
     }
 
     const token = randomBytes(32).toString('base64url');
-    const tokenHash = this.hashToken(token);
+    const tokenHash = hashInviteToken(token);
+    const url = this.buildUrl(token);
 
     if (type === WorkspaceInviteType.TEMPORARY) {
       const ttlSeconds = this.configService.get<number>(
         'INVITE_TTL_SECONDS',
         86400,
       );
-      const stored: StoredWorkspaceInvite = {
-        workspaceId,
-        role,
-        createdBy: actorId,
-      };
 
-      await this.redis.set(
-        WORKSPACE_INVITE_KEY_PREFIX + tokenHash,
-        JSON.stringify(stored),
-        'EX',
+      await this.temporaryInvites.save(
+        tokenHash,
+        { workspaceId, role, createdBy: actorId },
         ttlSeconds,
       );
 
       return new WorkspaceInviteEntity(
         token,
-        this.buildUrl(token),
+        url,
         type,
         role,
         new Date(Date.now() + ttlSeconds * 1000),
@@ -86,13 +67,7 @@ export class WorkspaceInvitesService {
     await this.assertInviteLimitNotReached(workspaceId);
     await this.invitesRepository.create(workspaceId, actorId, tokenHash, role);
 
-    return new WorkspaceInviteEntity(
-      token,
-      this.buildUrl(token),
-      type,
-      role,
-      null,
-    );
+    return new WorkspaceInviteEntity(token, url, type, role, null);
   }
 
   async list(
@@ -120,120 +95,6 @@ export class WorkspaceInvitesService {
     }
   }
 
-  async redeem(userId: string, token: string): Promise<WorkspaceMemberEntity> {
-    const tokenHash = this.hashToken(token);
-    const key = WORKSPACE_INVITE_KEY_PREFIX + tokenHash;
-
-    const consumed = await this.consumeTemporaryInvite(key);
-
-    let workspaceId: string;
-    let role: Role;
-
-    if (consumed) {
-      workspaceId = consumed.stored.workspaceId;
-      role = consumed.stored.role;
-    } else {
-      const invite = await this.invitesRepository.findByTokenHash(tokenHash);
-      if (!invite) {
-        throw new NotFoundException('Invite is invalid or expired');
-      }
-      workspaceId = invite.workspaceId;
-      role = invite.role;
-    }
-
-    try {
-      return await this.workspacesService.addMemberViaInvite(
-        workspaceId,
-        userId,
-        role,
-      );
-    } catch (error) {
-      if (consumed) {
-        await this.restoreInvite(key, consumed);
-      }
-      throw error;
-    }
-  }
-
-  private async consumeTemporaryInvite(
-    key: string,
-  ): Promise<ConsumedWorkspaceInvite | null> {
-    let remainingTtl: number;
-    let raw: string | null;
-
-    try {
-      remainingTtl = await this.redis.ttl(key);
-      raw = await this.redis.getdel(key);
-    } catch (error) {
-      this.logger.warn(
-        'Redis is unavailable, falling back to database invites',
-        error instanceof Error ? error.stack : undefined,
-      );
-      return null;
-    }
-
-    if (!raw) {
-      return null;
-    }
-
-    const stored = this.parseStoredInvite(raw);
-    if (!stored) {
-      this.logger.error(`Discarded a malformed invite payload at ${key}`);
-      return null;
-    }
-
-    return { raw, stored, remainingTtl };
-  }
-
-  private parseStoredInvite(raw: string): StoredWorkspaceInvite | null {
-    let parsed: unknown;
-
-    try {
-      parsed = JSON.parse(raw);
-    } catch {
-      return null;
-    }
-
-    if (typeof parsed !== 'object' || parsed === null) {
-      return null;
-    }
-
-    const { workspaceId, role, createdBy } = parsed as Record<string, unknown>;
-
-    if (typeof workspaceId !== 'string' || workspaceId.length === 0) {
-      return null;
-    }
-    if (typeof createdBy !== 'string' || createdBy.length === 0) {
-      return null;
-    }
-    if (
-      typeof role !== 'string' ||
-      !WORKSPACE_INVITE_ROLES.includes(role as Role)
-    ) {
-      return null;
-    }
-
-    return { workspaceId, role: role as Role, createdBy };
-  }
-
-  private async restoreInvite(
-    key: string,
-    consumed: ConsumedWorkspaceInvite,
-  ): Promise<void> {
-    if (consumed.remainingTtl <= 0) {
-      return;
-    }
-
-    try {
-      await this.redis.set(key, consumed.raw, 'EX', consumed.remainingTtl);
-    } catch (error) {
-      this.logger.error(
-        `Failed to restore a temporary invite at ${key}`,
-        error instanceof Error ? error.stack : undefined,
-      );
-    }
-  }
-
   private async assertInviteLimitNotReached(
     workspaceId: string,
   ): Promise<void> {
@@ -252,15 +113,12 @@ export class WorkspaceInvitesService {
     }
   }
 
-  private hashToken(token: string): string {
-    return createHash('sha256').update(token).digest('hex');
-  }
-
   private buildUrl(token: string): string {
-    const frontUrl = this.configService
-      .get<string>('FRONT_URL', 'http://localhost:3000')
-      .replace(/\/+$/, '');
+    const frontUrl = this.configService.get<string>(
+      'FRONT_URL',
+      'http://localhost:3000',
+    );
 
-    return `${frontUrl}/join/${token}`;
+    return buildInviteUrl(frontUrl, token);
   }
 }

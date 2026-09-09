@@ -6,22 +6,22 @@ import {
   Logger,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { UsersRepository } from '../users/users.repository';
+import { UsersRepository } from '@modules/users/users.repository';
 import * as bcrypt from 'bcrypt';
 import {
   TokenData,
   TokenPair,
   RefreshData,
   RevokeData,
-} from './types/token.types';
-import { TokenService } from './token.service';
+} from '@modules/auth/types';
+import { TokenService } from '@modules/auth/token.service';
 import {
   LoginData,
   LogoutData,
   LogoutResult,
   RegisterData,
-} from './types/auth.types';
-import { CreateUserData } from '../users/types/users.types';
+} from '@modules/auth/types';
+import { CreateUserData } from '@modules/users/types';
 
 @Injectable()
 export class AuthService {

@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ProjectsService } from './projects.service';
-import { ProjectsRepository } from './projects.repository';
+import { ProjectsService } from '@modules/projects/projects.service';
+import { ProjectsRepository } from '@modules/projects/projects.repository';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 
 describe('ProjectsService', () => {

@@ -11,22 +11,18 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { Request } from 'express';
-import { ProjectsService } from './projects.service';
-import { UpdateProjectDto } from './dto/update-project.dto';
-import { ProjectEntity } from './entities/project.entity';
-import { WorkspaceMemberGuard } from '../workspaces/guards/workspace-member.guard';
-import { WorkspaceProjectGuard } from './guards/workspace-project.guard';
+import { ProjectsService } from '@modules/projects/projects.service';
+import { UpdateProjectDto } from '@modules/projects/dto';
+import { ProjectEntity } from '@modules/projects/entities';
+import { WorkspaceMemberGuard } from '@modules/workspace-members/guards';
+import { WorkspaceProjectGuard } from '@modules/projects/guards';
 import {
   ProjectControllerResponse,
   ProjectDeleteResponse,
   ProjectFindByIdResponse,
   ProjectUpdateResponse,
-} from './decorators/project-swagger.decorator';
-
-interface AuthenticatedRequest extends Request {
-  project?: ProjectEntity;
-}
+} from '@modules/projects/decorators';
+import type { AuthenticatedRequest } from '@modules/projects/types';
 
 @ProjectControllerResponse()
 @UseGuards(WorkspaceProjectGuard, WorkspaceMemberGuard)

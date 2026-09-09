@@ -12,23 +12,21 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AuthGuard } from '@nestjs/passport';
-import { AuthService } from './auth.service';
-import { RegisterDto } from './dto/register.dto';
-import { LoginDto } from './dto/login.dto';
-import { LogoutDto } from './dto/logout.dto';
-import { AuthResponseDto } from './dto/auth-response.dto';
+import { AuthService } from '@modules/auth/auth.service';
+import { RegisterDto } from '@modules/auth/dto';
+import { LoginDto } from '@modules/auth/dto';
+import { LogoutDto } from '@modules/auth/dto';
+import { AuthResponseDto } from '@modules/auth/dto';
 import type { Request, Response } from 'express';
-import type { UserPayload } from '../../common/types/user-payload.type';
-import { LogoutData, LogoutResult } from './types/auth.types';
-import { RefreshData } from './types/token.types';
-import {
-  COOKIE_NAMES,
-  getCookieValue,
-  setRefreshTokenCookie,
-  clearRefreshTokenCookie,
-  SameSite,
-} from '../../common/utils/cookies';
-import { Public } from '../../common/decorators/public.decorator';
+import type { UserPayload } from '@common/types';
+import { LogoutData, LogoutResult } from '@modules/auth/types';
+import { RefreshData } from '@modules/auth/types';
+import { COOKIE_NAMES } from '@common/constants';
+import { SameSite } from '@common/types';
+import { getCookieValue } from '@common/utils';
+import { setRefreshTokenCookie } from '@common/utils';
+import { clearRefreshTokenCookie } from '@common/utils';
+import { Public } from '@common/decorators';
 import {
   AuthControllerResponse,
   LoginResponse,
@@ -36,7 +34,7 @@ import {
   MeResponse,
   RefreshResponse,
   RegisterResponse,
-} from './decorators/auth-swagger.decorator';
+} from '@modules/auth/decorators';
 
 @AuthControllerResponse()
 @Controller('auth')

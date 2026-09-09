@@ -1,12 +1,21 @@
 import { Role } from '@prisma/client';
 
-export enum WorkspaceInviteType {
+enum WorkspaceInviteType {
   TEMPORARY = 'TEMPORARY',
   PERMANENT = 'PERMANENT',
 }
 
-export interface StoredWorkspaceInvite {
+interface StoredWorkspaceInvite {
   workspaceId: string;
   role: Role;
   createdBy: string;
 }
+
+interface ConsumedWorkspaceInvite {
+  raw: string;
+  stored: StoredWorkspaceInvite;
+  remainingTtl: number;
+}
+
+export { WorkspaceInviteType };
+export type { StoredWorkspaceInvite, ConsumedWorkspaceInvite };
