@@ -1,7 +1,7 @@
 import { applyDecorators } from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiResponse } from '@nestjs/swagger';
+import { ApiWorkspaceForbidden } from '../../../common/decorators/api-workspace-forbidden.decorator';
 import { AttachmentEntity } from '../entities/';
-import { ApiWorkspaceForbidden } from 'src/common/decorators/api-workspace-forbidden.decorator';
 
 export function ApiConfirmAttachment() {
   return applyDecorators(
