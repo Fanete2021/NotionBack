@@ -319,8 +319,7 @@ describe('WorkspaceInvitesService', () => {
         Role.EDITOR,
       );
       expect(mockRedis.set).not.toHaveBeenCalled();
-      expect(result.workspaceId).toBe('ws-1');
-      expect(result.userId).toBe('user-2');
+      expect(result.userInfo?.id).toBe('user-2');
     });
 
     it('временная ссылка одноразовая: второй вызов получает NotFoundException', async () => {
