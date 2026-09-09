@@ -3,12 +3,12 @@ import { Prisma, Role, Workspace } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
   WorkspaceMemberEntity,
-  WorkspaceMemberUserEntity,
 } from './entities/workspace-member.entity';
 import { WorkspaceEntity } from './entities/workspace.entity';
 import { isNotFoundError } from '../../common/utils/prisma.utils';
 import { MEMBER_USER_SELECT } from './constants/workspace-member.constants';
 import { WorkspaceMemberWithUser } from './types/workspace-member.types';
+import { WorkspaceMemberUserEntity } from './entities/workspace-member-user.entity';
 
 @Injectable()
 export class WorkspacesRepository {
@@ -187,8 +187,6 @@ export class WorkspacesRepository {
   ): WorkspaceMemberEntity {
     return new WorkspaceMemberEntity(
       member.id,
-      member.workspaceId,
-      member.userId,
       member.role,
       member.createdAt,
       member.user
