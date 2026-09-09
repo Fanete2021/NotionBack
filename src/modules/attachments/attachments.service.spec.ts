@@ -7,7 +7,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import { PagesService } from '../pages/pages.service';
-import { S3StorageService } from '../s3/services';
+import { S3ObjectService, S3UrlService } from '../s3';
 import { WorkspacesService } from '../workspaces/workspaces.service';
 import { AttachmentsMapper } from './attachments.mapper';
 import { AttachmentsRepository } from './attachments.repository';
@@ -40,12 +40,14 @@ describe('AttachmentsService', () => {
     markConfirmed: jest.fn(),
     delete: jest.fn(),
   };
-  const mockStorage = {
+  const s3UrlService = {
     getUploadUrl: jest.fn(),
+    buildPublicUrl: jest.fn(),
+  };
+  const s3ObjectService = {
     getObjectInfo: jest.fn(),
     deleteObject: jest.fn(),
     updateTags: jest.fn(),
-    buildPublicUrl: jest.fn(),
   };
   const mockPagesService = { findById: jest.fn() };
   const mockWorkspacesService = { assertMemberOf: jest.fn() };
@@ -67,7 +69,7 @@ describe('AttachmentsService', () => {
   beforeEach(async () => {
     jest.resetAllMocks();
 
-    mockStorage.deleteObject.mockResolvedValue(undefined);
+    s3ObjectService.deleteObject.mockResolvedValue(undefined);
     mockAttachmentsRepository.delete.mockResolvedValue(undefined);
 
     mockConfigService.get.mockImplementation((key: string) => {
@@ -78,7 +80,7 @@ describe('AttachmentsService', () => {
       };
       return map[key];
     });
-    mockStorage.buildPublicUrl.mockImplementation(
+    s3UrlService.buildPublicUrl.mockImplementation(
       (key: string) => `http://cdn.test/${key}`,
     );
     mockAttachmentMapper.toEntity.mockImplementation(
@@ -99,7 +101,8 @@ describe('AttachmentsService', () => {
       providers: [
         AttachmentsService,
         { provide: AttachmentsRepository, useValue: mockAttachmentsRepository },
-        { provide: S3StorageService, useValue: mockStorage },
+        { provide: S3ObjectService, useValue: s3ObjectService },
+        { provide: S3UrlService, useValue: s3UrlService },
         { provide: PagesService, useValue: mockPagesService },
         { provide: WorkspacesService, useValue: mockWorkspacesService },
         { provide: ConfigService, useValue: mockConfigService },
@@ -118,7 +121,7 @@ describe('AttachmentsService', () => {
       });
       mockWorkspacesService.assertMemberOf.mockResolvedValue(undefined);
 
-      mockStorage.getUploadUrl.mockResolvedValue({
+      s3UrlService.getUploadUrl.mockResolvedValue({
         url: 'https://s3.test/signed',
         method: 'PUT',
         headers: {
@@ -150,7 +153,7 @@ describe('AttachmentsService', () => {
         'ws-1',
         'user-1',
       );
-      expect(mockStorage.getUploadUrl).toHaveBeenCalledWith(
+      expect(s3UrlService.getUploadUrl).toHaveBeenCalledWith(
         expect.any(String),
         'image/png',
         300,
@@ -186,7 +189,7 @@ describe('AttachmentsService', () => {
     it('подтверждает загрузку после проверки реального файла', async () => {
       mockAttachmentsRepository.findById.mockResolvedValue(pendingAttachment);
       mockWorkspacesService.assertMemberOf.mockResolvedValue(undefined);
-      mockStorage.getObjectInfo.mockResolvedValue({
+      s3ObjectService.getObjectInfo.mockResolvedValue({
         size: 80,
         contentType: 'image/png',
       });
@@ -197,12 +200,12 @@ describe('AttachmentsService', () => {
 
       const result = await service.confirm('user-1', 'att-1');
 
-      expect(mockStorage.getObjectInfo).toHaveBeenCalledWith(
+      expect(s3ObjectService.getObjectInfo).toHaveBeenCalledWith(
         pendingAttachment.key,
       );
       expect(result.status).toBe('CONFIRMED');
       expect(result.publicUrl).toBe(`http://cdn.test/${pendingAttachment.key}`);
-      expect(mockStorage.deleteObject).not.toHaveBeenCalled();
+      expect(s3ObjectService.deleteObject).not.toHaveBeenCalled();
     });
 
     it('идемпотентен для уже подтверждённого вложения', async () => {
@@ -214,7 +217,7 @@ describe('AttachmentsService', () => {
       const result = await service.confirm('user-1', 'att-1');
 
       expect(result.status).toBe('CONFIRMED');
-      expect(mockStorage.getObjectInfo).not.toHaveBeenCalled();
+      expect(s3ObjectService.getObjectInfo).not.toHaveBeenCalled();
       expect(mockAttachmentsRepository.markConfirmed).not.toHaveBeenCalled();
     });
 
@@ -232,13 +235,13 @@ describe('AttachmentsService', () => {
       await expect(service.confirm('user-2', 'att-1')).rejects.toThrow(
         ForbiddenException,
       );
-      expect(mockStorage.getObjectInfo).not.toHaveBeenCalled();
+      expect(s3ObjectService.getObjectInfo).not.toHaveBeenCalled();
     });
 
     it('бросает 400, если файл ещё не загружен в хранилище', async () => {
       mockAttachmentsRepository.findById.mockResolvedValue(pendingAttachment);
       mockWorkspacesService.assertMemberOf.mockResolvedValue(undefined);
-      mockStorage.getObjectInfo.mockResolvedValue(null);
+      s3ObjectService.getObjectInfo.mockResolvedValue(null);
 
       await expect(service.confirm('user-1', 'att-1')).rejects.toThrow(
         BadRequestException,
@@ -249,19 +252,19 @@ describe('AttachmentsService', () => {
     it('удаляет объект и строку, если реальный размер больше лимита (413)', async () => {
       mockAttachmentsRepository.findById.mockResolvedValue(pendingAttachment);
       mockWorkspacesService.assertMemberOf.mockResolvedValue(undefined);
-      mockStorage.getObjectInfo.mockResolvedValue({
+      s3ObjectService.getObjectInfo.mockResolvedValue({
         size: 500,
         contentType: 'image/png',
       });
 
-      mockStorage.deleteObject.mockResolvedValue(undefined);
+      s3ObjectService.deleteObject.mockResolvedValue(undefined);
       mockAttachmentsRepository.delete.mockResolvedValue(undefined);
 
       await expect(service.confirm('user-1', 'att-1')).rejects.toThrow(
         PayloadTooLargeException,
       );
 
-      expect(mockStorage.deleteObject).toHaveBeenCalledWith(
+      expect(s3ObjectService.deleteObject).toHaveBeenCalledWith(
         pendingAttachment.key,
       );
       expect(mockAttachmentsRepository.delete).toHaveBeenCalledWith('att-1');
@@ -274,7 +277,7 @@ describe('AttachmentsService', () => {
         contentType: 'application/zip',
       });
       mockWorkspacesService.assertMemberOf.mockResolvedValue(undefined);
-      mockStorage.getObjectInfo.mockResolvedValue({
+      s3ObjectService.getObjectInfo.mockResolvedValue({
         size: 50,
         contentType: 'application/zip',
       });
@@ -282,7 +285,7 @@ describe('AttachmentsService', () => {
       await expect(service.confirm('user-1', 'att-1')).rejects.toThrow(
         BadRequestException,
       );
-      expect(mockStorage.deleteObject).toHaveBeenCalledWith(
+      expect(s3ObjectService.deleteObject).toHaveBeenCalledWith(
         pendingAttachment.key,
       );
       expect(mockAttachmentsRepository.delete).toHaveBeenCalledWith('att-1');

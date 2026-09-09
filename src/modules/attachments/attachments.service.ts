@@ -8,7 +8,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { AttachmentStatus } from '@prisma/client';
 import { PagesService } from '../pages/pages.service';
-import { S3StorageService } from '../s3/services';
+import { S3ObjectService, S3UrlService } from '../s3';
 import { WorkspacesService } from '../workspaces/workspaces.service';
 import { AttachmentsMapper } from './attachments.mapper';
 import { AttachmentsRepository } from './attachments.repository';
@@ -28,7 +28,8 @@ import { buildStorageKey } from './utils';
 export class AttachmentsService {
   constructor(
     private readonly attachmentsRepository: AttachmentsRepository,
-    private readonly storage: S3StorageService,
+    private readonly s3UrlService: S3UrlService,
+    private readonly s3ObjectService: S3ObjectService,
     private readonly pagesService: PagesService,
     private readonly workspacesService: WorkspacesService,
     private readonly configService: ConfigService,
@@ -48,7 +49,7 @@ export class AttachmentsService {
 
     const key = buildStorageKey(page.workspaceId, page.id, allowed.extension);
 
-    const presignedUrl = await this.storage.getUploadUrl(
+    const presignedUrl = await this.s3UrlService.getUploadUrl(
       key,
       contentType,
       this.getPresignExpiresSeconds(),
@@ -87,14 +88,14 @@ export class AttachmentsService {
 
     await this.assertWorkspaceMember(attachment.workspaceId, userId);
 
-    const stored = await this.storage.getObjectInfo(attachment.key);
+    const stored = await this.s3ObjectService.getObjectInfo(attachment.key);
     if (!stored) {
       throw new BadRequestException('File was not uploaded to the storage yet');
     }
 
     await this.validateStoredFile(attachment, stored.size, stored.contentType);
 
-    await this.storage.updateTags(attachment.key, {
+    await this.s3ObjectService.updateTags(attachment.key, {
       status: 'confirmed',
     });
 
@@ -195,7 +196,7 @@ export class AttachmentsService {
     attachmentId: string,
     key: string,
   ): Promise<void> {
-    await this.storage.deleteObject(key);
+    await this.s3ObjectService.deleteObject(key);
     await this.attachmentsRepository.delete(attachmentId);
   }
 }

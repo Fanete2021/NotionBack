@@ -2,12 +2,7 @@ import { S3Client } from '@aws-sdk/client-s3';
 import { Global, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { S3_CLIENT, S3_CONFIG } from './constants';
-import {
-  S3ObjectService,
-  S3StorageService,
-  S3UrlService,
-  S3ValidationService,
-} from './services';
+import { S3ObjectService, S3UrlService } from './services';
 import { S3Config } from './types';
 
 @Global()
@@ -45,14 +40,7 @@ import { S3Config } from './types';
     },
     S3UrlService,
     S3ObjectService,
-    S3ValidationService,
-    S3StorageService,
   ],
-  exports: [
-    S3StorageService,
-    S3UrlService,
-    S3ObjectService,
-    S3ValidationService,
-  ],
+  exports: [S3UrlService, S3ObjectService],
 })
 export class S3Module {}

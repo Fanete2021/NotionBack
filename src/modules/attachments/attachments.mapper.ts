@@ -1,11 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import { S3StorageService } from '../s3/services';
+import { S3UrlService } from '../s3/services';
 import { AttachmentEntity } from './entities';
 import { AttachmentRecord } from './types';
 
 @Injectable()
 export class AttachmentsMapper {
-  constructor(private readonly storage: S3StorageService) {}
+  constructor(private readonly s3UrlService: S3UrlService) {}
 
   toEntity(attachment: AttachmentRecord): AttachmentEntity {
     return new AttachmentEntity(
@@ -16,7 +16,7 @@ export class AttachmentsMapper {
       attachment.contentType,
       attachment.size,
       attachment.status,
-      this.storage.buildPublicUrl(attachment.key),
+      this.s3UrlService.buildPublicUrl(attachment.key),
       attachment.createdAt,
     );
   }

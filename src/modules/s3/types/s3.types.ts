@@ -1,5 +1,3 @@
-import type { ModuleMetadata, Type } from '@nestjs/common';
-
 interface S3Config {
   endpoint: string;
   region: string;
@@ -10,18 +8,6 @@ interface S3Config {
   forcePathStyle: boolean;
 }
 
-interface S3ModuleOptions {
-  isGlobal?: boolean;
-  config?: Partial<S3Config>;
-}
-
-interface S3ModuleAsyncOptions {
-  imports?: ModuleMetadata['imports'];
-  inject?: Array<Type<unknown> | string | symbol>;
-  useFactory: (...args: unknown[]) => Promise<S3Config> | S3Config;
-  isGlobal?: boolean;
-}
-
 interface StoredObjectInfo {
   size: number;
   contentType?: string;
@@ -29,19 +15,9 @@ interface StoredObjectInfo {
   lastModified?: Date;
 }
 
-interface SizeValidationResult {
-  isValid: boolean;
-  actualSize?: number;
-}
-
 interface S3Object {
   Key?: string;
   LastModified?: Date;
-}
-
-interface DeleteBatchResult {
-  successCount: number;
-  failedKeys?: string[];
 }
 
 interface UploadUrlResult {
@@ -51,13 +27,4 @@ interface UploadUrlResult {
   contentType: string;
 }
 
-export type {
-  DeleteBatchResult,
-  S3Config,
-  S3ModuleAsyncOptions,
-  S3ModuleOptions,
-  S3Object,
-  SizeValidationResult,
-  StoredObjectInfo,
-  UploadUrlResult,
-};
+export type { S3Config, S3Object, StoredObjectInfo, UploadUrlResult };

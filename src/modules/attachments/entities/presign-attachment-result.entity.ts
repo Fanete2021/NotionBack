@@ -5,7 +5,7 @@ class PresignUploadHeaders {
   @ApiProperty({ example: 'image/png' })
   readonly 'Content-Type'!: string;
 
-  @ApiProperty({ example: 'status=PENDING' })
+  @ApiProperty({ example: 'status=pending' })
   readonly 'X-Amz-Tagging'!: string;
 }
 
