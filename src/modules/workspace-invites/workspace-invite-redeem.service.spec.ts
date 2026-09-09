@@ -5,6 +5,10 @@ import { createHash, randomBytes } from 'crypto';
 import { WorkspaceInviteRedeemService } from '@modules/workspace-invites/workspace-invite-redeem.service';
 import { WorkspaceInvitesRepository } from '@modules/workspace-invites/workspace-invites.repository';
 import { WorkspaceMembersService } from '@modules/workspace-members/workspace-members.service';
+import {
+  WorkspaceMemberEntity,
+  WorkspaceMemberUserEntity,
+} from '@modules/workspace-members/entities';
 import { RedisClient } from '@common/providers';
 import { TemporaryInviteStore } from '@modules/workspace-invites/temporary-invite.store';
 
@@ -23,13 +27,16 @@ describe('WorkspaceInviteRedeemService', () => {
     getdel: jest.fn(),
   };
 
-  const member = {
-    id: 'member-1',
-    workspaceId: 'ws-1',
-    userId: 'user-2',
-    role: Role.EDITOR,
-    createdAt: new Date(),
-  };
+  const member = new WorkspaceMemberEntity(
+    'member-1',
+    Role.EDITOR,
+    new Date(),
+    new WorkspaceMemberUserEntity({
+      id: 'user-2',
+      name: 'User Two',
+      email: 'user2@example.com',
+    }),
+  );
 
   const storedInviteJson = JSON.stringify({
     workspaceId: 'ws-1',
@@ -77,8 +84,9 @@ describe('WorkspaceInviteRedeemService', () => {
       Role.EDITOR,
     );
     expect(mockRedis.set).not.toHaveBeenCalled();
-    expect(result.workspaceId).toBe('ws-1');
-    expect(result.userId).toBe('user-2');
+    expect(result.id).toBe('member-1');
+    expect(result.role).toBe(Role.EDITOR);
+    expect(result.userInfo?.id).toBe('user-2');
   });
 
   it('временная ссылка одноразовая: второй вызов получает NotFoundException', async () => {
@@ -112,10 +120,14 @@ describe('WorkspaceInviteRedeemService', () => {
       createdBy: 'actor-1',
       createdAt: new Date(),
     });
-    mockWorkspaceMembersService.addMemberViaInvite.mockResolvedValue({
-      ...member,
-      role: Role.VIEWER,
-    });
+    mockWorkspaceMembersService.addMemberViaInvite.mockResolvedValue(
+      new WorkspaceMemberEntity(
+        'member-1',
+        Role.VIEWER,
+        member.createdAt,
+        member.userInfo,
+      ),
+    );
 
     const result = await service.redeem('user-2', token);
 
@@ -249,10 +261,14 @@ describe('WorkspaceInviteRedeemService', () => {
       createdBy: 'actor-1',
       createdAt: new Date(),
     });
-    mockWorkspaceMembersService.addMemberViaInvite.mockResolvedValue({
-      ...member,
-      role: Role.VIEWER,
-    });
+    mockWorkspaceMembersService.addMemberViaInvite.mockResolvedValue(
+      new WorkspaceMemberEntity(
+        'member-1',
+        Role.VIEWER,
+        member.createdAt,
+        member.userInfo,
+      ),
+    );
 
     const result = await service.redeem('user-2', token);
 
