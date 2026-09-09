@@ -1,3 +1,4 @@
+import './sentry.preload';
 import { NestFactory, Reflector } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { SwaggerModule, DocumentBuilder, OpenAPIObject } from '@nestjs/swagger';
