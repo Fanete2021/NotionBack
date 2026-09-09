@@ -12,6 +12,8 @@ import { WorkspaceInvitesRepository } from './workspace-invites.repository';
 import { WorkspacesService } from '../workspaces/workspaces.service';
 import { RedisClient } from '../../common/providers/redis-client';
 import { WorkspaceInviteType } from './types/workspace-invite.types';
+import { WorkspaceMemberEntity } from '../workspaces/entities/workspace-member.entity';
+import { WorkspaceMemberUserEntity } from '../workspaces/entities/workspace-member-user.entity';
 
 describe('WorkspaceInvitesService', () => {
   let service: WorkspaceInvitesService;
@@ -289,13 +291,19 @@ describe('WorkspaceInvitesService', () => {
   });
 
   describe('redeem', () => {
-    const member = {
-      id: 'member-1',
-      workspaceId: 'ws-1',
-      userId: 'user-2',
-      role: Role.EDITOR,
-      createdAt: new Date(),
-    };
+    const createMember = (role: Role = Role.EDITOR): WorkspaceMemberEntity =>
+      new WorkspaceMemberEntity(
+        'member-1',
+        role,
+        new Date(),
+        new WorkspaceMemberUserEntity({
+          id: 'user-2',
+          name: 'User Two',
+          email: 'user2@example.com',
+        }),
+      );
+
+    const member = createMember();
 
     const storedInviteJson = JSON.stringify({
       workspaceId: 'ws-1',
@@ -351,10 +359,9 @@ describe('WorkspaceInvitesService', () => {
         createdBy: 'actor-1',
         createdAt: new Date(),
       });
-      mockWorkspacesService.addMemberViaInvite.mockResolvedValue({
-        ...member,
-        role: Role.VIEWER,
-      });
+      mockWorkspacesService.addMemberViaInvite.mockResolvedValue(
+        createMember(Role.VIEWER),
+      );
 
       const result = await service.redeem('user-2', token);
 
@@ -480,10 +487,9 @@ describe('WorkspaceInvitesService', () => {
         createdBy: 'actor-1',
         createdAt: new Date(),
       });
-      mockWorkspacesService.addMemberViaInvite.mockResolvedValue({
-        ...member,
-        role: Role.VIEWER,
-      });
+      mockWorkspacesService.addMemberViaInvite.mockResolvedValue(
+        createMember(Role.VIEWER),
+      );
 
       const result = await service.redeem('user-2', token);
 
