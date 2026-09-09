@@ -12,7 +12,7 @@ import { ApiNotFoundResponse } from '@common/decorators/swagger';
 import { ApiForbiddenResponse } from '@common/decorators/swagger';
 import { ProjectEntity } from '@modules/projects/entities';
 
-export function ProjectControllerResponse() {
+function ProjectControllerResponse() {
   return applyDecorators(
     ApiBearerAuth(),
     ApiTags('Проекты'),
@@ -23,7 +23,7 @@ export function ProjectControllerResponse() {
   );
 }
 
-export function ProjectFindByIdResponse() {
+function ProjectFindByIdResponse() {
   return applyDecorators(
     ApiOperation({ summary: 'Получить данные проекта по ID' }),
     ApiParam({ name: 'id', type: String, description: 'ID проекта' }),
@@ -35,7 +35,7 @@ export function ProjectFindByIdResponse() {
   );
 }
 
-export function ProjectUpdateResponse() {
+function ProjectUpdateResponse() {
   return applyDecorators(
     ApiOperation({ summary: 'Обновить данные проекта' }),
     ApiParam({ name: 'id', type: String, description: 'ID проекта' }),
@@ -47,10 +47,17 @@ export function ProjectUpdateResponse() {
   );
 }
 
-export function ProjectDeleteResponse() {
+function ProjectDeleteResponse() {
   return applyDecorators(
     ApiOperation({ summary: 'Удалить проект' }),
     ApiParam({ name: 'id', type: String, description: 'ID проекта' }),
     ApiResponse({ status: 204, description: 'Проект успешно удален' }),
   );
 }
+
+export {
+  ProjectControllerResponse,
+  ProjectFindByIdResponse,
+  ProjectUpdateResponse,
+  ProjectDeleteResponse,
+};

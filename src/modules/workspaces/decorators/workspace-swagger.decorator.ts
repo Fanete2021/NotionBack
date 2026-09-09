@@ -10,7 +10,7 @@ import { ApiUnauthorizedResponse } from '@common/decorators/swagger';
 import { ApiInternalServerErrorResponse } from '@common/decorators/swagger';
 import { WorkspaceEntity } from '@modules/workspaces/entities';
 
-export function WorkspacesControllerResponse() {
+function WorkspacesControllerResponse() {
   return applyDecorators(
     ApiBearerAuth(),
     ApiTags('Воркспейсы'),
@@ -19,7 +19,7 @@ export function WorkspacesControllerResponse() {
   );
 }
 
-export function WorkspacesCreateWorkspaceResponse() {
+function WorkspacesCreateWorkspaceResponse() {
   return applyDecorators(
     ApiOperation({ summary: 'Создать новый воркспейс' }),
     ApiResponse({
@@ -30,7 +30,7 @@ export function WorkspacesCreateWorkspaceResponse() {
   );
 }
 
-export function WorkspacesFindAllByUserIdResponse() {
+function WorkspacesFindAllByUserIdResponse() {
   return applyDecorators(
     ApiOperation({ summary: 'Получить все воркспейсы текущего пользователя' }),
     ApiResponse({
@@ -41,7 +41,7 @@ export function WorkspacesFindAllByUserIdResponse() {
   );
 }
 
-export function WorkspacesFindByIdResponse() {
+function WorkspacesFindByIdResponse() {
   return applyDecorators(
     ApiOperation({ summary: 'Получить данные воркспейса по ID' }),
     ApiParam({
@@ -57,7 +57,7 @@ export function WorkspacesFindByIdResponse() {
   );
 }
 
-export function WorkspacesUpdateResponse() {
+function WorkspacesUpdateResponse() {
   return applyDecorators(
     ApiOperation({ summary: 'Обновить данные воркспейса (только владелец)' }),
     ApiParam({
@@ -73,7 +73,7 @@ export function WorkspacesUpdateResponse() {
   );
 }
 
-export function WorkspacesDeleteResponse() {
+function WorkspacesDeleteResponse() {
   return applyDecorators(
     ApiOperation({ summary: 'Удалить воркспейс (только владелец)' }),
     ApiParam({
@@ -84,3 +84,12 @@ export function WorkspacesDeleteResponse() {
     ApiResponse({ status: 204, description: 'Воркспейс успешно удален' }),
   );
 }
+
+export {
+  WorkspacesControllerResponse,
+  WorkspacesCreateWorkspaceResponse,
+  WorkspacesFindAllByUserIdResponse,
+  WorkspacesFindByIdResponse,
+  WorkspacesUpdateResponse,
+  WorkspacesDeleteResponse,
+};

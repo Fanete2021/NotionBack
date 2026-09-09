@@ -11,7 +11,7 @@ import { ApiUnauthorizedResponse } from '@common/decorators/swagger';
 import { ApiForbiddenResponse } from '@common/decorators/swagger';
 import { ApiInternalServerErrorResponse } from '@common/decorators/swagger';
 
-export function WorkspaceMemberControllerResponse() {
+function WorkspaceMemberControllerResponse() {
   return applyDecorators(
     ApiBearerAuth(),
     ApiTags('Участники воркспейса'),
@@ -21,7 +21,7 @@ export function WorkspaceMemberControllerResponse() {
   );
 }
 
-export function WorkspaceMemberListMembersResponse() {
+function WorkspaceMemberListMembersResponse() {
   return applyDecorators(
     ApiOperation({ summary: 'Получить список участников воркспейса' }),
     ApiParam({
@@ -37,7 +37,7 @@ export function WorkspaceMemberListMembersResponse() {
   );
 }
 
-export function WorkspaceMemberAddMemberResponse() {
+function WorkspaceMemberAddMemberResponse() {
   return applyDecorators(
     ApiOperation({ summary: 'Добавить участника в воркспейс' }),
     ApiParam({
@@ -53,7 +53,7 @@ export function WorkspaceMemberAddMemberResponse() {
   );
 }
 
-export function WorkspaceMemberChangeMemberRoleResponse() {
+function WorkspaceMemberChangeMemberRoleResponse() {
   return applyDecorators(
     ApiOperation({ summary: 'Изменить роль участника в воркспейсе' }),
     ApiParam({
@@ -70,7 +70,7 @@ export function WorkspaceMemberChangeMemberRoleResponse() {
   );
 }
 
-export function WorkspaceMemberRemoveMemberResponse() {
+function WorkspaceMemberRemoveMemberResponse() {
   return applyDecorators(
     ApiOperation({ summary: 'Удалить участника из воркспейса' }),
     ApiParam({
@@ -82,3 +82,11 @@ export function WorkspaceMemberRemoveMemberResponse() {
     ApiResponse({ status: 204, description: 'Участник успешно удален' }),
   );
 }
+
+export {
+  WorkspaceMemberControllerResponse,
+  WorkspaceMemberListMembersResponse,
+  WorkspaceMemberAddMemberResponse,
+  WorkspaceMemberChangeMemberRoleResponse,
+  WorkspaceMemberRemoveMemberResponse,
+};

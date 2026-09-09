@@ -12,11 +12,11 @@ import { ApiWorkspaceForbidden } from '@common/decorators';
 import { PageEntity } from '@modules/pages/entities';
 import { PageContentEntity } from '@modules/pages/entities';
 
-export function PagesControllerResponse() {
+function PagesControllerResponse() {
   return applyDecorators(ApiBearerAuth(), ApiTags('Pages'));
 }
 
-export function PagesCreateResponse() {
+function PagesCreateResponse() {
   return applyDecorators(
     ApiOperation({ summary: 'Create a page in a project' }),
     ApiResponse({
@@ -29,7 +29,7 @@ export function PagesCreateResponse() {
   );
 }
 
-export function PagesFindByIdResponse() {
+function PagesFindByIdResponse() {
   return applyDecorators(
     ApiOperation({ summary: 'Get a page by id' }),
     ApiParam({ name: 'id', type: String, description: 'Page id' }),
@@ -39,7 +39,7 @@ export function PagesFindByIdResponse() {
   );
 }
 
-export function PagesUpdateResponse() {
+function PagesUpdateResponse() {
   return applyDecorators(
     ApiOperation({
       summary: 'Update a page (title, icon, type, project)',
@@ -51,7 +51,7 @@ export function PagesUpdateResponse() {
   );
 }
 
-export function PagesDeleteResponse() {
+function PagesDeleteResponse() {
   return applyDecorators(
     ApiOperation({ summary: 'Soft-delete a page (moves it to trash)' }),
     ApiParam({ name: 'id', type: String, description: 'Page id' }),
@@ -61,7 +61,7 @@ export function PagesDeleteResponse() {
   );
 }
 
-export function PagesGetContentResponse() {
+function PagesGetContentResponse() {
   return applyDecorators(
     ApiOperation({ summary: 'Get a page content (TipTap JSON)' }),
     ApiParam({ name: 'id', type: String, description: 'Page id' }),
@@ -71,7 +71,7 @@ export function PagesGetContentResponse() {
   );
 }
 
-export function PagesUpdateContentResponse() {
+function PagesUpdateContentResponse() {
   return applyDecorators(
     ApiOperation({ summary: 'Overwrite a page content (TipTap JSON)' }),
     ApiParam({ name: 'id', type: String, description: 'Page id' }),
@@ -89,7 +89,7 @@ export function PagesUpdateContentResponse() {
   );
 }
 
-export function PagesFindAllByWorkspaceIdResponse() {
+function PagesFindAllByWorkspaceIdResponse() {
   return applyDecorators(
     ApiOperation({
       summary: 'Get pages of a workspace (optionally of a project)',
@@ -109,3 +109,14 @@ export function PagesFindAllByWorkspaceIdResponse() {
     ApiWorkspaceForbidden(),
   );
 }
+
+export {
+  PagesControllerResponse,
+  PagesCreateResponse,
+  PagesFindByIdResponse,
+  PagesUpdateResponse,
+  PagesDeleteResponse,
+  PagesGetContentResponse,
+  PagesUpdateContentResponse,
+  PagesFindAllByWorkspaceIdResponse,
+};
