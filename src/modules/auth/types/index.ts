@@ -1,10 +1,10 @@
-export type {
+import type {
   RegisterData,
   LoginData,
   LogoutData,
   LogoutResult,
-} from '@modules/auth/types/auth.types';
-export type {
+} from './auth.types';
+import type {
   TokenData,
   RefreshData,
   RevokeData,
@@ -12,4 +12,18 @@ export type {
   RefreshSession,
   TokenPayload,
   RefreshTokenPayload,
-} from '@modules/auth/types/token.types';
+} from './token.types';
+
+export type {
+  RegisterData,
+  LoginData,
+  LogoutData,
+  LogoutResult,
+  TokenData,
+  RefreshData,
+  RevokeData,
+  TokenPair,
+  RefreshSession,
+  TokenPayload,
+  RefreshTokenPayload,
+};

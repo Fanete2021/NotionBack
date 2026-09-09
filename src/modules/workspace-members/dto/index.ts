@@ -1,2 +1,4 @@
-export { AddWorkspaceMemberDto } from '@modules/workspace-members/dto/add-workspace-member.dto';
-export { UpdateMemberRoleDto } from '@modules/workspace-members/dto/update-member-role.dto';
+import { AddWorkspaceMemberDto } from './add-workspace-member.dto';
+import { UpdateMemberRoleDto } from './update-member-role.dto';
+
+export { AddWorkspaceMemberDto, UpdateMemberRoleDto };

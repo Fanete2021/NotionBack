@@ -5,4 +5,4 @@ export {
   WorkspacesFindByIdResponse,
   WorkspacesUpdateResponse,
   WorkspacesDeleteResponse,
-} from '@modules/workspaces/decorators/workspace-swagger.decorator';
+} from './workspace-swagger.decorator';

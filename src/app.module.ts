@@ -11,11 +11,7 @@ import { WorkspaceInvitesModule } from '@modules/workspace-invites/workspace-inv
 import { PagesModule } from '@modules/pages/pages.module';
 import { JwtAuthGuard } from '@common/guards';
 import { RedisClient } from '@common/providers';
-import {
-  appConfig,
-  authConfig,
-  databaseConfig,
-} from './config';
+import { appConfig, authConfig, databaseConfig } from './config';
 import * as Joi from 'joi';
 
 @Global()

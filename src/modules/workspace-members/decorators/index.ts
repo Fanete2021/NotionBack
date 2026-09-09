@@ -4,4 +4,4 @@ export {
   WorkspaceMemberAddMemberResponse,
   WorkspaceMemberChangeMemberRoleResponse,
   WorkspaceMemberRemoveMemberResponse,
-} from '@modules/workspace-members/decorators/workspace-members-swagger.decorator';
+} from './workspace-members-swagger.decorator';

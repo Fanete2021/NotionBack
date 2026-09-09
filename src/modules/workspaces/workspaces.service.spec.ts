@@ -107,10 +107,9 @@ describe('WorkspacesService', () => {
       );
 
       await expect(service.findById('ws-1', 'user-1')).resolves.toBe(workspace);
-      expect(mockWorkspaceMembersRepository.findMembership).toHaveBeenCalledWith(
-        'ws-1',
-        'user-1',
-      );
+      expect(
+        mockWorkspaceMembersRepository.findMembership,
+      ).toHaveBeenCalledWith('ws-1', 'user-1');
     });
 
     it('бросает 404, если воркспейс не найден', async () => {

@@ -24,7 +24,9 @@ describe('WorkspaceMemberGuard', () => {
     updatedAt: new Date('2026-01-01'),
   });
 
-  const createContext = (request: Partial<AuthenticatedRequest>): ExecutionContext =>
+  const createContext = (
+    request: Partial<AuthenticatedRequest>,
+  ): ExecutionContext =>
     ({
       switchToHttp: () => ({
         getRequest: () => request,
@@ -32,7 +34,9 @@ describe('WorkspaceMemberGuard', () => {
     }) as ExecutionContext;
 
   beforeEach(() => {
-    workspacesService = { assertMemberOf: jest.fn().mockResolvedValue(undefined) };
+    workspacesService = {
+      assertMemberOf: jest.fn().mockResolvedValue(undefined),
+    };
     guard = new WorkspaceMemberGuard(
       workspacesService as unknown as WorkspacesService,
     );

@@ -1,8 +1,5 @@
 import type { Response } from 'express';
-import {
-  COOKIE_NAMES,
-  REFRESH_COOKIE_OPTIONS,
-} from '@common/constants';
+import { COOKIE_NAMES, REFRESH_COOKIE_OPTIONS } from '@common/constants';
 import { setRefreshTokenCookie } from '.';
 
 describe('setRefreshTokenCookie', () => {
@@ -35,7 +32,11 @@ describe('setRefreshTokenCookie', () => {
     expect(cookie).toHaveBeenCalledWith(
       COOKIE_NAMES.REFRESH_TOKEN,
       'refresh.jwt',
-      expect.objectContaining({ secure: true, sameSite: 'none', maxAge: 60000 }),
+      expect.objectContaining({
+        secure: true,
+        sameSite: 'none',
+        maxAge: 60000,
+      }),
     );
   });
 

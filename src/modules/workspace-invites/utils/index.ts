@@ -1,2 +1,4 @@
-export { buildInviteUrl } from '@modules/workspace-invites/utils/build-invite-url';
-export { hashInviteToken } from '@modules/workspace-invites/utils/hash-invite-token';
+import { buildInviteUrl } from './build-invite-url';
+import { hashInviteToken } from './hash-invite-token';
+
+export { buildInviteUrl, hashInviteToken };

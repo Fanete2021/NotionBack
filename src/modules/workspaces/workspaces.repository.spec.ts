@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { Prisma, Role } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { WorkspacesRepository } from '@modules/workspaces/workspaces.repository';
 import { PrismaService } from '../../prisma';
 import { WorkspaceEntity } from '@modules/workspaces/entities';
@@ -58,7 +58,9 @@ describe('WorkspacesRepository', () => {
     });
 
     it('использует переданную транзакцию', async () => {
-      const tx = { workspace: { create: jest.fn().mockResolvedValue(workspaceFixture) } };
+      const tx = {
+        workspace: { create: jest.fn().mockResolvedValue(workspaceFixture) },
+      };
 
       await repository.create('user-1', 'My space', tx as never);
 

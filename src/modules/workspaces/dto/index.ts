@@ -1,2 +1,4 @@
-export { CreateWorkspaceDto } from '@modules/workspaces/dto/create-workspace.dto';
-export { UpdateWorkspaceDto } from '@modules/workspaces/dto/update-workspace.dto';
+import { CreateWorkspaceDto } from './create-workspace.dto';
+import { UpdateWorkspaceDto } from './update-workspace.dto';
+
+export { CreateWorkspaceDto, UpdateWorkspaceDto };

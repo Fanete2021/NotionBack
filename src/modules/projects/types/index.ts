@@ -1,2 +1,4 @@
-export type { AuthenticatedRequest } from '@modules/projects/types/authenticated-request.type';
-export type { CreateProjectData } from '@modules/projects/types/projects.types';
+import type { AuthenticatedRequest } from './authenticated-request.type';
+import type { CreateProjectData } from './projects.types';
+
+export type { AuthenticatedRequest, CreateProjectData };

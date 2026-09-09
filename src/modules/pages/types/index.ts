@@ -1,1 +1,1 @@
-export type { CreatePageData } from '@modules/pages/types/pages.types';
+export type { CreatePageData } from './pages.types';

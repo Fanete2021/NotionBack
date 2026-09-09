@@ -1,1 +1,1 @@
-export { WorkspaceMemberGuard } from '@modules/workspace-members/guards/workspace-member.guard';
+export { WorkspaceMemberGuard } from './workspace-member.guard';

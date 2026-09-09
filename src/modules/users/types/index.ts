@@ -1,1 +1,1 @@
-export type { CreateUserData } from '@modules/users/types/users.types';
+export type { CreateUserData } from './users.types';

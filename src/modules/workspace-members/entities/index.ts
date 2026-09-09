@@ -1,1 +1,1 @@
-export { WorkspaceMemberEntity } from '@modules/workspace-members/entities/workspace-member.entity';
+export { WorkspaceMemberEntity } from './workspace-member.entity';

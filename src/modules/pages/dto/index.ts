@@ -1,2 +1,4 @@
-export { CreatePageDto } from '@modules/pages/dto/create-page.dto';
-export { UpdatePageDto } from '@modules/pages/dto/update-page.dto';
+import { CreatePageDto } from './create-page.dto';
+import { UpdatePageDto } from './update-page.dto';
+
+export { CreatePageDto, UpdatePageDto };

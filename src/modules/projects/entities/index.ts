@@ -1,1 +1,3 @@
-export { ProjectEntity } from '@modules/projects/entities/project.entity';
+import { ProjectEntity } from './project.entity';
+
+export { ProjectEntity };

@@ -1,9 +1,6 @@
 import { Controller, Get } from '@nestjs/common';
 import { Public } from '@common/decorators';
-import {
-  HealthControllerResponse,
-  HealthResponse,
-} from './decorators';
+import { HealthControllerResponse, HealthResponse } from './decorators';
 
 @HealthControllerResponse()
 @Controller('health')

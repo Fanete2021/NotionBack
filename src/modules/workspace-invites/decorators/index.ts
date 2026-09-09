@@ -3,4 +3,4 @@ export {
   WorkspaceInvitesCreateResponse,
   WorkspaceInvitesListResponse,
   WorkspaceInvitesRevokeResponse,
-} from '@modules/workspace-invites/decorators/workspace-invites-swagger.decorator';
+} from './workspace-invites-swagger.decorator';

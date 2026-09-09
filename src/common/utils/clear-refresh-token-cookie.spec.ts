@@ -1,8 +1,5 @@
 import type { Response } from 'express';
-import {
-  COOKIE_NAMES,
-  REFRESH_COOKIE_OPTIONS,
-} from '@common/constants';
+import { COOKIE_NAMES, REFRESH_COOKIE_OPTIONS } from '@common/constants';
 import { clearRefreshTokenCookie } from '.';
 
 describe('clearRefreshTokenCookie', () => {

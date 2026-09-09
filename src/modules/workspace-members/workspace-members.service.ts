@@ -90,10 +90,8 @@ export class WorkspaceMembersService {
       throw new ForbiddenException('You cannot change your own role');
     }
 
-    const targetMembership = await this.workspaceMembersRepository.findMembership(
-      workspaceId,
-      userId,
-    );
+    const targetMembership =
+      await this.workspaceMembersRepository.findMembership(workspaceId, userId);
     if (!targetMembership) {
       throw new NotFoundException('Membership not found');
     }
@@ -135,10 +133,8 @@ export class WorkspaceMembersService {
       throw new ForbiddenException('You cannot remove yourself');
     }
 
-    const targetMembership = await this.workspaceMembersRepository.findMembership(
-      workspaceId,
-      userId,
-    );
+    const targetMembership =
+      await this.workspaceMembersRepository.findMembership(workspaceId, userId);
     if (!targetMembership) {
       throw new NotFoundException('Membership not found');
     }

@@ -20,7 +20,9 @@ describe('WorkspaceProjectGuard', () => {
     updatedAt: new Date('2026-01-01'),
   });
 
-  const createContext = (request: Partial<AuthenticatedRequest>): ExecutionContext =>
+  const createContext = (
+    request: Partial<AuthenticatedRequest>,
+  ): ExecutionContext =>
     ({
       switchToHttp: () => ({
         getRequest: () => request,

@@ -1,1 +1,1 @@
-export { ErrorResponseDto } from '@common/dto/error-response.dto';
+export { ErrorResponseDto } from './error-response.dto';

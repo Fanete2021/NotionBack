@@ -8,11 +8,7 @@ import { WorkspaceMembersRepository } from '@modules/workspace-members/workspace
 import { WorkspaceMemberGuard } from '@modules/workspace-members/guards';
 
 @Module({
-  imports: [
-    PrismaModule,
-    UsersModule,
-    forwardRef(() => WorkspacesModule),
-  ],
+  imports: [PrismaModule, UsersModule, forwardRef(() => WorkspacesModule)],
   controllers: [WorkspaceMembersController],
   providers: [
     WorkspaceMembersService,

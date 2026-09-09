@@ -1,1 +1,1 @@
-export { RedisClient } from '@common/providers/redis-client';
+export { RedisClient } from './redis-client';
