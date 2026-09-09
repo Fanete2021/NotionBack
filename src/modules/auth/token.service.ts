@@ -8,12 +8,8 @@ import {
   TokenPair,
   RefreshSession,
   RefreshTokenPayload,
+  RefreshSessionFlags,
 } from './types/token.types';
-
-const REFRESH_SESSION_FLAG = {
-  PERSISTENT: '1',
-  SESSION: '0',
-} as const;
 
 @Injectable()
 export class TokenService {
@@ -53,8 +49,8 @@ export class TokenService {
     await this.redis.set(
       this.refreshTokenKey(data.userId, refreshTokenId),
       data.rememberMe
-        ? REFRESH_SESSION_FLAG.PERSISTENT
-        : REFRESH_SESSION_FLAG.SESSION,
+        ? RefreshSessionFlags.PERSISTENT
+        : RefreshSessionFlags.SESSION,
       'EX',
       refreshExpiresIn,
     );
@@ -96,7 +92,7 @@ export class TokenService {
     return {
       userId: decodedRefreshToken.sub,
       refreshTokenId,
-      rememberMe: storedValue !== REFRESH_SESSION_FLAG.SESSION,
+      rememberMe: storedValue !== RefreshSessionFlags.SESSION,
     };
   }
 

@@ -39,3 +39,8 @@ export type RefreshTokenPayload = {
   email: string;
   jti: string;
 };
+
+export const RefreshSessionFlags = {
+  PERSISTENT: '1',
+  SESSION: '0',
+};

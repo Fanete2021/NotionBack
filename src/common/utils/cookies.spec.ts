@@ -75,7 +75,13 @@ describe('setRefreshTokenCookie / clearRefreshTokenCookie', () => {
   });
 
   it('ставит refresh cookie с переданными secure и sameSite', () => {
-    setRefreshTokenCookie(res, 'refresh.jwt', 2592000, false, 'lax');
+    setRefreshTokenCookie({
+      res,
+      token: 'refresh.jwt',
+      maxAgeSeconds: 2592000,
+      secure: false,
+      sameSite: 'lax',
+    });
 
     expect(cookie).toHaveBeenCalledWith(
       COOKIE_NAMES.REFRESH_TOKEN,
@@ -105,7 +111,13 @@ describe('setRefreshTokenCookie / clearRefreshTokenCookie', () => {
   });
 
   it('прокидывает none + secure для кросс-сайта по HTTPS', () => {
-    setRefreshTokenCookie(res, 'refresh.jwt', 60, true, 'none');
+    setRefreshTokenCookie({
+      res,
+      token: 'refresh.jwt',
+      maxAgeSeconds: 60,
+      secure: true,
+      sameSite: 'none',
+    });
     clearRefreshTokenCookie(res, true, 'none');
 
     expect(cookie).toHaveBeenCalledWith(

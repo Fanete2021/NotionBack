@@ -146,6 +146,6 @@ export class AuthController {
       'COOKIE_SAME_SITE',
       'lax',
     );
-    setRefreshTokenCookie(res, token, maxAgeSeconds, secure, sameSite);
+    setRefreshTokenCookie({ res, token, maxAgeSeconds, secure, sameSite });
   }
 }
