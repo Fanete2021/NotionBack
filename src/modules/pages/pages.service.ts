@@ -2,23 +2,19 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
-  PayloadTooLargeException,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
-import { EMPTY_DOCUMENT, PagesRepository } from './pages.repository';
 import { ProjectsRepository } from '../projects/projects.repository';
-import { PageEntity } from './entities/page.entity';
-import { PageContentEntity } from './entities/page-content.entity';
 import { CreatePageDto } from './dto/create-page.dto';
 import { UpdatePageDto } from './dto/update-page.dto';
+import { PageEntity } from './entities/page.entity';
+import { PagesRepository } from './pages.repository';
 
 @Injectable()
 export class PagesService {
   constructor(
     private readonly pagesRepository: PagesRepository,
     private readonly projectsRepository: ProjectsRepository,
-    private readonly configService: ConfigService,
   ) {}
 
   async create(
@@ -78,50 +74,6 @@ export class PagesService {
     const deleted = await this.pagesRepository.softDelete(page.id);
     if (!deleted) {
       throw new NotFoundException('Page not found');
-    }
-  }
-
-  async getContent(page: PageEntity): Promise<PageContentEntity> {
-    const content = await this.pagesRepository.findContent(page.id);
-    if (!content) {
-      return new PageContentEntity(
-        page.id,
-        EMPTY_DOCUMENT as Prisma.JsonValue,
-        new Date(),
-      );
-    }
-
-    return content;
-  }
-
-  async updateContent(
-    page: PageEntity,
-    json: unknown,
-  ): Promise<PageContentEntity> {
-    if (json === null || json === undefined) {
-      throw new BadRequestException('Page content must be a JSON value');
-    }
-
-    if (typeof json !== 'object' || Array.isArray(json)) {
-      throw new BadRequestException('Page content must be a JSON object');
-    }
-
-    this.assertSizeWithinLimit(json);
-
-    return this.pagesRepository.upsertContent(page.id, json);
-  }
-
-  private assertSizeWithinLimit(json: unknown): void {
-    const maxBytes = this.configService.get<number>(
-      'MAX_PAGE_CONTENT_BYTES',
-      1048576,
-    );
-    const size = Buffer.byteLength(JSON.stringify(json), 'utf8');
-
-    if (size > maxBytes) {
-      throw new PayloadTooLargeException(
-        `Page content exceeds the size limit of ${maxBytes} bytes`,
-      );
     }
   }
 

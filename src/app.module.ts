@@ -1,5 +1,6 @@
+import { BullModule } from '@nestjs/bullmq';
 import { Global, Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RedisClient } from './common/providers/redis-client';
@@ -9,7 +10,11 @@ import databaseConfig from './config/database.config';
 import { HealthController } from './health/health.controller';
 import { AttachmentsModule } from './modules/attachments/attachments.module';
 import { AuthModule } from './modules/auth/auth.module';
-import { PagesModule } from './modules/pages/pages.module';
+import {
+  PagesContentModule,
+  PagesModule,
+  PagesVersionModule,
+} from './modules/pages';
 import { ProjectsModule } from './modules/projects/projects.module';
 import { UsersModule } from './modules/users/users.module';
 import { WorkspaceInvitesModule } from './modules/workspace-invites/workspace-invites.module';
@@ -25,6 +30,15 @@ import { validationSchema } from './validation';
       load: [appConfig, authConfig, databaseConfig],
       validationSchema,
     }),
+    BullModule.forRootAsync({
+      useFactory: (configService: ConfigService) => ({
+        connection: {
+          host: configService.getOrThrow<string>('REDIS_HOST'),
+          port: configService.getOrThrow<number>('REDIS_PORT'),
+        },
+      }),
+      inject: [ConfigService],
+    }),
     PrismaModule,
     AuthModule,
     UsersModule,
@@ -33,6 +47,8 @@ import { validationSchema } from './validation';
     WorkspaceInvitesModule,
     AttachmentsModule,
     PagesModule,
+    PagesContentModule,
+    PagesVersionModule,
   ],
   controllers: [HealthController],
   providers: [

@@ -14,10 +14,7 @@ enum Role {
   VIEWER
 }
 
-enum PageType {
-  DOC
-  ARTICLE
-}
+
 
 enum AttachmentStatus {
   PENDING
@@ -25,19 +22,20 @@ enum AttachmentStatus {
 }
 
 model User {
-  id           String    @id @default(uuid())
-  email        String    @unique
+  id           String   @id @default(uuid())
+  email        String   @unique
   passwordHash String
   name         String
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
   avatarUrl    String?
 
-  ownedWorkspaces Workspace[]        @relation("WorkspaceOwner")
-  memberships     WorkspaceMember[]
-  authoredPages   Page[]
-  createdInvites  WorkspaceInvite[]  @relation("InviteCreator")
-  uploadedAttachments Attachment[]   @relation("AttachmentUploader")
+  ownedWorkspaces     Workspace[]       @relation("WorkspaceOwner")
+  memberships         WorkspaceMember[]
+  authoredPages       Page[]
+  createdInvites      WorkspaceInvite[] @relation("InviteCreator")
+  uploadedAttachments Attachment[]      @relation("AttachmentUploader")
+  pageVersions        PageVersion[]
 
   @@map("users")
 }
@@ -49,12 +47,12 @@ model Workspace {
   isPublic  Boolean  @default(false)
   createdAt DateTime @default(now())
 
-  owner   User              @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-  members WorkspaceMember[]
-  invites WorkspaceInvite[]
+  owner       User              @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members     WorkspaceMember[]
+  invites     WorkspaceInvite[]
   attachments Attachment[]
-  projects Project[]
-  pages    Page[]
+  projects    Project[]
+  pages       Page[]
 
   @@map("workspaces")
 }
@@ -108,46 +106,6 @@ model Project {
   @@unique([workspaceId, parentProjectId, position])
   @@index([workspaceId, parentProjectId])
   @@map("projects")
-}
-
-model Page {
-  id           String    @id @default(uuid())
-  workspaceId  String
-  projectId    String?
-  parentPageId String?
-  title        String
-  icon         String?
-  type         PageType  @default(DOC)
-  authorId     String
-  position     Int       @default(0)
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  deletedAt    DateTime?
-
-  workspace  Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  project    Project?    @relation(fields: [projectId, workspaceId], references: [id, workspaceId], onDelete: Cascade)
-  parentPage Page?       @relation("PageHierarchy", fields: [parentPageId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
-  childPages Page[]      @relation("PageHierarchy")
-  author     User        @relation(fields: [authorId], references: [id], onDelete: Restrict)
-  content    PageContent?
-  attachments Attachment[]
-
-  @@unique([id, workspaceId])
-  @@unique([workspaceId, projectId, parentPageId, position])
-  @@index([workspaceId, parentPageId])
-  @@index([workspaceId, deletedAt])
-  @@map("pages")
-}
-
-model PageContent {
-  pageId    String   @id
-  json      Json
-  yjsState  Bytes?
-  updatedAt DateTime @updatedAt
-
-  page Page @relation(fields: [pageId], references: [id], onDelete: Cascade)
-
-  @@map("page_contents")
 }
 
 model Attachment {

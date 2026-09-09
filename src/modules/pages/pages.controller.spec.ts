@@ -1,8 +1,8 @@
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import { WorkspacesService } from '../workspaces/workspaces.service';
 import { PagesController } from './pages.controller';
 import { PagesService } from './pages.service';
-import { WorkspacesService } from '../workspaces/workspaces.service';
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
 
 describe('PagesController', () => {
   let controller: PagesController;
@@ -133,44 +133,6 @@ describe('PagesController', () => {
         'user-1',
       );
       expect(mockPagesService.delete).toHaveBeenCalledWith(page);
-    });
-  });
-
-  describe('getContent', () => {
-    it('проверяет членство и возвращает контент', async () => {
-      const page = { id: 'p1', workspaceId: 'ws-1' };
-      mockPagesService.findById.mockResolvedValue(page);
-      mockPagesService.getContent.mockResolvedValue({ pageId: 'p1' });
-
-      const result = await controller.getContent('user-1', 'p1');
-
-      expect(mockWorkspacesService.assertMemberOf).toHaveBeenCalledWith(
-        'ws-1',
-        'user-1',
-      );
-      expect(mockPagesService.getContent).toHaveBeenCalledWith(page);
-      expect(result).toEqual({ pageId: 'p1' });
-    });
-  });
-
-  describe('updateContent', () => {
-    it('проверяет членство и перезаписывает контент', async () => {
-      const body = { type: 'doc', content: [] };
-      const page = { id: 'p1', workspaceId: 'ws-1' };
-      mockPagesService.findById.mockResolvedValue(page);
-      mockPagesService.updateContent.mockResolvedValue({
-        pageId: 'p1',
-        json: body,
-      });
-
-      const result = await controller.updateContent('user-1', 'p1', body);
-
-      expect(mockWorkspacesService.assertMemberOf).toHaveBeenCalledWith(
-        'ws-1',
-        'user-1',
-      );
-      expect(mockPagesService.updateContent).toHaveBeenCalledWith(page, body);
-      expect(result).toEqual({ pageId: 'p1', json: body });
     });
   });
 
