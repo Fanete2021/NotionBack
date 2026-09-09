@@ -225,7 +225,7 @@ describe('WorkspacesRepository', () => {
       });
       expect(result).toBeInstanceOf(WorkspaceMemberEntity);
       expect(result.role).toBe(Role.EDITOR);
-      expect(result.user).toEqual({
+      expect(result.userInfo).toEqual({
         id: 'user-2',
         name: userFixture.name,
         email: userFixture.email,
@@ -258,7 +258,7 @@ describe('WorkspacesRepository', () => {
       });
       expect(result).toHaveLength(1);
       expect(result[0]).toBeInstanceOf(WorkspaceMemberEntity);
-      expect(result[0].user).toEqual(userFixture);
+      expect(result[0].userInfo).toEqual(userFixture);
     });
   });
 
@@ -290,7 +290,7 @@ describe('WorkspacesRepository', () => {
         },
       });
       expect(result?.role).toBe(Role.ADMIN);
-      expect(result?.user?.id).toBe('user-2');
+      expect(result?.userInfo?.id).toBe('user-2');
     });
 
     it('возвращает null при P2025', async () => {

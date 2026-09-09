@@ -1,9 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma, Role, Workspace } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
-import {
-  WorkspaceMemberEntity,
-} from './entities/workspace-member.entity';
+import { WorkspaceMemberEntity } from './entities/workspace-member.entity';
 import { WorkspaceEntity } from './entities/workspace.entity';
 import { isNotFoundError } from '../../common/utils/prisma.utils';
 import { MEMBER_USER_SELECT } from './constants/workspace-member.constants';
