@@ -1,6 +1,7 @@
 import { Module, Global } from '@nestjs/common';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
+import { SentryModule, SentryGlobalFilter } from '@sentry/nestjs/setup';
 import { HealthController } from './health/health.controller';
 import { PrismaModule } from './prisma';
 import { AuthModule } from '@modules/auth/auth.module';
@@ -12,11 +13,13 @@ import { PagesModule } from '@modules/pages/pages.module';
 import { JwtAuthGuard } from '@common/guards';
 import { RedisClient } from '@common/providers';
 import { appConfig, authConfig, databaseConfig } from './config';
+import { sentryValidationSchema } from './validation';
 import * as Joi from 'joi';
 
 @Global()
 @Module({
   imports: [
+    SentryModule.forRoot(),
     ConfigModule.forRoot({
       isGlobal: true,
       load: [appConfig, authConfig, databaseConfig],
@@ -43,6 +46,7 @@ import * as Joi from 'joi';
         COOKIE_SAME_SITE: Joi.string()
           .valid('lax', 'strict', 'none')
           .default('lax'),
+        ...sentryValidationSchema,
       }),
     }),
     PrismaModule,
@@ -55,6 +59,10 @@ import * as Joi from 'joi';
   ],
   controllers: [HealthController],
   providers: [
+    {
+      provide: APP_FILTER,
+      useClass: SentryGlobalFilter,
+    },
     RedisClient,
     {
       provide: APP_GUARD,
