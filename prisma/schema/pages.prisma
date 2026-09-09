@@ -1,0 +1,62 @@
+enum PageType {
+  DOC
+  ARTICLE
+}
+
+model Page {
+  id           String    @id @default(uuid())
+  workspaceId  String
+  projectId    String?
+  parentPageId String?
+  title        String
+  icon         String?
+  type         PageType  @default(DOC)
+  authorId     String
+  position     Int       @default(0)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  workspace    Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project      Project?      @relation(fields: [projectId, workspaceId], references: [id, workspaceId], onDelete: Cascade)
+  parentPage   Page?         @relation("PageHierarchy", fields: [parentPageId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
+  childPages   Page[]        @relation("PageHierarchy")
+  author       User          @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  content      PageContent?
+  attachments  Attachment[]
+  pageVersions PageVersion[]
+
+  @@unique([id, workspaceId])
+  @@unique([workspaceId, projectId, parentPageId, position])
+  @@index([workspaceId, parentPageId])
+  @@index([workspaceId, deletedAt])
+  @@map("pages")
+}
+
+model PageContent {
+  pageId    String   @id
+  json      Json
+  yjsState  Bytes?
+  updatedAt DateTime @updatedAt
+
+  page Page @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@map("page_contents")
+}
+
+model PageVersion {
+  id String @id @default(uuid())
+
+  pageId      String
+  authorId    String
+
+  snapshot  Json
+  label     String?
+  createdAt DateTime @default(now())
+
+  page   Page @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  author User @relation(fields: [authorId], references: [id], onDelete: Restrict)
+
+  @@index([pageId, createdAt])
+  @@map("page_versions")
+}

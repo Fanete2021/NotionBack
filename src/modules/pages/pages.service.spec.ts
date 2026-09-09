@@ -1,14 +1,10 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { PagesService } from './pages.service';
-import { PagesRepository } from './pages.repository';
-import { ProjectsRepository } from '../projects/projects.repository';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import {
-  BadRequestException,
-  NotFoundException,
-  PayloadTooLargeException,
-} from '@nestjs/common';
+import { Test, TestingModule } from '@nestjs/testing';
+import { ProjectsRepository } from '../projects/projects.repository';
 import { PageEntity } from './entities/page.entity';
+import { PagesRepository } from './pages.repository';
+import { PagesService } from './pages.service';
 
 describe('PagesService', () => {
   let service: PagesService;
@@ -245,82 +241,6 @@ describe('PagesService', () => {
       await expect(service.delete(pageFixture())).rejects.toThrow(
         NotFoundException,
       );
-    });
-  });
-
-  describe('getContent', () => {
-    it('возвращает пустой документ, если контента ещё нет', async () => {
-      mockPagesRepository.findContent.mockResolvedValue(null);
-
-      const result = await service.getContent(pageFixture());
-
-      expect(result.pageId).toBe('p1');
-      expect(result.json).toEqual({ type: 'doc', content: [] });
-      expect(mockPagesRepository.findContent).toHaveBeenCalledWith('p1');
-    });
-
-    it('возвращает сохранённый контент', async () => {
-      mockPagesRepository.findContent.mockResolvedValue({
-        pageId: 'p1',
-        json: { type: 'doc', content: [{ type: 'paragraph' }] },
-      });
-
-      const result = await service.getContent(pageFixture());
-
-      expect(result.json).toEqual({
-        type: 'doc',
-        content: [{ type: 'paragraph' }],
-      });
-    });
-  });
-
-  describe('updateContent', () => {
-    it('бросает 400, если тело не является JSON-значением', async () => {
-      await expect(service.updateContent(pageFixture(), null)).rejects.toThrow(
-        BadRequestException,
-      );
-      await expect(
-        service.updateContent(pageFixture(), undefined),
-      ).rejects.toThrow(BadRequestException);
-      expect(mockPagesRepository.upsertContent).not.toHaveBeenCalled();
-    });
-
-    it('бросает 400, если тело не является объектом', async () => {
-      await expect(service.updateContent(pageFixture(), 'doc')).rejects.toThrow(
-        BadRequestException,
-      );
-      await expect(
-        service.updateContent(pageFixture(), [1, 2, 3]),
-      ).rejects.toThrow(BadRequestException);
-      expect(mockPagesRepository.upsertContent).not.toHaveBeenCalled();
-    });
-
-    it('бросает 413, если размер превышает лимит', async () => {
-      mockConfigService.get.mockReturnValue(10);
-
-      await expect(
-        service.updateContent(pageFixture(), {
-          type: 'doc',
-          content: [{ type: 'paragraph', text: 'Слишком длинный контент' }],
-        }),
-      ).rejects.toThrow(PayloadTooLargeException);
-      expect(mockPagesRepository.upsertContent).not.toHaveBeenCalled();
-    });
-
-    it('перезаписывает контент целиком', async () => {
-      mockPagesRepository.upsertContent.mockResolvedValue({
-        pageId: 'p1',
-        json: { type: 'doc' },
-      });
-
-      const json = { type: 'doc', content: [{ type: 'paragraph' }] };
-      const result = await service.updateContent(pageFixture(), json);
-
-      expect(mockPagesRepository.upsertContent).toHaveBeenCalledWith(
-        'p1',
-        json,
-      );
-      expect(result.json).toEqual({ type: 'doc' });
     });
   });
 });

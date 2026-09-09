@@ -1,0 +1,3 @@
+const AUTO_SNAPSHOT_DELAY = 60 * 60 * 1000;
+
+export { AUTO_SNAPSHOT_DELAY };

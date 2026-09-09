@@ -1,9 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { PagesRepository } from './pages.repository';
-import { PrismaService } from '../../prisma/prisma.service';
 import { PageType, Prisma } from '@prisma/client';
-import { PageEntity } from './entities/page.entity';
-import { PageContentEntity } from './entities/page-content.entity';
+import { PrismaService } from '../../prisma/prisma.service';
+import { PagesRepository } from './pages.repository';
 
 describe('PagesRepository', () => {
   let repository: PagesRepository;
@@ -39,6 +37,7 @@ describe('PagesRepository', () => {
     id,
     workspaceId: 'ws-1',
     projectId: 'prj-1',
+    parentPageId: null,
     title: `Page ${id}`,
     icon: null,
     type: PageType.DOC,
@@ -46,6 +45,7 @@ describe('PagesRepository', () => {
     position,
     createdAt: new Date('2026-01-01T00:00:00.000Z'),
     updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+    deletedAt: null,
   });
 
   const contentFixture = (
@@ -114,7 +114,7 @@ describe('PagesRepository', () => {
           json: { type: 'doc', content: [] },
         },
       });
-      expect(result).toBeInstanceOf(PageEntity);
+      expect(result).toEqual(pageFixture('p3', 3));
     });
 
     it('вычисляет позицию 0, если страниц в проекте ещё нет', async () => {
@@ -140,7 +140,7 @@ describe('PagesRepository', () => {
           position: 0,
         },
       });
-      expect(result).toBeInstanceOf(PageEntity);
+      expect(result).toEqual(pageFixture('p1', 0));
     });
   });
 
@@ -158,7 +158,7 @@ describe('PagesRepository', () => {
         orderBy: { position: 'asc' },
       });
       expect(result).toHaveLength(2);
-      expect(result[0]).toBeInstanceOf(PageEntity);
+      expect(result[0]).toEqual(pageFixture('p1', 0));
     });
 
     it('фильтрует по projectId, если передан', async () => {
@@ -212,15 +212,16 @@ describe('PagesRepository', () => {
       await expect(repository.findById('ghost')).resolves.toBeNull();
       expect(mockPrisma.page.findUnique).toHaveBeenCalledWith({
         where: { id: 'ghost', deletedAt: null },
+        include: undefined,
       });
     });
 
-    it('возвращает сущность страницы', async () => {
+    it('возвращает страницу по id', async () => {
       mockPrisma.page.findUnique.mockResolvedValue(pageFixture('p1', 0));
 
       const result = await repository.findById('p1');
 
-      expect(result).toBeInstanceOf(PageEntity);
+      expect(result).toEqual(pageFixture('p1', 0));
       expect(result?.id).toBe('p1');
     });
   });
@@ -234,8 +235,9 @@ describe('PagesRepository', () => {
       ).resolves.toBeNull();
     });
 
-    it('обновляет и возвращает сущность', async () => {
-      mockPrisma.page.update.mockResolvedValue(pageFixture('p1', 0));
+    it('обновляет и возвращает страницу', async () => {
+      const updatedFixture = { ...pageFixture('p1', 0), title: 'New' };
+      mockPrisma.page.update.mockResolvedValue(updatedFixture);
 
       const result = await repository.update('p1', { title: 'New' });
 
@@ -243,7 +245,7 @@ describe('PagesRepository', () => {
         where: { id: 'p1', deletedAt: null },
         data: { title: 'New' },
       });
-      expect(result).toBeInstanceOf(PageEntity);
+      expect(result).toEqual(updatedFixture);
     });
   });
 
@@ -264,44 +266,6 @@ describe('PagesRepository', () => {
         data: { deletedAt: expect.any(Date) as Date },
       });
       expect(result).toBe(true);
-    });
-  });
-
-  describe('content', () => {
-    it('возвращает null, если контента нет', async () => {
-      mockPrisma.pageContent.findUnique.mockResolvedValue(null);
-
-      await expect(repository.findContent('p1')).resolves.toBeNull();
-    });
-
-    it('возвращает сущность контента', async () => {
-      mockPrisma.pageContent.findUnique.mockResolvedValue(contentFixture('p1'));
-
-      const result = await repository.findContent('p1');
-
-      expect(result).toBeInstanceOf(PageContentEntity);
-      expect(result?.json).toEqual({ type: 'doc', content: [] });
-    });
-
-    it('upsert создаёт или перезаписывает контент', async () => {
-      mockPrisma.pageContent.upsert.mockResolvedValue(
-        contentFixture('p1', { type: 'doc', content: [{ type: 'text' }] }),
-      );
-
-      const result = await repository.upsertContent('p1', {
-        type: 'doc',
-        content: [{ type: 'text' }],
-      });
-
-      expect(mockPrisma.pageContent.upsert).toHaveBeenCalledWith({
-        where: { pageId: 'p1' },
-        create: {
-          pageId: 'p1',
-          json: { type: 'doc', content: [{ type: 'text' }] },
-        },
-        update: { json: { type: 'doc', content: [{ type: 'text' }] } },
-      });
-      expect(result).toBeInstanceOf(PageContentEntity);
     });
   });
 });
