@@ -14,6 +14,7 @@ describe('WorkspacesService', () => {
     create: jest.fn(),
     findById: jest.fn(),
     findByIds: jest.fn(),
+    findAllByUserId: jest.fn(),
     countOwnedBy: jest.fn(),
     update: jest.fn(),
     delete: jest.fn(),
@@ -21,7 +22,6 @@ describe('WorkspacesService', () => {
 
   const mockWorkspaceMembersRepository = {
     addMember: jest.fn(),
-    findAllByUserId: jest.fn(),
     findMembership: jest.fn(),
   };
 
@@ -126,15 +126,16 @@ describe('WorkspacesService', () => {
 
   describe('findAllByUserId', () => {
     it('возвращает список воркспейсов пользователя', async () => {
-      mockWorkspaceMembersRepository.findAllByUserId.mockResolvedValue([
-        { workspaceId: 'ws-1' },
+      mockWorkspacesRepository.findAllByUserId.mockResolvedValue([
+        { id: 'ws-1' },
       ]);
-      mockWorkspacesRepository.findByIds.mockResolvedValue([{ id: 'ws-1' }]);
 
       await expect(service.findAllByUserId('user-1')).resolves.toEqual([
         { id: 'ws-1' },
       ]);
-      expect(mockWorkspacesRepository.findByIds).toHaveBeenCalledWith(['ws-1']);
+      expect(mockWorkspacesRepository.findAllByUserId).toHaveBeenCalledWith(
+        'user-1',
+      );
     });
   });
 

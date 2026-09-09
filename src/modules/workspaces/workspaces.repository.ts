@@ -53,6 +53,18 @@ export class WorkspacesRepository {
       .map((workspace) => this.mapToEntity(workspace));
   }
 
+  async findAllByUserId(userId: string): Promise<WorkspaceEntity[]> {
+    const memberships = await this.prisma.workspaceMember.findMany({
+      where: { userId },
+      include: { workspace: true },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    return memberships.map((membership) =>
+      this.mapToEntity(membership.workspace),
+    );
+  }
+
   async countOwnedBy(userId: string): Promise<number> {
     return this.prisma.workspace.count({
       where: { ownerId: userId },

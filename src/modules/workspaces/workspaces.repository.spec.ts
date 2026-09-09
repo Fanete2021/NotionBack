@@ -16,6 +16,9 @@ describe('WorkspacesRepository', () => {
       delete: jest.fn(),
       count: jest.fn(),
     },
+    workspaceMember: {
+      findMany: jest.fn(),
+    },
   };
 
   const workspaceFixture = {
@@ -108,6 +111,32 @@ describe('WorkspacesRepository', () => {
     it('возвращает пустой массив для пустого списка id', async () => {
       await expect(repository.findByIds([])).resolves.toEqual([]);
       expect(mockPrisma.workspace.findMany).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('findAllByUserId', () => {
+    it('возвращает воркспейсы пользователя в порядке членства', async () => {
+      mockPrisma.workspaceMember.findMany.mockResolvedValue([
+        { workspace: workspaceFixture },
+        {
+          workspace: {
+            ...workspaceFixture,
+            id: 'ws-2',
+            name: 'Second',
+          },
+        },
+      ]);
+
+      const result = await repository.findAllByUserId('user-1');
+
+      expect(mockPrisma.workspaceMember.findMany).toHaveBeenCalledWith({
+        where: { userId: 'user-1' },
+        include: { workspace: true },
+        orderBy: { createdAt: 'asc' },
+      });
+      expect(result).toHaveLength(2);
+      expect(result[0]?.id).toBe('ws-1');
+      expect(result[1]?.id).toBe('ws-2');
     });
   });
 

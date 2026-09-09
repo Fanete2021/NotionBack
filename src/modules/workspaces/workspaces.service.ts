@@ -68,13 +68,7 @@ export class WorkspacesService {
   }
 
   async findAllByUserId(userId: string): Promise<WorkspaceEntity[]> {
-    const memberships =
-      await this.workspaceMembersRepository.findAllByUserId(userId);
-    const workspaceIds = memberships.map(
-      (membership) => membership.workspaceId,
-    );
-
-    return this.workspacesRepository.findByIds(workspaceIds);
+    return this.workspacesRepository.findAllByUserId(userId);
   }
 
   async update(

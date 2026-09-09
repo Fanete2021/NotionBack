@@ -1,8 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma, Role, WorkspaceMember } from '@prisma/client';
 import { PrismaService } from '../../prisma';
-import { WorkspaceMemberEntity } from '@modules/workspace-members/entities';
+import {
+  WorkspaceMemberEntity,
+  WorkspaceMemberUserEntity,
+} from '@modules/workspace-members/entities';
 import { isNotFoundError } from '@common/utils';
+import { MEMBER_USER_SELECT } from '@modules/workspace-members/constants/workspace-member.constants';
+import { WorkspaceMemberWithUser } from '@modules/workspace-members/types/workspace-member.types';
 
 type TransactionClient = Prisma.TransactionClient;
 
@@ -19,23 +24,16 @@ export class WorkspaceMembersRepository {
     const client = tx ?? this.prisma;
     const member = await client.workspaceMember.create({
       data: { workspaceId, userId, role },
+      include: { user: { select: MEMBER_USER_SELECT } },
     });
 
     return this.mapToEntity(member);
   }
 
-  async findAllByUserId(userId: string): Promise<WorkspaceMemberEntity[]> {
-    const members = await this.prisma.workspaceMember.findMany({
-      where: { userId },
-      orderBy: { createdAt: 'asc' },
-    });
-
-    return members.map((member) => this.mapToEntity(member));
-  }
-
   async findAllMembers(workspaceId: string): Promise<WorkspaceMemberEntity[]> {
     const members = await this.prisma.workspaceMember.findMany({
       where: { workspaceId },
+      include: { user: { select: MEMBER_USER_SELECT } },
       orderBy: { createdAt: 'asc' },
     });
 
@@ -53,6 +51,7 @@ export class WorkspaceMembersRepository {
           workspaceId_userId: { workspaceId, userId },
         },
         data: { role },
+        include: { user: { select: MEMBER_USER_SELECT } },
       })
       .catch((error) => {
         if (isNotFoundError(error)) {
@@ -97,13 +96,23 @@ export class WorkspaceMembersRepository {
     return this.mapToEntity(member);
   }
 
-  private mapToEntity(member: WorkspaceMember): WorkspaceMemberEntity {
+  private mapToEntity(
+    member: WorkspaceMember | WorkspaceMemberWithUser,
+  ): WorkspaceMemberEntity {
+    const withUser = member as WorkspaceMemberWithUser;
+
     return new WorkspaceMemberEntity(
       member.id,
-      member.workspaceId,
-      member.userId,
       member.role,
       member.createdAt,
+      withUser.user
+        ? new WorkspaceMemberUserEntity({
+            id: withUser.user.id,
+            name: withUser.user.name,
+            email: withUser.user.email,
+            avatarUrl: withUser.user.avatarUrl,
+          })
+        : undefined,
     );
   }
 }

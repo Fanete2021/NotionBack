@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Prisma, Role, WorkspaceInvite } from '@prisma/client';
 import { PrismaService } from '../../prisma';
 import { WorkspaceInviteSummaryEntity } from '@modules/workspace-invites/entities';
+import { WorkspaceInviteType } from '@modules/workspace-invites/types';
 
 @Injectable()
 export class WorkspaceInvitesRepository {
@@ -72,6 +73,7 @@ export class WorkspaceInvitesRepository {
     return new WorkspaceInviteSummaryEntity(
       invite.id,
       invite.workspaceId,
+      WorkspaceInviteType.PERMANENT,
       invite.role,
       invite.createdBy,
       invite.createdAt,

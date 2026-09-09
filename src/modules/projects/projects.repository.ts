@@ -163,7 +163,7 @@ export class ProjectsRepository {
     workspaceId: string,
     parentProjectId: string | null,
   ): Promise<unknown> {
-    return tx.$queryRaw`
+    return tx.$executeRaw`
       SELECT pg_advisory_xact_lock(
         hashtext(${workspaceId}),
         hashtext(${parentProjectId ?? ''})

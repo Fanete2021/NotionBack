@@ -17,6 +17,13 @@ describe('WorkspaceMembersRepository', () => {
     },
   };
 
+  const userFixture = {
+    id: 'user-1',
+    name: 'Иван Иванов',
+    email: 'user@example.com',
+    avatarUrl: 'https://example.com/avatar.jpg',
+  };
+
   const memberFixture = {
     id: 'mem-1',
     workspaceId: 'ws-1',
@@ -51,45 +58,60 @@ describe('WorkspaceMembersRepository', () => {
         ...memberFixture,
         userId: 'user-2',
         role: Role.EDITOR,
+        user: { ...userFixture, id: 'user-2' },
       });
 
       const result = await repository.addMember('ws-1', 'user-2');
 
       expect(mockPrisma.workspaceMember.create).toHaveBeenCalledWith({
         data: { workspaceId: 'ws-1', userId: 'user-2', role: Role.EDITOR },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              avatarUrl: true,
+            },
+          },
+        },
       });
       expect(result).toBeInstanceOf(WorkspaceMemberEntity);
       expect(result.role).toBe(Role.EDITOR);
-    });
-  });
-
-  describe('findAllByUserId', () => {
-    it('возвращает членства пользователя', async () => {
-      mockPrisma.workspaceMember.findMany.mockResolvedValue([memberFixture]);
-
-      const result = await repository.findAllByUserId('user-1');
-
-      expect(mockPrisma.workspaceMember.findMany).toHaveBeenCalledWith({
-        where: { userId: 'user-1' },
-        orderBy: { createdAt: 'asc' },
+      expect(result.userInfo).toEqual({
+        id: 'user-2',
+        name: userFixture.name,
+        email: userFixture.email,
+        avatarUrl: userFixture.avatarUrl,
       });
-      expect(result).toHaveLength(1);
-      expect(result[0]).toBeInstanceOf(WorkspaceMemberEntity);
     });
   });
 
   describe('findAllMembers', () => {
     it('возвращает участников воркспейса', async () => {
-      mockPrisma.workspaceMember.findMany.mockResolvedValue([memberFixture]);
+      mockPrisma.workspaceMember.findMany.mockResolvedValue([
+        { ...memberFixture, user: userFixture },
+      ]);
 
       const result = await repository.findAllMembers('ws-1');
 
       expect(mockPrisma.workspaceMember.findMany).toHaveBeenCalledWith({
         where: { workspaceId: 'ws-1' },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              avatarUrl: true,
+            },
+          },
+        },
         orderBy: { createdAt: 'asc' },
       });
       expect(result).toHaveLength(1);
       expect(result[0]).toBeInstanceOf(WorkspaceMemberEntity);
+      expect(result[0].userInfo).toEqual(userFixture);
     });
   });
 
@@ -99,6 +121,7 @@ describe('WorkspaceMembersRepository', () => {
         ...memberFixture,
         userId: 'user-2',
         role: Role.ADMIN,
+        user: { ...userFixture, id: 'user-2' },
       });
 
       const result = await repository.changeRole('ws-1', 'user-2', Role.ADMIN);
@@ -108,8 +131,19 @@ describe('WorkspaceMembersRepository', () => {
           workspaceId_userId: { workspaceId: 'ws-1', userId: 'user-2' },
         },
         data: { role: Role.ADMIN },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              avatarUrl: true,
+            },
+          },
+        },
       });
       expect(result?.role).toBe(Role.ADMIN);
+      expect(result?.userInfo?.id).toBe('user-2');
     });
 
     it('возвращает null при P2025', async () => {
