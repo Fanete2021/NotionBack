@@ -32,16 +32,18 @@ export function getCookieValue(
     : undefined;
 }
 
-export function setRefreshTokenCookie(
-  res: Response,
-  token: string,
-  maxAgeSeconds: number,
-  secure: boolean,
-  sameSite: SameSite,
-): void {
+interface SetRefreshTokenParams {
+  res: Response;
+  token: string;
+  maxAgeSeconds: number | null;
+  secure: boolean;
+  sameSite: SameSite;
+}
+export function setRefreshTokenCookie(params: SetRefreshTokenParams): void {
+  const { maxAgeSeconds, token, secure, sameSite, res } = params;
   res.cookie(COOKIE_NAMES.REFRESH_TOKEN, token, {
     ...REFRESH_COOKIE_OPTIONS,
-    maxAge: maxAgeSeconds * 1000,
+    ...(maxAgeSeconds != null && { maxAge: maxAgeSeconds * 1000 }),
     secure,
     sameSite,
   });

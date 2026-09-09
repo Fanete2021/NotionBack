@@ -1,6 +1,7 @@
 export type TokenData = {
   userId: string;
   email: string;
+  rememberMe: boolean;
 };
 
 export type RefreshData = {
@@ -15,6 +16,7 @@ export type RevokeData = {
 export type TokenPair = {
   accessToken: string;
   refreshToken: string;
+  rememberMe: boolean;
   user: {
     id: string;
     email: string;
@@ -24,6 +26,7 @@ export type TokenPair = {
 export type RefreshSession = {
   userId: string;
   refreshTokenId: string;
+  rememberMe: boolean;
 };
 
 export type TokenPayload = {
@@ -35,4 +38,9 @@ export type RefreshTokenPayload = {
   sub: string;
   email: string;
   jti: string;
+};
+
+export const RefreshSessionFlags = {
+  PERSISTENT: '1',
+  SESSION: '0',
 };
