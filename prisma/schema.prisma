@@ -32,6 +32,8 @@ model User {
   memberships     WorkspaceMember[]
   authoredPages   Page[]
   createdInvites  WorkspaceInvite[]  @relation("InviteCreator")
+  pageCommentsAuthored  PageComment[] @relation("PageCommentAuthor")
+  pageCommentsResolved  PageComment[] @relation("PageCommentResolver")
 
   @@map("users")
 }
@@ -123,6 +125,7 @@ model Page {
   childPages Page[]      @relation("PageHierarchy")
   author     User        @relation(fields: [authorId], references: [id], onDelete: Restrict)
   content    PageContent?
+  comments   PageComment[]
 
   @@unique([id, workspaceId])
   @@unique([workspaceId, projectId, parentPageId, position])
@@ -140,4 +143,26 @@ model PageContent {
   page Page @relation(fields: [pageId], references: [id], onDelete: Cascade)
 
   @@map("page_contents")
+}
+
+model PageComment {
+  id           String    @id @default(uuid())
+  pageId       String
+  authorId     String
+  body         String
+  anchorId     String?
+  resolved     Boolean   @default(false)
+  resolvedAt   DateTime?
+  resolvedById String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  page       Page  @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  author     User  @relation("PageCommentAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+  resolvedBy User? @relation("PageCommentResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
+
+  @@index([pageId, createdAt])
+  @@index([pageId, anchorId])
+  @@index([pageId, resolved])
+  @@map("page_comments")
 }

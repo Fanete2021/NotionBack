@@ -10,6 +10,7 @@ import { ProjectsModule } from '@modules/projects/projects.module';
 import { WorkspacesModule } from '@modules/workspaces/workspaces.module';
 import { WorkspaceInvitesModule } from '@modules/workspace-invites/workspace-invites.module';
 import { PagesModule } from '@modules/pages/pages.module';
+import { PageCommentsModule } from '@modules/page-comments/page-comments.module';
 import { JwtAuthGuard } from '@common/guards';
 import { RedisClient } from '@common/providers';
 import { appConfig, authConfig, databaseConfig } from './config';
@@ -56,6 +57,7 @@ import * as Joi from 'joi';
     WorkspacesModule,
     WorkspaceInvitesModule,
     PagesModule,
+    PageCommentsModule,
   ],
   controllers: [HealthController],
   providers: [
