@@ -1,8 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { AuthController } from './auth.controller';
-import { AuthService } from './auth.service';
+import { AuthController } from '@modules/auth/auth.controller';
+import { AuthService } from '@modules/auth/auth.service';
 import type { Request, Response } from 'express';
 
 describe('AuthController', () => {
@@ -13,6 +13,7 @@ describe('AuthController', () => {
     login: jest.fn(),
     refresh: jest.fn(),
     logout: jest.fn(),
+    getProfile: jest.fn(),
   };
 
   const mockConfigService = {
@@ -120,15 +121,19 @@ describe('AuthController', () => {
     expect(cookieOptions).toMatchObject({ secure: false, sameSite: 'lax' });
   });
 
-  it('getProfile возвращает пользователя из запроса', () => {
-    const req = {
-      user: { id: '1', email: 'user@test.com' },
-    } as unknown as Request;
-
-    expect(controller.getProfile(req)).toEqual({
+  it('getProfile отдаёт профиль текущего пользователя из сервиса', async () => {
+    const profile = {
       id: '1',
       email: 'user@test.com',
-    });
+      name: 'Иван Иванов',
+      avatarUrl: 'https://example.com/avatar.jpg',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    mockAuthService.getProfile.mockResolvedValue(profile);
+
+    await expect(controller.getProfile('1')).resolves.toBe(profile);
+    expect(mockAuthService.getProfile).toHaveBeenCalledWith('1');
   });
 
   it('logout без cookie и allDevices бросает 401', async () => {

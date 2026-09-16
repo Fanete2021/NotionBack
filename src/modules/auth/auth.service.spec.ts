@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { AuthService } from './auth.service';
-import { UsersRepository } from '../users/users.repository';
+import { AuthService } from '@modules/auth/auth.service';
+import { UsersRepository } from '@modules/users/users.repository';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import {
@@ -9,7 +9,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
-import { TokenService } from './token.service';
+import { TokenService } from '@modules/auth/token.service';
 
 jest.mock('bcrypt');
 
@@ -273,6 +273,31 @@ describe('AuthService', () => {
 
       expect(errorSpy).toHaveBeenCalled();
       errorSpy.mockRestore();
+    });
+  });
+
+  describe('getProfile', () => {
+    it('возвращает профиль пользователя по id', async () => {
+      const fakeUser = {
+        id: '123',
+        email: 'test@test.com',
+        name: 'Иван Иванов',
+        avatarUrl: 'https://example.com/avatar.jpg',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      mockUsersRepository.findById.mockResolvedValue(fakeUser);
+
+      await expect(authService.getProfile('123')).resolves.toBe(fakeUser);
+      expect(mockUsersRepository.findById).toHaveBeenCalledWith('123');
+    });
+
+    it('бросает UnauthorizedException, если пользователь не найден', async () => {
+      mockUsersRepository.findById.mockResolvedValue(null);
+
+      await expect(authService.getProfile('missing')).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
   });
 

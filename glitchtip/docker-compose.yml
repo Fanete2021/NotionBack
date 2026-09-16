@@ -1,0 +1,80 @@
+name: glitchtip
+
+# Фиксированная инфраструктура (не конфигурируется пользователем).
+# Значения из .env (SECRET_KEY, GLITCHTIP_DOMAIN, ENABLE_OPEN_USER_REGISTRATION)
+# подключаются через env_file на уровне сервисов.
+x-environment: &default-environment
+  DATABASE_URL: postgres://postgres:postgres@glitchtip-postgres:5432/postgres
+  REDIS_URL: redis://glitchtip-redis:6379/0
+  PORT: 8080
+  # SMTP не используется: письма (верификация, сброс пароля) пишутся в лог контейнера.
+  EMAIL_URL: consolemail://
+  DEFAULT_FROM_EMAIL: glitchtip@localhost
+  CELERY_WORKER_AUTOSCALE: "1,3"
+
+x-env-file: &default-env-file
+  env_file:
+    - path: .env
+      required: false
+
+x-depends_on: &default-depends_on
+  glitchtip-postgres:
+    condition: service_healthy
+  glitchtip-redis:
+    condition: service_healthy
+
+services:
+  glitchtip-postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_HOST_AUTH_METHOD: trust
+      POSTGRES_DB: postgres
+    volumes:
+      - glitchtip_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  glitchtip-redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  glitchtip-migrate:
+    image: glitchtip/glitchtip
+    <<: *default-env-file
+    depends_on: *default-depends_on
+    command: ./manage.py migrate
+    environment: *default-environment
+    restart: 'no'
+
+  glitchtip-web:
+    image: glitchtip/glitchtip
+    <<: *default-env-file
+    depends_on:
+      glitchtip-migrate:
+        condition: service_completed_successfully
+    ports:
+      - '${GLITCHTIP_PORT:-8080}:8080'
+    environment: *default-environment
+    restart: unless-stopped
+
+  glitchtip-worker:
+    image: glitchtip/glitchtip
+    <<: *default-env-file
+    command: ./bin/run-celery-with-beat.sh
+    depends_on:
+      glitchtip-migrate:
+        condition: service_completed_successfully
+    environment: *default-environment
+    restart: unless-stopped
+
+volumes:
+  glitchtip_pg_data:

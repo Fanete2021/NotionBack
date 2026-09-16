@@ -7,26 +7,23 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import {
-  AuthResponseDto,
-  AuthUserDto,
-  MessageResponseDto,
-} from '../dto/auth-response.dto';
-import { ErrorResponseDto } from '../../../common/dto/error-response.dto';
-import { RegisterDto } from '../dto/register.dto';
-import { ApiValidationErrorResponse } from '../../../common/decorators/swagger/api-bad-request.decorator';
-import { LoginDto } from '../dto/login.dto';
-import { LogoutDto } from '../dto/logout.dto';
-import { ApiInternalServerErrorResponse } from '../../../common/decorators/swagger/api-internal-server-error.decorator';
+import { AuthResponseDto, MessageResponseDto } from '@modules/auth/dto';
+import { ErrorResponseDto } from '@common/dto';
+import { UserEntity } from '@modules/users/user.entity';
+import { RegisterDto } from '@modules/auth/dto';
+import { ApiValidationErrorResponse } from '@common/decorators/swagger';
+import { LoginDto } from '@modules/auth/dto';
+import { LogoutDto } from '@modules/auth/dto';
+import { ApiInternalServerErrorResponse } from '@common/decorators/swagger';
 
-export function AuthControllerResponse() {
+function AuthControllerResponse() {
   return applyDecorators(
     ApiTags('Авторизация'),
     ApiInternalServerErrorResponse(),
   );
 }
 
-export function RegisterResponse() {
+function RegisterResponse() {
   return applyDecorators(
     ApiOperation({
       summary: 'Регистрация нового пользователя',
@@ -48,7 +45,7 @@ export function RegisterResponse() {
   );
 }
 
-export function LoginResponse() {
+function LoginResponse() {
   return applyDecorators(
     ApiOperation({
       summary: 'Вход по email и паролю',
@@ -69,7 +66,7 @@ export function LoginResponse() {
   );
 }
 
-export function RefreshResponse() {
+function RefreshResponse() {
   return applyDecorators(
     ApiOperation({
       summary: 'Обновление токенов',
@@ -91,7 +88,7 @@ export function RefreshResponse() {
   );
 }
 
-export function LogoutResponse() {
+function LogoutResponse() {
   return applyDecorators(
     ApiOperation({
       summary: 'Выход из системы',
@@ -118,14 +115,14 @@ export function LogoutResponse() {
   );
 }
 
-export function MeResponse() {
+function MeResponse() {
   return applyDecorators(
     ApiOperation({ summary: 'Получение профиля текущего пользователя' }),
     ApiBearerAuth(),
     ApiResponse({
       status: 200,
       description: 'Данные пользователя получены',
-      type: AuthUserDto,
+      type: UserEntity,
     }),
     ApiResponse({
       status: 401,
@@ -134,3 +131,12 @@ export function MeResponse() {
     }),
   );
 }
+
+export {
+  AuthControllerResponse,
+  RegisterResponse,
+  LoginResponse,
+  RefreshResponse,
+  LogoutResponse,
+  MeResponse,
+};

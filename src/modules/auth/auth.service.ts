@@ -6,22 +6,23 @@ import {
   Logger,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { UsersRepository } from '../users/users.repository';
+import { UsersRepository } from '@modules/users/users.repository';
+import { UserEntity } from '@modules/users/user.entity';
 import * as bcrypt from 'bcrypt';
 import {
   TokenData,
   TokenPair,
   RefreshData,
   RevokeData,
-} from './types/token.types';
-import { TokenService } from './token.service';
+} from '@modules/auth/types';
+import { TokenService } from '@modules/auth/token.service';
 import {
   LoginData,
   LogoutData,
   LogoutResult,
   RegisterData,
-} from './types/auth.types';
-import { CreateUserData } from '../users/types/users.types';
+} from '@modules/auth/types';
+import { CreateUserData } from '@modules/users/types';
 
 @Injectable()
 export class AuthService {
@@ -78,6 +79,15 @@ export class AuthService {
       rememberMe: data.rememberMe ?? false,
     };
     return this.tokenService.generateTokens(tokenData);
+  }
+
+  async getProfile(userId: string): Promise<UserEntity> {
+    const user = await this.usersRepository.findById(userId);
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    return user;
   }
 
   async refresh(data: RefreshData): Promise<TokenPair> {

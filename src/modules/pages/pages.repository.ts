@@ -1,20 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import { Page, PageContent, PageType, Prisma } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
-import { PageEntity } from './entities/page.entity';
-import { PageContentEntity } from './entities/page-content.entity';
-
-export const EMPTY_DOCUMENT: Prisma.InputJsonValue = {
-  type: 'doc',
-  content: [],
-};
-
-export type CreatePageData = {
-  projectId: string;
-  title: string;
-  icon: string | null;
-  type: PageType;
-};
+import { Page, PageContent, Prisma } from '@prisma/client';
+import { PrismaService } from '../../prisma';
+import { PageEntity } from '@modules/pages/entities';
+import { PageContentEntity } from '@modules/pages/entities';
+import { EMPTY_DOCUMENT } from '@modules/pages/constants';
+import { CreatePageData } from '@modules/pages/types';
+import { isNotFoundError } from '@common/utils';
 
 @Injectable()
 export class PagesRepository {
@@ -110,7 +101,7 @@ export class PagesRepository {
         data,
       })
       .catch((error) => {
-        if (this.isNotFoundError(error)) {
+        if (isNotFoundError(error)) {
           return null;
         }
         throw error;
@@ -127,7 +118,7 @@ export class PagesRepository {
       });
       return true;
     } catch (error) {
-      if (this.isNotFoundError(error)) {
+      if (isNotFoundError(error)) {
         return false;
       }
       throw error;
@@ -157,15 +148,6 @@ export class PagesRepository {
     });
 
     return this.mapContentToEntity(content);
-  }
-
-  private isNotFoundError(
-    error: unknown,
-  ): error is Prisma.PrismaClientKnownRequestError {
-    return (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === 'P2025'
-    );
   }
 
   private mapToEntity(page: Page): PageEntity {

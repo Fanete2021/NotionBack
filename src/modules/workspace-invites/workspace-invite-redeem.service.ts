@@ -1,0 +1,47 @@
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { Role } from '@prisma/client';
+import { WorkspaceMembersService } from '@modules/workspace-members/workspace-members.service';
+import { WorkspaceMemberEntity } from '@modules/workspace-members/entities';
+import { WorkspaceInvitesRepository } from '@modules/workspace-invites/workspace-invites.repository';
+import { TemporaryInviteStore } from '@modules/workspace-invites/temporary-invite.store';
+
+@Injectable()
+export class WorkspaceInviteRedeemService {
+  constructor(
+    private readonly invitesRepository: WorkspaceInvitesRepository,
+    private readonly workspaceMembersService: WorkspaceMembersService,
+    private readonly temporaryInvites: TemporaryInviteStore,
+  ) {}
+
+  async redeem(userId: string, token: string): Promise<WorkspaceMemberEntity> {
+    const consumed = await this.temporaryInvites.consume(token);
+
+    let workspaceId: string;
+    let role: Role;
+
+    if (consumed) {
+      workspaceId = consumed.stored.workspaceId;
+      role = consumed.stored.role;
+    } else {
+      const invite = await this.invitesRepository.findByToken(token);
+      if (!invite) {
+        throw new NotFoundException('Invite is invalid or expired');
+      }
+      workspaceId = invite.workspaceId;
+      role = invite.role;
+    }
+
+    try {
+      return await this.workspaceMembersService.addMemberViaInvite(
+        workspaceId,
+        userId,
+        role,
+      );
+    } catch (error) {
+      if (consumed) {
+        await this.temporaryInvites.restore(token, consumed);
+      }
+      throw error;
+    }
+  }
+}

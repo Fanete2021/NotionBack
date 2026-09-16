@@ -1,36 +1,40 @@
 import { Test } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
-import {
-  ConflictException,
-  ForbiddenException,
-  NotFoundException,
-} from '@nestjs/common';
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { Role } from '@prisma/client';
-import { createHash, randomBytes } from 'crypto';
-import { WorkspaceInvitesService } from './workspace-invites.service';
-import { WorkspaceInvitesRepository } from './workspace-invites.repository';
-import { WorkspacesService } from '../workspaces/workspaces.service';
-import { RedisClient } from '../../common/providers/redis-client';
-import { WorkspaceInviteType } from './types/workspace-invite.types';
+import { WorkspaceInvitesService } from '@modules/workspace-invites/workspace-invites.service';
+import { WorkspaceInvitesRepository } from '@modules/workspace-invites/workspace-invites.repository';
+import { WorkspacesService } from '@modules/workspaces/workspaces.service';
+import { RedisClient } from '@common/providers';
+import { TemporaryInviteStore } from '@modules/workspace-invites/temporary-invite.store';
+import { WorkspaceInviteType } from '@modules/workspace-invites/types';
 
 describe('WorkspaceInvitesService', () => {
   let service: WorkspaceInvitesService;
 
   const mockInvitesRepository = {
     create: jest.fn(),
-    findByTokenHash: jest.fn(),
     findAllByWorkspaceId: jest.fn(),
     countByWorkspaceId: jest.fn(),
     deleteById: jest.fn(),
   };
   const mockWorkspacesService = {
     assertCanManageMembers: jest.fn(),
-    addMemberViaInvite: jest.fn(),
+  };
+  const mockRedisMulti = {
+    set: jest.fn(),
+    sadd: jest.fn(),
+    expire: jest.fn(),
+    exec: jest.fn(),
   };
   const mockRedis = {
+    multi: jest.fn(() => mockRedisMulti),
     set: jest.fn(),
     ttl: jest.fn(),
     getdel: jest.fn(),
+    get: jest.fn(),
+    smembers: jest.fn(),
+    srem: jest.fn(),
   };
   const mockConfigService = {
     get: jest.fn(),
@@ -38,6 +42,12 @@ describe('WorkspaceInvitesService', () => {
 
   beforeEach(async () => {
     jest.resetAllMocks();
+    mockRedis.multi.mockReturnValue(mockRedisMulti);
+    mockRedisMulti.set.mockReturnValue(mockRedisMulti);
+    mockRedisMulti.sadd.mockReturnValue(mockRedisMulti);
+    mockRedisMulti.expire.mockReturnValue(mockRedisMulti);
+    mockRedisMulti.exec.mockResolvedValue([]);
+    mockRedis.smembers.mockResolvedValue([]);
     mockConfigService.get.mockImplementation(
       (key: string, defaultValue?: unknown) => {
         if (key === 'INVITE_TTL_SECONDS') return 86400;
@@ -51,6 +61,7 @@ describe('WorkspaceInvitesService', () => {
     const module = await Test.createTestingModule({
       providers: [
         WorkspaceInvitesService,
+        TemporaryInviteStore,
         {
           provide: WorkspaceInvitesRepository,
           useValue: mockInvitesRepository,
@@ -67,7 +78,6 @@ describe('WorkspaceInvitesService', () => {
   describe('create', () => {
     it('создаёт временную ссылку в Redis с TTL', async () => {
       mockWorkspacesService.assertCanManageMembers.mockResolvedValue(undefined);
-      mockRedis.set.mockResolvedValue('OK');
 
       const result = await service.create(
         'actor-1',
@@ -80,23 +90,31 @@ describe('WorkspaceInvitesService', () => {
         'ws-1',
         'actor-1',
       );
-      expect(mockRedis.set).toHaveBeenCalledTimes(1);
+      expect(mockRedisMulti.set).toHaveBeenCalledTimes(1);
 
-      const setCall = mockRedis.set.mock.calls[0] as unknown as [
+      const setCall = mockRedisMulti.set.mock.calls[0] as unknown as [
         string,
         string,
         string,
         number,
       ];
       const [key, value, ex, ttl] = setCall;
-      expect(key.startsWith('workspace_invite:')).toBe(true);
-      expect(JSON.parse(value)).toEqual({
+      expect(key).toBe(`workspace_invite:${result.token}`);
+      const stored = JSON.parse(value) as Record<string, unknown>;
+      expect(stored).toMatchObject({
         workspaceId: 'ws-1',
         role: Role.EDITOR,
         createdBy: 'actor-1',
       });
+      expect(typeof stored.createdAt).toBe('string');
       expect(ex).toBe('EX');
       expect(ttl).toBe(86400);
+
+      const saddCall = mockRedisMulti.sadd.mock.calls[0] as unknown as [
+        string,
+        string,
+      ];
+      expect(saddCall).toEqual(['workspace_invite_index:ws-1', result.token]);
 
       expect(result.type).toBe(WorkspaceInviteType.TEMPORARY);
       expect(result.role).toBe(Role.EDITOR);
@@ -122,23 +140,19 @@ describe('WorkspaceInvitesService', () => {
         Role.VIEWER,
       );
 
-      const expectedHash = createHash('sha256')
-        .update(result.token)
-        .digest('hex');
       expect(mockInvitesRepository.create).toHaveBeenCalledWith(
         'ws-1',
         'actor-1',
-        expectedHash,
+        result.token,
         Role.VIEWER,
       );
-      expect(mockRedis.set).not.toHaveBeenCalled();
+      expect(mockRedis.multi).not.toHaveBeenCalled();
       expect(result.type).toBe(WorkspaceInviteType.PERMANENT);
       expect(result.expiresAt).toBeNull();
     });
 
     it('по умолчанию выдаёт самую урезанную роль VIEWER', async () => {
       mockWorkspacesService.assertCanManageMembers.mockResolvedValue(undefined);
-      mockRedis.set.mockResolvedValue('OK');
 
       const result = await service.create(
         'actor-1',
@@ -147,7 +161,7 @@ describe('WorkspaceInvitesService', () => {
       );
 
       expect(result.role).toBe(Role.VIEWER);
-      const [, storedValue] = mockRedis.set.mock.calls[0] as unknown as [
+      const [, storedValue] = mockRedisMulti.set.mock.calls[0] as unknown as [
         string,
         string,
       ];
@@ -234,23 +248,83 @@ describe('WorkspaceInvitesService', () => {
   });
 
   describe('list / revoke', () => {
-    it('отдаёт постоянные ссылки владельцу и админу', async () => {
+    it('отдаёт постоянные ссылки с токеном и url владельцу и админу', async () => {
+      const createdAt = new Date();
       const invites = [
         {
           id: 'invite-1',
           workspaceId: 'ws-1',
+          token: 'perm-token',
           role: Role.EDITOR,
           createdBy: 'actor-1',
-          createdAt: new Date(),
+          createdAt,
         },
       ];
       mockWorkspacesService.assertCanManageMembers.mockResolvedValue(undefined);
       mockInvitesRepository.findAllByWorkspaceId.mockResolvedValue(invites);
+      mockRedis.smembers.mockResolvedValue([]);
 
-      await expect(service.list('actor-1', 'ws-1')).resolves.toBe(invites);
+      const result = await service.list('actor-1', 'ws-1');
+
+      expect(result).toEqual([
+        {
+          id: 'invite-1',
+          workspaceId: 'ws-1',
+          type: WorkspaceInviteType.PERMANENT,
+          role: Role.EDITOR,
+          createdBy: 'actor-1',
+          createdAt,
+          token: 'perm-token',
+          expiresAt: null,
+        },
+      ]);
       expect(mockWorkspacesService.assertCanManageMembers).toHaveBeenCalledWith(
         'ws-1',
         'actor-1',
+      );
+    });
+
+    it('добавляет в список активные временные ссылки из Redis', async () => {
+      const createdAt = new Date();
+      mockWorkspacesService.assertCanManageMembers.mockResolvedValue(undefined);
+      mockInvitesRepository.findAllByWorkspaceId.mockResolvedValue([]);
+      mockRedis.smembers.mockResolvedValue(['temp-token']);
+      mockRedis.get.mockResolvedValue(
+        JSON.stringify({
+          workspaceId: 'ws-1',
+          role: Role.VIEWER,
+          createdBy: 'actor-1',
+          createdAt: createdAt.toISOString(),
+        }),
+      );
+      mockRedis.ttl.mockResolvedValue(3600);
+
+      const result = await service.list('actor-1', 'ws-1');
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toMatchObject({
+        id: 'temp-token',
+        workspaceId: 'ws-1',
+        type: WorkspaceInviteType.TEMPORARY,
+        role: Role.VIEWER,
+        token: 'temp-token',
+      });
+      expect(result[0].expiresAt).toBeInstanceOf(Date);
+    });
+
+    it('чистит индекс от протухших временных ссылок', async () => {
+      mockWorkspacesService.assertCanManageMembers.mockResolvedValue(undefined);
+      mockInvitesRepository.findAllByWorkspaceId.mockResolvedValue([]);
+      mockRedis.smembers.mockResolvedValue(['stale-token']);
+      mockRedis.get.mockResolvedValue(null);
+      mockRedis.ttl.mockResolvedValue(-2);
+
+      const result = await service.list('actor-1', 'ws-1');
+
+      expect(result).toHaveLength(0);
+      expect(mockRedis.srem).toHaveBeenCalledWith(
+        'workspace_invite_index:ws-1',
+        'stale-token',
       );
     });
 
@@ -285,210 +359,6 @@ describe('WorkspaceInvitesService', () => {
       await expect(
         service.revoke('actor-1', 'ws-1', 'invite-1'),
       ).rejects.toThrow(NotFoundException);
-    });
-  });
-
-  describe('redeem', () => {
-    const member = {
-      id: 'member-1',
-      workspaceId: 'ws-1',
-      userId: 'user-2',
-      role: Role.EDITOR,
-      createdAt: new Date(),
-    };
-
-    const storedInviteJson = JSON.stringify({
-      workspaceId: 'ws-1',
-      role: Role.EDITOR,
-      createdBy: 'actor-1',
-    });
-
-    it('добавляет пользователя по временной ссылке, атомарно потребляя её из Redis', async () => {
-      const token = randomBytes(32).toString('base64url');
-      const hash = createHash('sha256').update(token).digest('hex');
-      mockRedis.ttl.mockResolvedValue(12345);
-      mockRedis.getdel.mockResolvedValue(storedInviteJson);
-      mockWorkspacesService.addMemberViaInvite.mockResolvedValue(member);
-
-      const result = await service.redeem('user-2', token);
-
-      expect(mockRedis.getdel).toHaveBeenCalledWith(`workspace_invite:${hash}`);
-      expect(mockWorkspacesService.addMemberViaInvite).toHaveBeenCalledWith(
-        'ws-1',
-        'user-2',
-        Role.EDITOR,
-      );
-      expect(mockRedis.set).not.toHaveBeenCalled();
-      expect(result.workspaceId).toBe('ws-1');
-      expect(result.userId).toBe('user-2');
-    });
-
-    it('временная ссылка одноразовая: второй вызов получает NotFoundException', async () => {
-      const token = randomBytes(32).toString('base64url');
-      mockWorkspacesService.addMemberViaInvite.mockResolvedValue(member);
-      mockRedis.ttl.mockResolvedValueOnce(12345);
-      mockRedis.getdel.mockResolvedValueOnce(storedInviteJson);
-      await service.redeem('user-2', token);
-
-      mockRedis.ttl.mockResolvedValueOnce(-2);
-      mockRedis.getdel.mockResolvedValueOnce(null);
-      mockInvitesRepository.findByTokenHash.mockResolvedValue(null);
-
-      await expect(service.redeem('user-3', token)).rejects.toThrow(
-        NotFoundException,
-      );
-      expect(mockWorkspacesService.addMemberViaInvite).toHaveBeenCalledTimes(1);
-    });
-
-    it('находит постоянную ссылку в базе и не трогает Redis после использования', async () => {
-      const token = randomBytes(32).toString('base64url');
-      const hash = createHash('sha256').update(token).digest('hex');
-      mockRedis.ttl.mockResolvedValue(-2);
-      mockRedis.getdel.mockResolvedValue(null);
-      mockInvitesRepository.findByTokenHash.mockResolvedValue({
-        id: 'invite-1',
-        workspaceId: 'ws-1',
-        role: Role.VIEWER,
-        createdBy: 'actor-1',
-        createdAt: new Date(),
-      });
-      mockWorkspacesService.addMemberViaInvite.mockResolvedValue({
-        ...member,
-        role: Role.VIEWER,
-      });
-
-      const result = await service.redeem('user-2', token);
-
-      expect(mockInvitesRepository.findByTokenHash).toHaveBeenCalledWith(hash);
-      expect(result.role).toBe(Role.VIEWER);
-      expect(mockRedis.set).not.toHaveBeenCalled();
-    });
-
-    it('бросает NotFoundException, если ссылка не найдена нигде', async () => {
-      mockRedis.ttl.mockResolvedValue(-2);
-      mockRedis.getdel.mockResolvedValue(null);
-      mockInvitesRepository.findByTokenHash.mockResolvedValue(null);
-
-      await expect(service.redeem('user-2', 'bad-token')).rejects.toThrow(
-        NotFoundException,
-      );
-      expect(mockWorkspacesService.addMemberViaInvite).not.toHaveBeenCalled();
-    });
-
-    it('возвращает ссылку в Redis, если воркспейс удалён (компенсация)', async () => {
-      const token = randomBytes(32).toString('base64url');
-      mockRedis.ttl.mockResolvedValue(12345);
-      mockRedis.getdel.mockResolvedValue(
-        JSON.stringify({
-          workspaceId: 'ws-deleted',
-          role: Role.EDITOR,
-          createdBy: 'actor-1',
-        }),
-      );
-      mockWorkspacesService.addMemberViaInvite.mockRejectedValue(
-        new NotFoundException('Workspace not found'),
-      );
-
-      await expect(service.redeem('user-2', token)).rejects.toThrow(
-        NotFoundException,
-      );
-      const [, value, ex, ttl] = mockRedis.set.mock.calls[0] as unknown as [
-        string,
-        string,
-        string,
-        number,
-      ];
-      expect(ex).toBe('EX');
-      expect(ttl).toBe(12345);
-      const restored = JSON.parse(value) as { workspaceId: string };
-      expect(restored.workspaceId).toBe('ws-deleted');
-    });
-
-    it('возвращает ссылку в Redis и бросает ConflictException, если пользователь уже участник', async () => {
-      mockRedis.ttl.mockResolvedValue(12345);
-      mockRedis.getdel.mockResolvedValue(storedInviteJson);
-      mockWorkspacesService.addMemberViaInvite.mockRejectedValue(
-        new ConflictException('User is already a member of this workspace'),
-      );
-
-      await expect(service.redeem('user-2', 'any-token')).rejects.toThrow(
-        ConflictException,
-      );
-      expect(mockRedis.set).toHaveBeenCalledTimes(1);
-    });
-
-    it('сбой компенсации не подменяет исходную ошибку клиента', async () => {
-      mockRedis.ttl.mockResolvedValue(12345);
-      mockRedis.getdel.mockResolvedValue(storedInviteJson);
-      mockWorkspacesService.addMemberViaInvite.mockRejectedValue(
-        new ConflictException('User is already a member of this workspace'),
-      );
-      mockRedis.set.mockRejectedValue(new Error('READONLY: replica is down'));
-
-      await expect(service.redeem('user-2', 'any-token')).rejects.toThrow(
-        ConflictException,
-      );
-    });
-
-    it('битое значение в Redis даёт 404, а не 500', async () => {
-      mockRedis.ttl.mockResolvedValue(12345);
-      mockRedis.getdel.mockResolvedValue('{not json');
-      mockInvitesRepository.findByTokenHash.mockResolvedValue(null);
-
-      await expect(service.redeem('user-2', 'any-token')).rejects.toThrow(
-        NotFoundException,
-      );
-      expect(mockWorkspacesService.addMemberViaInvite).not.toHaveBeenCalled();
-    });
-
-    it('приглашение без роли не превращается молча в EDITOR', async () => {
-      mockRedis.ttl.mockResolvedValue(12345);
-      mockRedis.getdel.mockResolvedValue(
-        JSON.stringify({ workspaceId: 'ws-1', createdBy: 'actor-1' }),
-      );
-      mockInvitesRepository.findByTokenHash.mockResolvedValue(null);
-
-      await expect(service.redeem('user-2', 'any-token')).rejects.toThrow(
-        NotFoundException,
-      );
-      expect(mockWorkspacesService.addMemberViaInvite).not.toHaveBeenCalled();
-    });
-
-    it('приглашение с ролью OWNER в Redis не принимается', async () => {
-      mockRedis.ttl.mockResolvedValue(12345);
-      mockRedis.getdel.mockResolvedValue(
-        JSON.stringify({
-          workspaceId: 'ws-1',
-          role: Role.OWNER,
-          createdBy: 'actor-1',
-        }),
-      );
-      mockInvitesRepository.findByTokenHash.mockResolvedValue(null);
-
-      await expect(service.redeem('user-2', 'any-token')).rejects.toThrow(
-        NotFoundException,
-      );
-      expect(mockWorkspacesService.addMemberViaInvite).not.toHaveBeenCalled();
-    });
-
-    it('недоступность Redis не ломает погашение постоянных ссылок', async () => {
-      const token = randomBytes(32).toString('base64url');
-      mockRedis.ttl.mockRejectedValue(new Error('ECONNREFUSED'));
-      mockInvitesRepository.findByTokenHash.mockResolvedValue({
-        id: 'invite-1',
-        workspaceId: 'ws-1',
-        role: Role.VIEWER,
-        createdBy: 'actor-1',
-        createdAt: new Date(),
-      });
-      mockWorkspacesService.addMemberViaInvite.mockResolvedValue({
-        ...member,
-        role: Role.VIEWER,
-      });
-
-      const result = await service.redeem('user-2', token);
-
-      expect(result.role).toBe(Role.VIEWER);
     });
   });
 });

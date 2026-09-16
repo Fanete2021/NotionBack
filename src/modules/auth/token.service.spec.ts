@@ -2,8 +2,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { UnauthorizedException } from '@nestjs/common';
-import { TokenService } from './token.service';
-import { RedisClient } from '../../common/providers/redis-client';
+import { TokenService } from '@modules/auth/token.service';
+import { RedisClient } from '@common/providers';
 
 describe('TokenService', () => {
   let service: TokenService;

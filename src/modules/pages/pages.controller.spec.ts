@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { PagesController } from './pages.controller';
-import { PagesService } from './pages.service';
-import { WorkspacesService } from '../workspaces/workspaces.service';
+import { PagesController } from '@modules/pages/pages.controller';
+import { PagesService } from '@modules/pages/pages.service';
+import { WorkspacesService } from '@modules/workspaces/workspaces.service';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 
 describe('PagesController', () => {

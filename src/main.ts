@@ -1,17 +1,17 @@
+import './sentry.preload';
 import { NestFactory, Reflector } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { SwaggerModule, DocumentBuilder, OpenAPIObject } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import * as express from 'express';
 import { AppModule } from './app.module';
-import { HttpExceptionsFilter } from './common/filters/http-exception.filter';
-import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter';
+import { HttpExceptionsFilter, PrismaExceptionFilter } from './filters';
 import {
   ClassSerializerInterceptor,
   HttpStatus,
   ValidationPipe,
 } from '@nestjs/common';
-import { PAGE_CONTENT_ROUTE } from './modules/pages/pages.routes';
+import { PAGE_CONTENT_ROUTE } from '@modules/pages/constants';
 
 const GLOBAL_PREFIX = 'api';
 

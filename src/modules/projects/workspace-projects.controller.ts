@@ -7,17 +7,17 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
-import { ProjectsService } from './projects.service';
-import { CreateProjectDto } from './dto/create-project.dto';
-import { ReorderProjectsDto } from './dto/reorder-projects.dto';
-import { ProjectEntity } from './entities/project.entity';
-import { WorkspaceMemberGuard } from '../workspaces/guards/workspace-member.guard';
+import { ProjectsService } from '@modules/projects/projects.service';
+import { CreateProjectDto } from '@modules/projects/dto';
+import { ReorderProjectsDto } from '@modules/projects/dto';
+import { ProjectEntity } from '@modules/projects/entities';
+import { WorkspaceMemberGuard } from '@modules/workspace-members/guards';
 import {
   WorkspaceProjectsControllerResponse,
   WorkspaceProjectsCreateProjectResponse,
   WorkspaceProjectsFindAllByWorkspaceIdResponse,
   WorkspaceProjectsReorderProjectsResponse,
-} from './decorators/workspace-projects-swagger.decorators';
+} from '@modules/projects/decorators';
 
 @WorkspaceProjectsControllerResponse()
 @UseGuards(WorkspaceMemberGuard)

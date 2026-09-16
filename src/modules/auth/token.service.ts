@@ -1,7 +1,7 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { RedisClient } from '../../common/providers/redis-client';
+import { RedisClient } from '@common/providers';
 import {
   RevokeData,
   TokenData,
@@ -9,7 +9,7 @@ import {
   RefreshSession,
   RefreshTokenPayload,
   RefreshSessionFlags,
-} from './types/token.types';
+} from '@modules/auth/types';
 
 @Injectable()
 export class TokenService {

@@ -1,13 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma, Project } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
-import { ProjectEntity } from './entities/project.entity';
-import { isNotFoundError } from '../../common/utils/prisma.utils';
-
-export type CreateProjectData = Omit<
-  Prisma.ProjectUncheckedCreateInput,
-  'workspaceId' | 'position'
->;
+import { PrismaService } from '../../prisma';
+import { ProjectEntity } from '@modules/projects/entities';
+import { isNotFoundError } from '@common/utils';
+import { CreateProjectData } from '@modules/projects/types';
 
 @Injectable()
 export class ProjectsRepository {
@@ -167,7 +163,7 @@ export class ProjectsRepository {
     workspaceId: string,
     parentProjectId: string | null,
   ): Promise<unknown> {
-    return tx.$queryRaw`
+    return tx.$executeRaw`
       SELECT pg_advisory_xact_lock(
         hashtext(${workspaceId}),
         hashtext(${parentProjectId ?? ''})

@@ -6,12 +6,12 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { ApiUnauthorizedResponse } from '../../../common/decorators/swagger/api-unauthorized.decorator';
-import { ApiForbiddenResponse } from '../../../common/decorators/swagger/api-forbidden.decorator';
-import { ApiInternalServerErrorResponse } from '../../../common/decorators/swagger/api-internal-server-error.decorator';
-import { ProjectEntity } from '../entities/project.entity';
+import { ApiUnauthorizedResponse } from '@common/decorators/swagger';
+import { ApiForbiddenResponse } from '@common/decorators/swagger';
+import { ApiInternalServerErrorResponse } from '@common/decorators/swagger';
+import { ProjectEntity } from '@modules/projects/entities';
 
-export function WorkspaceProjectsControllerResponse() {
+function WorkspaceProjectsControllerResponse() {
   return applyDecorators(
     ApiBearerAuth(),
     ApiTags('Проекты воркспейса'),
@@ -21,7 +21,7 @@ export function WorkspaceProjectsControllerResponse() {
   );
 }
 
-export function WorkspaceProjectsCreateProjectResponse() {
+function WorkspaceProjectsCreateProjectResponse() {
   return applyDecorators(
     ApiOperation({ summary: 'Создать проект в воркспейсе' }),
     ApiParam({
@@ -37,7 +37,7 @@ export function WorkspaceProjectsCreateProjectResponse() {
   );
 }
 
-export function WorkspaceProjectsFindAllByWorkspaceIdResponse() {
+function WorkspaceProjectsFindAllByWorkspaceIdResponse() {
   return applyDecorators(
     ApiOperation({ summary: 'Получить все проекты воркспейса (дерево)' }),
     ApiParam({
@@ -53,7 +53,7 @@ export function WorkspaceProjectsFindAllByWorkspaceIdResponse() {
   );
 }
 
-export function WorkspaceProjectsReorderProjectsResponse() {
+function WorkspaceProjectsReorderProjectsResponse() {
   return applyDecorators(
     ApiOperation({
       summary: 'Изменить порядок дочерних проектов в воркспейсе',
@@ -70,3 +70,10 @@ export function WorkspaceProjectsReorderProjectsResponse() {
     }),
   );
 }
+
+export {
+  WorkspaceProjectsControllerResponse,
+  WorkspaceProjectsCreateProjectResponse,
+  WorkspaceProjectsFindAllByWorkspaceIdResponse,
+  WorkspaceProjectsReorderProjectsResponse,
+};
