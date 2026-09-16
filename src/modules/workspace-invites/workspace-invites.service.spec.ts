@@ -2,7 +2,6 @@ import { Test } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { Role } from '@prisma/client';
-import { createHash } from 'crypto';
 import { WorkspaceInvitesService } from '@modules/workspace-invites/workspace-invites.service';
 import { WorkspaceInvitesRepository } from '@modules/workspace-invites/workspace-invites.repository';
 import { WorkspacesService } from '@modules/workspaces/workspaces.service';
@@ -22,10 +21,20 @@ describe('WorkspaceInvitesService', () => {
   const mockWorkspacesService = {
     assertCanManageMembers: jest.fn(),
   };
+  const mockRedisMulti = {
+    set: jest.fn(),
+    sadd: jest.fn(),
+    expire: jest.fn(),
+    exec: jest.fn(),
+  };
   const mockRedis = {
+    multi: jest.fn(() => mockRedisMulti),
     set: jest.fn(),
     ttl: jest.fn(),
     getdel: jest.fn(),
+    get: jest.fn(),
+    smembers: jest.fn(),
+    srem: jest.fn(),
   };
   const mockConfigService = {
     get: jest.fn(),
@@ -33,6 +42,12 @@ describe('WorkspaceInvitesService', () => {
 
   beforeEach(async () => {
     jest.resetAllMocks();
+    mockRedis.multi.mockReturnValue(mockRedisMulti);
+    mockRedisMulti.set.mockReturnValue(mockRedisMulti);
+    mockRedisMulti.sadd.mockReturnValue(mockRedisMulti);
+    mockRedisMulti.expire.mockReturnValue(mockRedisMulti);
+    mockRedisMulti.exec.mockResolvedValue([]);
+    mockRedis.smembers.mockResolvedValue([]);
     mockConfigService.get.mockImplementation(
       (key: string, defaultValue?: unknown) => {
         if (key === 'INVITE_TTL_SECONDS') return 86400;
@@ -63,7 +78,6 @@ describe('WorkspaceInvitesService', () => {
   describe('create', () => {
     it('создаёт временную ссылку в Redis с TTL', async () => {
       mockWorkspacesService.assertCanManageMembers.mockResolvedValue(undefined);
-      mockRedis.set.mockResolvedValue('OK');
 
       const result = await service.create(
         'actor-1',
@@ -76,23 +90,31 @@ describe('WorkspaceInvitesService', () => {
         'ws-1',
         'actor-1',
       );
-      expect(mockRedis.set).toHaveBeenCalledTimes(1);
+      expect(mockRedisMulti.set).toHaveBeenCalledTimes(1);
 
-      const setCall = mockRedis.set.mock.calls[0] as unknown as [
+      const setCall = mockRedisMulti.set.mock.calls[0] as unknown as [
         string,
         string,
         string,
         number,
       ];
       const [key, value, ex, ttl] = setCall;
-      expect(key.startsWith('workspace_invite:')).toBe(true);
-      expect(JSON.parse(value)).toEqual({
+      expect(key).toBe(`workspace_invite:${result.token}`);
+      const stored = JSON.parse(value) as Record<string, unknown>;
+      expect(stored).toMatchObject({
         workspaceId: 'ws-1',
         role: Role.EDITOR,
         createdBy: 'actor-1',
       });
+      expect(typeof stored.createdAt).toBe('string');
       expect(ex).toBe('EX');
       expect(ttl).toBe(86400);
+
+      const saddCall = mockRedisMulti.sadd.mock.calls[0] as unknown as [
+        string,
+        string,
+      ];
+      expect(saddCall).toEqual(['workspace_invite_index:ws-1', result.token]);
 
       expect(result.type).toBe(WorkspaceInviteType.TEMPORARY);
       expect(result.role).toBe(Role.EDITOR);
@@ -118,23 +140,19 @@ describe('WorkspaceInvitesService', () => {
         Role.VIEWER,
       );
 
-      const expectedHash = createHash('sha256')
-        .update(result.token)
-        .digest('hex');
       expect(mockInvitesRepository.create).toHaveBeenCalledWith(
         'ws-1',
         'actor-1',
-        expectedHash,
+        result.token,
         Role.VIEWER,
       );
-      expect(mockRedis.set).not.toHaveBeenCalled();
+      expect(mockRedis.multi).not.toHaveBeenCalled();
       expect(result.type).toBe(WorkspaceInviteType.PERMANENT);
       expect(result.expiresAt).toBeNull();
     });
 
     it('по умолчанию выдаёт самую урезанную роль VIEWER', async () => {
       mockWorkspacesService.assertCanManageMembers.mockResolvedValue(undefined);
-      mockRedis.set.mockResolvedValue('OK');
 
       const result = await service.create(
         'actor-1',
@@ -143,7 +161,7 @@ describe('WorkspaceInvitesService', () => {
       );
 
       expect(result.role).toBe(Role.VIEWER);
-      const [, storedValue] = mockRedis.set.mock.calls[0] as unknown as [
+      const [, storedValue] = mockRedisMulti.set.mock.calls[0] as unknown as [
         string,
         string,
       ];
@@ -230,23 +248,83 @@ describe('WorkspaceInvitesService', () => {
   });
 
   describe('list / revoke', () => {
-    it('отдаёт постоянные ссылки владельцу и админу', async () => {
+    it('отдаёт постоянные ссылки с токеном и url владельцу и админу', async () => {
+      const createdAt = new Date();
       const invites = [
         {
           id: 'invite-1',
           workspaceId: 'ws-1',
+          token: 'perm-token',
           role: Role.EDITOR,
           createdBy: 'actor-1',
-          createdAt: new Date(),
+          createdAt,
         },
       ];
       mockWorkspacesService.assertCanManageMembers.mockResolvedValue(undefined);
       mockInvitesRepository.findAllByWorkspaceId.mockResolvedValue(invites);
+      mockRedis.smembers.mockResolvedValue([]);
 
-      await expect(service.list('actor-1', 'ws-1')).resolves.toBe(invites);
+      const result = await service.list('actor-1', 'ws-1');
+
+      expect(result).toEqual([
+        {
+          id: 'invite-1',
+          workspaceId: 'ws-1',
+          type: WorkspaceInviteType.PERMANENT,
+          role: Role.EDITOR,
+          createdBy: 'actor-1',
+          createdAt,
+          token: 'perm-token',
+          expiresAt: null,
+        },
+      ]);
       expect(mockWorkspacesService.assertCanManageMembers).toHaveBeenCalledWith(
         'ws-1',
         'actor-1',
+      );
+    });
+
+    it('добавляет в список активные временные ссылки из Redis', async () => {
+      const createdAt = new Date();
+      mockWorkspacesService.assertCanManageMembers.mockResolvedValue(undefined);
+      mockInvitesRepository.findAllByWorkspaceId.mockResolvedValue([]);
+      mockRedis.smembers.mockResolvedValue(['temp-token']);
+      mockRedis.get.mockResolvedValue(
+        JSON.stringify({
+          workspaceId: 'ws-1',
+          role: Role.VIEWER,
+          createdBy: 'actor-1',
+          createdAt: createdAt.toISOString(),
+        }),
+      );
+      mockRedis.ttl.mockResolvedValue(3600);
+
+      const result = await service.list('actor-1', 'ws-1');
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toMatchObject({
+        id: 'temp-token',
+        workspaceId: 'ws-1',
+        type: WorkspaceInviteType.TEMPORARY,
+        role: Role.VIEWER,
+        token: 'temp-token',
+      });
+      expect(result[0].expiresAt).toBeInstanceOf(Date);
+    });
+
+    it('чистит индекс от протухших временных ссылок', async () => {
+      mockWorkspacesService.assertCanManageMembers.mockResolvedValue(undefined);
+      mockInvitesRepository.findAllByWorkspaceId.mockResolvedValue([]);
+      mockRedis.smembers.mockResolvedValue(['stale-token']);
+      mockRedis.get.mockResolvedValue(null);
+      mockRedis.ttl.mockResolvedValue(-2);
+
+      const result = await service.list('actor-1', 'ws-1');
+
+      expect(result).toHaveLength(0);
+      expect(mockRedis.srem).toHaveBeenCalledWith(
+        'workspace_invite_index:ws-1',
+        'stale-token',
       );
     });
 

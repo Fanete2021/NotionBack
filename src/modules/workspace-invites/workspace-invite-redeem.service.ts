@@ -4,7 +4,6 @@ import { WorkspaceMembersService } from '@modules/workspace-members/workspace-me
 import { WorkspaceMemberEntity } from '@modules/workspace-members/entities';
 import { WorkspaceInvitesRepository } from '@modules/workspace-invites/workspace-invites.repository';
 import { TemporaryInviteStore } from '@modules/workspace-invites/temporary-invite.store';
-import { hashInviteToken } from '@modules/workspace-invites/utils';
 
 @Injectable()
 export class WorkspaceInviteRedeemService {
@@ -15,8 +14,7 @@ export class WorkspaceInviteRedeemService {
   ) {}
 
   async redeem(userId: string, token: string): Promise<WorkspaceMemberEntity> {
-    const tokenHash = hashInviteToken(token);
-    const consumed = await this.temporaryInvites.consume(tokenHash);
+    const consumed = await this.temporaryInvites.consume(token);
 
     let workspaceId: string;
     let role: Role;
@@ -25,7 +23,7 @@ export class WorkspaceInviteRedeemService {
       workspaceId = consumed.stored.workspaceId;
       role = consumed.stored.role;
     } else {
-      const invite = await this.invitesRepository.findByTokenHash(tokenHash);
+      const invite = await this.invitesRepository.findByToken(token);
       if (!invite) {
         throw new NotFoundException('Invite is invalid or expired');
       }
@@ -41,7 +39,7 @@ export class WorkspaceInviteRedeemService {
       );
     } catch (error) {
       if (consumed) {
-        await this.temporaryInvites.restore(tokenHash, consumed);
+        await this.temporaryInvites.restore(token, consumed);
       }
       throw error;
     }

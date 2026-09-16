@@ -12,21 +12,35 @@ export class WorkspaceInviteSummaryEntity {
   @ApiProperty({
     enum: WorkspaceInviteType,
     description:
-      'Invite lifetime. Listed invites are always PERMANENT: temporary links live in Redis and are not listed',
+      'Срок жизни ссылки. PERMANENT-ссылки хранятся в базе, TEMPORARY — в Redis и истекают сами',
   })
   readonly type: WorkspaceInviteType;
 
-  @ApiProperty({ enum: Role, description: 'Role granted on redemption' })
+  @ApiProperty({ enum: Role, description: 'Роль, выдаваемая при активации' })
   readonly role: Role;
 
   @ApiProperty({
+    example: 'qU5f_1zXvR2kLmN8pQaBcDdEeFfGgHhIiJjKkLlMmNnOo',
+    description: 'Токен приглашения для формирования ссылки',
+  })
+  readonly token: string;
+
+  @ApiProperty({
     example: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
-    description: 'Id of the user who created the link',
+    description: 'Id пользователя, создавшего ссылку',
   })
   readonly createdBy: string;
 
   @ApiProperty({ example: '2026-08-23T00:00:00.000Z' })
   readonly createdAt: Date;
+
+  @ApiProperty({
+    type: Date,
+    nullable: true,
+    example: '2026-08-24T00:00:00.000Z',
+    description: 'Время истечения для временных ссылок, null для постоянных',
+  })
+  readonly expiresAt: Date | null;
 
   constructor(
     id: string,
@@ -35,6 +49,8 @@ export class WorkspaceInviteSummaryEntity {
     role: Role,
     createdBy: string,
     createdAt: Date,
+    token: string,
+    expiresAt: Date | null = null,
   ) {
     this.id = id;
     this.workspaceId = workspaceId;
@@ -42,5 +58,7 @@ export class WorkspaceInviteSummaryEntity {
     this.role = role;
     this.createdBy = createdBy;
     this.createdAt = createdAt;
+    this.token = token;
+    this.expiresAt = expiresAt;
   }
 }

@@ -43,7 +43,7 @@ function WorkspaceInvitesListResponse() {
   return applyDecorators(
     ApiOperation({
       summary:
-        'List permanent invite links of a workspace (owner or admin). Temporary links are not listed: they live in Redis and expire on their own',
+        'Список ссылок-приглашений воркспейса (владелец или админ), включая токены и готовые URL. Возвращает постоянные ссылки (из базы) и активные временные (из Redis, с expiresAt)',
     }),
     ApiParam({
       name: 'workspaceId',
