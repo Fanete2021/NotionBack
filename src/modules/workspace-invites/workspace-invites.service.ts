@@ -4,15 +4,17 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Role } from '@prisma/client';
+import { Role, WorkspaceInvite } from '@prisma/client';
 import { randomBytes } from 'crypto';
 import { WorkspacesService } from '@modules/workspaces/workspaces.service';
 import { WorkspaceInvitesRepository } from '@modules/workspace-invites/workspace-invites.repository';
 import { WorkspaceInviteEntity } from '@modules/workspace-invites/entities';
 import { WorkspaceInviteSummaryEntity } from '@modules/workspace-invites/entities';
-import { WorkspaceInviteType } from '@modules/workspace-invites/types';
+import {
+  TemporaryInviteSummary,
+  WorkspaceInviteType,
+} from '@modules/workspace-invites/types';
 import { WORKSPACE_INVITE_ROLES } from '@modules/workspace-invites/constants';
-import { hashInviteToken } from '@modules/workspace-invites/utils';
 import { buildInviteUrl } from '@modules/workspace-invites/utils';
 import { TemporaryInviteStore } from '@modules/workspace-invites/temporary-invite.store';
 
@@ -40,7 +42,6 @@ export class WorkspaceInvitesService {
     }
 
     const token = randomBytes(32).toString('base64url');
-    const tokenHash = hashInviteToken(token);
     const url = this.buildUrl(token);
 
     if (type === WorkspaceInviteType.TEMPORARY) {
@@ -50,8 +51,13 @@ export class WorkspaceInvitesService {
       );
 
       await this.temporaryInvites.save(
-        tokenHash,
-        { workspaceId, role, createdBy: actorId },
+        token,
+        {
+          workspaceId,
+          role,
+          createdBy: actorId,
+          createdAt: new Date().toISOString(),
+        },
         ttlSeconds,
       );
 
@@ -65,7 +71,7 @@ export class WorkspaceInvitesService {
     }
 
     await this.assertInviteLimitNotReached(workspaceId);
-    await this.invitesRepository.create(workspaceId, actorId, tokenHash, role);
+    await this.invitesRepository.create(workspaceId, actorId, token, role);
 
     return new WorkspaceInviteEntity(token, url, type, role, null);
   }
@@ -76,7 +82,17 @@ export class WorkspaceInvitesService {
   ): Promise<WorkspaceInviteSummaryEntity[]> {
     await this.workspacesService.assertCanManageMembers(workspaceId, actorId);
 
-    return this.invitesRepository.findAllByWorkspaceId(workspaceId);
+    const [permanent, temporary] = await Promise.all([
+      this.invitesRepository.findAllByWorkspaceId(workspaceId),
+      this.temporaryInvites.listByWorkspace(workspaceId),
+    ]);
+
+    return [
+      ...permanent.map((invite) => this.toPermanentSummary(invite)),
+      ...temporary.map((invite) =>
+        this.toTemporarySummary(workspaceId, invite),
+      ),
+    ];
   }
 
   async revoke(
@@ -93,6 +109,37 @@ export class WorkspaceInvitesService {
     if (!revoked) {
       throw new NotFoundException('Invite not found');
     }
+  }
+
+  private toPermanentSummary(
+    invite: WorkspaceInvite,
+  ): WorkspaceInviteSummaryEntity {
+    return new WorkspaceInviteSummaryEntity(
+      invite.id,
+      invite.workspaceId,
+      WorkspaceInviteType.PERMANENT,
+      invite.role,
+      invite.createdBy,
+      invite.createdAt,
+      invite.token,
+      null,
+    );
+  }
+
+  private toTemporarySummary(
+    workspaceId: string,
+    invite: TemporaryInviteSummary,
+  ): WorkspaceInviteSummaryEntity {
+    return new WorkspaceInviteSummaryEntity(
+      invite.token,
+      workspaceId,
+      WorkspaceInviteType.TEMPORARY,
+      invite.role,
+      invite.createdBy,
+      invite.createdAt,
+      invite.token,
+      invite.expiresAt,
+    );
   }
 
   private async assertInviteLimitNotReached(

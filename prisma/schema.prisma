@@ -68,7 +68,7 @@ model WorkspaceMember {
 
 model WorkspaceInvite {
   id          String   @id @default(uuid())
-  tokenHash   String   @unique
+  token       String   @unique
   workspaceId String
   createdBy   String
   role        Role     @default(VIEWER)
