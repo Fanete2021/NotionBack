@@ -18,6 +18,7 @@ describe('PagesService', () => {
     findAllByWorkspaceId: jest.fn(),
     findById: jest.fn(),
     nextPosition: jest.fn(),
+    reorder: jest.fn(),
     update: jest.fn(),
     softDelete: jest.fn(),
     findContent: jest.fn(),
@@ -37,6 +38,7 @@ describe('PagesService', () => {
       overrides.id ?? 'p1',
       overrides.workspaceId ?? 'ws-1',
       overrides.projectId ?? 'prj-1',
+      overrides.parentPageId ?? null,
       overrides.title ?? 'Введение',
       overrides.icon ?? null,
       overrides.type ?? 'DOC',
@@ -228,6 +230,47 @@ describe('PagesService', () => {
         service.update(pageFixture(), { projectId: 'missing' }),
       ).rejects.toThrow(NotFoundException);
       expect(mockPagesRepository.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('reorder', () => {
+    it('переупорядочивает документы проекта', async () => {
+      mockProjectsRepository.findById.mockResolvedValue({
+        id: 'prj-1',
+        workspaceId: 'ws-1',
+      });
+      const reordered = [pageFixture({ id: 'a' }), pageFixture({ id: 'b' })];
+      mockPagesRepository.reorder.mockResolvedValue(reordered);
+
+      const result = await service.reorder('ws-1', 'prj-1', ['a', 'b']);
+
+      expect(mockPagesRepository.reorder).toHaveBeenCalledWith(
+        'ws-1',
+        'prj-1',
+        ['a', 'b'],
+      );
+      expect(result).toBe(reordered);
+    });
+
+    it('бросает 400, если orderedIds не совпадают с документами проекта', async () => {
+      mockProjectsRepository.findById.mockResolvedValue({
+        id: 'prj-1',
+        workspaceId: 'ws-1',
+      });
+      mockPagesRepository.reorder.mockResolvedValue(null);
+
+      await expect(service.reorder('ws-1', 'prj-1', ['a'])).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('бросает 404, если проект не найден', async () => {
+      mockProjectsRepository.findById.mockResolvedValue(null);
+
+      await expect(service.reorder('ws-1', 'missing', ['a'])).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(mockPagesRepository.reorder).not.toHaveBeenCalled();
     });
   });
 

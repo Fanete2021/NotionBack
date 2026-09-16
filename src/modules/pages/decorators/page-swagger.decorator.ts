@@ -18,73 +18,75 @@ function PagesControllerResponse() {
 
 function PagesCreateResponse() {
   return applyDecorators(
-    ApiOperation({ summary: 'Create a page in a project' }),
+    ApiOperation({ summary: 'Создание документа в проекте' }),
     ApiResponse({
       status: 201,
-      description: 'Page created',
+      description: 'Документ создан',
       type: PageEntity,
     }),
     ApiWorkspaceForbidden(),
-    ApiResponse({ status: 404, description: 'Project not found' }),
+    ApiResponse({ status: 404, description: 'Проект не найден' }),
   );
 }
 
 function PagesFindByIdResponse() {
   return applyDecorators(
-    ApiOperation({ summary: 'Get a page by id' }),
-    ApiParam({ name: 'id', type: String, description: 'Page id' }),
+    ApiOperation({ summary: 'Получение документа по id' }),
+    ApiParam({ name: 'id', type: String, description: 'Id документа' }),
     ApiResponse({ status: 200, type: PageEntity }),
     ApiWorkspaceForbidden(),
-    ApiResponse({ status: 404, description: 'Page not found' }),
+    ApiResponse({ status: 404, description: 'Документ не найден' }),
   );
 }
 
 function PagesUpdateResponse() {
   return applyDecorators(
     ApiOperation({
-      summary: 'Update a page (title, icon, type, project)',
+      summary: 'Обновление документа (название, иконка, тип, проект)',
     }),
-    ApiParam({ name: 'id', type: String, description: 'Page id' }),
+    ApiParam({ name: 'id', type: String, description: 'Id документа' }),
     ApiResponse({ status: 200, type: PageEntity }),
     ApiWorkspaceForbidden(),
-    ApiResponse({ status: 404, description: 'Page or project not found' }),
+    ApiResponse({ status: 404, description: 'Документ или проект не найден' }),
   );
 }
 
 function PagesDeleteResponse() {
   return applyDecorators(
-    ApiOperation({ summary: 'Soft-delete a page (moves it to trash)' }),
-    ApiParam({ name: 'id', type: String, description: 'Page id' }),
-    ApiResponse({ status: 204, description: 'Page deleted' }),
+    ApiOperation({
+      summary: 'Мягкое удаление документа (перемещение в корзину)',
+    }),
+    ApiParam({ name: 'id', type: String, description: 'Id документа' }),
+    ApiResponse({ status: 204, description: 'Документ удалён' }),
     ApiWorkspaceForbidden(),
-    ApiResponse({ status: 404, description: 'Page not found' }),
+    ApiResponse({ status: 404, description: 'Документ не найден' }),
   );
 }
 
 function PagesGetContentResponse() {
   return applyDecorators(
-    ApiOperation({ summary: 'Get a page content (TipTap JSON)' }),
-    ApiParam({ name: 'id', type: String, description: 'Page id' }),
+    ApiOperation({ summary: 'Получение содержимого документа (TipTap JSON)' }),
+    ApiParam({ name: 'id', type: String, description: 'Id документа' }),
     ApiResponse({ status: 200, type: PageContentEntity }),
     ApiWorkspaceForbidden(),
-    ApiResponse({ status: 404, description: 'Page not found' }),
+    ApiResponse({ status: 404, description: 'Документ не найден' }),
   );
 }
 
 function PagesUpdateContentResponse() {
   return applyDecorators(
-    ApiOperation({ summary: 'Overwrite a page content (TipTap JSON)' }),
-    ApiParam({ name: 'id', type: String, description: 'Page id' }),
+    ApiOperation({ summary: 'Перезапись содержимого документа (TipTap JSON)' }),
+    ApiParam({ name: 'id', type: String, description: 'Id документа' }),
     ApiBody({
       schema: { type: 'object', example: { type: 'doc', content: [] } },
-      description: 'TipTap document JSON',
+      description: 'JSON-документ TipTap',
     }),
     ApiResponse({ status: 200, type: PageContentEntity }),
     ApiWorkspaceForbidden(),
-    ApiResponse({ status: 404, description: 'Page not found' }),
+    ApiResponse({ status: 404, description: 'Документ не найден' }),
     ApiResponse({
       status: 413,
-      description: 'Page content exceeds the size limit',
+      description: 'Содержимое документа превышает лимит размера',
     }),
   );
 }
@@ -92,20 +94,39 @@ function PagesUpdateContentResponse() {
 function PagesFindAllByWorkspaceIdResponse() {
   return applyDecorators(
     ApiOperation({
-      summary: 'Get pages of a workspace (optionally of a project)',
+      summary: 'Получение документов воркспейса (опционально в рамках проекта)',
     }),
     ApiParam({
       name: 'workspaceId',
       type: String,
-      description: 'Workspace id',
+      description: 'Id воркспейса',
     }),
     ApiQuery({
       name: 'projectId',
       required: false,
       type: String,
-      description: 'Filter by project id',
+      description: 'Фильтр по id проекта',
     }),
     ApiResponse({ status: 200, type: [PageEntity] }),
+    ApiWorkspaceForbidden(),
+  );
+}
+
+function PagesReorderResponse() {
+  return applyDecorators(
+    ApiOperation({
+      summary: 'Переупорядочивание документов внутри проекта (drag and drop)',
+    }),
+    ApiParam({
+      name: 'workspaceId',
+      type: String,
+      description: 'Id воркспейса',
+    }),
+    ApiResponse({ status: 200, type: [PageEntity] }),
+    ApiResponse({
+      status: 400,
+      description: 'orderedIds должен содержать ровно все документы проекта',
+    }),
     ApiWorkspaceForbidden(),
   );
 }
@@ -119,4 +140,5 @@ export {
   PagesGetContentResponse,
   PagesUpdateContentResponse,
   PagesFindAllByWorkspaceIdResponse,
+  PagesReorderResponse,
 };

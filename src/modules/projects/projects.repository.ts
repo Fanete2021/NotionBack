@@ -38,6 +38,21 @@ export class ProjectsRepository {
     return this.mapToEntity(project);
   }
 
+  async nextPosition(
+    workspaceId: string,
+    parentProjectId: string | null,
+  ): Promise<number> {
+    const { _max } = await this.prisma.project.aggregate({
+      where: {
+        workspaceId,
+        parentProjectId: parentProjectId ?? null,
+      },
+      _max: { position: true },
+    });
+
+    return (_max.position ?? -1) + 1;
+  }
+
   async findAllByWorkspaceId(workspaceId: string): Promise<ProjectEntity[]> {
     const projects = await this.prisma.project.findMany({
       where: { workspaceId },
