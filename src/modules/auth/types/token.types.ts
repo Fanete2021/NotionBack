@@ -40,11 +40,6 @@ type RefreshTokenPayload = {
   jti: string;
 };
 
-export const RefreshSessionFlags = {
-  PERSISTENT: '1',
-  SESSION: '0',
-} as const;
-
 export type {
   TokenData,
   RefreshData,

@@ -13,9 +13,6 @@ import type {
   TokenPayload,
   RefreshTokenPayload,
 } from './token.types';
-import { RefreshSessionFlags } from './token.types';
-
-export { RefreshSessionFlags };
 
 export type {
   RegisterData,

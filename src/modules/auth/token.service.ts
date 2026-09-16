@@ -8,8 +8,8 @@ import {
   TokenPair,
   RefreshSession,
   RefreshTokenPayload,
-  RefreshSessionFlags,
 } from '@modules/auth/types';
+import { RefreshSessionFlags } from '@modules/auth/constants';
 
 @Injectable()
 export class TokenService {
