@@ -239,6 +239,31 @@ describe('AuthService', () => {
     });
   });
 
+  describe('getProfile', () => {
+    it('возвращает профиль пользователя по id', async () => {
+      const fakeUser = {
+        id: '123',
+        email: 'test@test.com',
+        name: 'Иван Иванов',
+        avatarUrl: 'https://example.com/avatar.jpg',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      mockUsersRepository.findById.mockResolvedValue(fakeUser);
+
+      await expect(authService.getProfile('123')).resolves.toBe(fakeUser);
+      expect(mockUsersRepository.findById).toHaveBeenCalledWith('123');
+    });
+
+    it('бросает UnauthorizedException, если пользователь не найден', async () => {
+      mockUsersRepository.findById.mockResolvedValue(null);
+
+      await expect(authService.getProfile('missing')).rejects.toThrow(
+        UnauthorizedException,
+      );
+    });
+  });
+
   describe('logout', () => {
     it('должен удалять конкретный токен, если он передан (одно устройство)', async () => {
       mockTokenService.getTokenUserId.mockReturnValue('123');
