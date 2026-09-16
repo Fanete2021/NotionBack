@@ -7,4 +7,5 @@ export {
   PagesGetContentResponse,
   PagesUpdateContentResponse,
   PagesFindAllByWorkspaceIdResponse,
+  PagesReorderResponse,
 } from './page-swagger.decorator';

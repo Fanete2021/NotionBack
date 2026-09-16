@@ -47,17 +47,27 @@ export class ProjectsService {
       throw new NotFoundException('Project not found');
     }
 
-    await this.assertParentInWorkspace(
-      project.workspaceId,
-      data.parentProjectId ?? null,
-    );
-
     const payload: Prisma.ProjectUncheckedUpdateInput = {
       name: data.name,
-      parentProjectId: data.parentProjectId,
       color: data.color,
       icon: data.icon,
     };
+
+    const isParentChanging =
+      data.parentProjectId !== undefined &&
+      (data.parentProjectId ?? null) !== project.parentProjectId;
+
+    if (isParentChanging) {
+      const newParentId = data.parentProjectId ?? null;
+      await this.assertParentInWorkspace(project.workspaceId, newParentId);
+      await this.assertNotOwnDescendant(project, newParentId);
+
+      payload.parentProjectId = newParentId;
+      payload.position = await this.projectsRepository.nextPosition(
+        project.workspaceId,
+        newParentId,
+      );
+    }
 
     const updated = await this.projectsRepository.update(id, payload);
     if (!updated) {
@@ -108,6 +118,35 @@ export class ProjectsService {
       throw new BadRequestException(
         'Parent project not found or not in the same workspace',
       );
+    }
+  }
+
+  private async assertNotOwnDescendant(
+    project: ProjectEntity,
+    newParentId: string | null,
+  ): Promise<void> {
+    if (!newParentId) {
+      return;
+    }
+    if (newParentId === project.id) {
+      throw new BadRequestException('A project cannot be its own parent');
+    }
+
+    const flat = await this.projectsRepository.findAllByWorkspaceId(
+      project.workspaceId,
+    );
+    const parentById = new Map(
+      flat.map((item) => [item.id, item.parentProjectId]),
+    );
+
+    let cursor: string | null = newParentId;
+    while (cursor) {
+      if (cursor === project.id) {
+        throw new BadRequestException(
+          'Cannot move a project into its own subtree',
+        );
+      }
+      cursor = parentById.get(cursor) ?? null;
     }
   }
 

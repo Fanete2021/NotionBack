@@ -44,6 +44,28 @@ export class PagesService {
     return this.pagesRepository.findAllByWorkspaceId(workspaceId, projectId);
   }
 
+  async reorder(
+    workspaceId: string,
+    projectId: string,
+    orderedIds: string[],
+  ): Promise<PageEntity[]> {
+    await this.assertProjectInWorkspace(workspaceId, projectId);
+
+    const pages = await this.pagesRepository.reorder(
+      workspaceId,
+      projectId,
+      orderedIds,
+    );
+
+    if (!pages) {
+      throw new BadRequestException(
+        'orderedIds должен содержать ровно все документы-соседи проекта',
+      );
+    }
+
+    return pages;
+  }
+
   async findById(id: string): Promise<PageEntity> {
     const page = await this.pagesRepository.findById(id);
     if (!page) {

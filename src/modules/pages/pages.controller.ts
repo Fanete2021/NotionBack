@@ -15,6 +15,7 @@ import { PagesService } from '@modules/pages/pages.service';
 import { WorkspacesService } from '@modules/workspaces/workspaces.service';
 import { CreatePageDto } from '@modules/pages/dto';
 import { UpdatePageDto } from '@modules/pages/dto';
+import { ReorderPagesDto } from '@modules/pages/dto';
 import { CurrentUser } from '@common/decorators';
 import { PageEntity } from '@modules/pages/entities';
 import { PageContentEntity } from '@modules/pages/entities';
@@ -26,6 +27,7 @@ import {
   PagesFindAllByWorkspaceIdResponse,
   PagesFindByIdResponse,
   PagesGetContentResponse,
+  PagesReorderResponse,
   PagesUpdateContentResponse,
   PagesUpdateResponse,
 } from '@modules/pages/decorators';
@@ -115,5 +117,20 @@ export class PagesController {
   ): Promise<PageEntity[]> {
     await this.workspacesService.assertMemberOf(workspaceId, userId);
     return this.pagesService.findAllByWorkspaceId(workspaceId, projectId);
+  }
+
+  @PagesReorderResponse()
+  @Patch('workspaces/:workspaceId/pages/order')
+  async reorder(
+    @CurrentUser('id') userId: string,
+    @Param('workspaceId') workspaceId: string,
+    @Body() dto: ReorderPagesDto,
+  ): Promise<PageEntity[]> {
+    await this.workspacesService.assertMemberOf(workspaceId, userId);
+    return this.pagesService.reorder(
+      workspaceId,
+      dto.projectId,
+      dto.orderedIds,
+    );
   }
 }
