@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { UsersRepository } from '@modules/users/users.repository';
+import { UserEntity } from '@modules/users/user.entity';
 import * as bcrypt from 'bcrypt';
 import {
   TokenData,
@@ -70,6 +71,15 @@ export class AuthService {
 
     const tokenData: TokenData = { userId: user.id, email: user.email };
     return this.tokenService.generateTokens(tokenData);
+  }
+
+  async getProfile(userId: string): Promise<UserEntity> {
+    const user = await this.usersRepository.findById(userId);
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    return user;
   }
 
   async refresh(data: RefreshData): Promise<TokenPair> {

@@ -27,6 +27,8 @@ import { getCookieValue } from '@common/utils';
 import { setRefreshTokenCookie } from '@common/utils';
 import { clearRefreshTokenCookie } from '@common/utils';
 import { Public } from '@common/decorators';
+import { CurrentUser } from '@common/decorators';
+import { UserEntity } from '@modules/users/user.entity';
 import {
   AuthControllerResponse,
   LoginResponse,
@@ -127,8 +129,8 @@ export class AuthController {
   @MeResponse()
   @UseGuards(AuthGuard('jwt-access'))
   @Get('me')
-  getProfile(@Req() req: Request): UserPayload {
-    return req.user as UserPayload;
+  getProfile(@CurrentUser('id') userId: string): Promise<UserEntity> {
+    return this.authService.getProfile(userId);
   }
 
   private handleSetCookie(res: Response, token: string): void {
