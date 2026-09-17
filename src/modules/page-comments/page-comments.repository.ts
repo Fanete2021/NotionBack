@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma';
 import { PageCommentEntity } from '@modules/page-comments/entities';
@@ -15,6 +15,17 @@ type ListPageCommentsFilters = {
 @Injectable()
 export class PageCommentsRepository {
   constructor(private readonly prisma: PrismaService) {}
+
+  async assertActivePage(pageId: string): Promise<void> {
+    const page = await this.prisma.page.findUnique({
+      where: { id: pageId, deletedAt: null },
+      select: { id: true },
+    });
+
+    if (!page) {
+      throw new NotFoundException('Page not found');
+    }
+  }
 
   async create(
     pageId: string,

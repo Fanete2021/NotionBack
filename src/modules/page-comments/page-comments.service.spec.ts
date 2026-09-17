@@ -6,7 +6,6 @@ import {
 } from '@nestjs/common';
 import { PageCommentsService } from '@modules/page-comments/page-comments.service';
 import { PageCommentsRepository } from '@modules/page-comments/page-comments.repository';
-import { WorkspacesService } from '@modules/workspaces/workspaces.service';
 import { PageCommentEntity } from '@modules/page-comments/entities';
 import { PageCommentAuthorEntity } from '@modules/page-comments/entities';
 
@@ -14,16 +13,13 @@ describe('PageCommentsService', () => {
   let service: PageCommentsService;
 
   const mockRepository = {
+    assertActivePage: jest.fn(),
     findAllByPageId: jest.fn(),
     create: jest.fn(),
     findByIdAndPageId: jest.fn(),
     updateBody: jest.fn(),
     setResolved: jest.fn(),
     delete: jest.fn(),
-  };
-
-  const mockWorkspacesService = {
-    assertCanManageMembers: jest.fn(),
   };
 
   const authorInfo = new PageCommentAuthorEntity({
@@ -47,16 +43,30 @@ describe('PageCommentsService', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    mockRepository.assertActivePage.mockResolvedValue(undefined);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PageCommentsService,
         { provide: PageCommentsRepository, useValue: mockRepository },
-        { provide: WorkspacesService, useValue: mockWorkspacesService },
       ],
     }).compile();
 
     service = module.get(PageCommentsService);
+  });
+
+  describe('list', () => {
+    it('маппит resolved=true в boolean', async () => {
+      mockRepository.findAllByPageId.mockResolvedValue([]);
+
+      await service.list('page-1', { resolved: 'true' });
+
+      expect(mockRepository.assertActivePage).toHaveBeenCalledWith('page-1');
+      expect(mockRepository.findAllByPageId).toHaveBeenCalledWith('page-1', {
+        anchorId: undefined,
+        resolved: true,
+      });
+    });
   });
 
   describe('create', () => {
@@ -107,8 +117,7 @@ describe('PageCommentsService', () => {
   });
 
   describe('setResolved', () => {
-    it('переключает resolved', async () => {
-      mockRepository.findByIdAndPageId.mockResolvedValue(comment);
+    it('переключает resolved одним update', async () => {
       mockRepository.setResolved.mockResolvedValue({
         ...comment,
         resolved: true,
@@ -116,6 +125,7 @@ describe('PageCommentsService', () => {
 
       await service.setResolved('page-1', 'comment-1', 'user-2', true);
 
+      expect(mockRepository.findByIdAndPageId).not.toHaveBeenCalled();
       expect(mockRepository.setResolved).toHaveBeenCalledWith(
         'comment-1',
         'page-1',
@@ -127,35 +137,29 @@ describe('PageCommentsService', () => {
   });
 
   describe('delete', () => {
-    it('удаляет свой комментарий без проверки admin', async () => {
+    it('удаляет свой комментарий', async () => {
       mockRepository.findByIdAndPageId.mockResolvedValue(comment);
       mockRepository.delete.mockResolvedValue(true);
 
-      await service.delete('ws-1', 'page-1', 'comment-1', 'user-1');
+      await service.delete('page-1', 'comment-1', 'user-1');
 
-      expect(
-        mockWorkspacesService.assertCanManageMembers,
-      ).not.toHaveBeenCalled();
+      expect(mockRepository.delete).toHaveBeenCalledWith('comment-1', 'page-1');
     });
 
-    it('требует admin для чужого комментария', async () => {
+    it('запрещает удаление чужого комментария', async () => {
       mockRepository.findByIdAndPageId.mockResolvedValue(comment);
-      mockWorkspacesService.assertCanManageMembers.mockResolvedValue(undefined);
-      mockRepository.delete.mockResolvedValue(true);
 
-      await service.delete('ws-1', 'page-1', 'comment-1', 'admin-1');
-
-      expect(mockWorkspacesService.assertCanManageMembers).toHaveBeenCalledWith(
-        'ws-1',
-        'admin-1',
-      );
+      await expect(
+        service.delete('page-1', 'comment-1', 'other-user'),
+      ).rejects.toThrow(ForbiddenException);
+      expect(mockRepository.delete).not.toHaveBeenCalled();
     });
 
     it('404 если комментарий не найден', async () => {
       mockRepository.findByIdAndPageId.mockResolvedValue(null);
 
       await expect(
-        service.delete('ws-1', 'page-1', 'ghost', 'user-1'),
+        service.delete('page-1', 'ghost', 'user-1'),
       ).rejects.toThrow(NotFoundException);
     });
   });

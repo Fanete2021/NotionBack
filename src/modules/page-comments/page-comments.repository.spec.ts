@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PageCommentsRepository } from '@modules/page-comments/page-comments.repository';
 import { PrismaService } from '../../prisma';
@@ -8,6 +9,9 @@ describe('PageCommentsRepository', () => {
   let repository: PageCommentsRepository;
 
   const mockPrisma = {
+    page: {
+      findUnique: jest.fn(),
+    },
     pageComment: {
       create: jest.fn(),
       findMany: jest.fn(),
@@ -55,6 +59,22 @@ describe('PageCommentsRepository', () => {
     }).compile();
 
     repository = module.get(PageCommentsRepository);
+  });
+
+  describe('assertActivePage', () => {
+    it('бросает 404, если страница не найдена или удалена', async () => {
+      mockPrisma.page.findUnique.mockResolvedValue(null);
+
+      await expect(repository.assertActivePage('page-1')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('не бросает, если страница активна', async () => {
+      mockPrisma.page.findUnique.mockResolvedValue({ id: 'page-1' });
+
+      await expect(repository.assertActivePage('page-1')).resolves.toBeUndefined();
+    });
   });
 
   describe('create', () => {

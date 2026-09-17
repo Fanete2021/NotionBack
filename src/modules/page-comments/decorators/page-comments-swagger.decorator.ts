@@ -106,10 +106,7 @@ function PageCommentsSetResolvedResponse() {
 
 function PageCommentsDeleteResponse() {
   return applyDecorators(
-    ApiOperation({
-      summary:
-        'Удалить комментарий (автор или владелец/админ воркспейса)',
-    }),
+    ApiOperation({ summary: 'Удалить свой комментарий' }),
     ApiParam({ name: 'pageId', type: String, description: 'ID страницы' }),
     ApiParam({
       name: 'commentId',
@@ -118,7 +115,10 @@ function PageCommentsDeleteResponse() {
     }),
     ApiResponse({ status: 204, description: 'Комментарий удалён' }),
     ApiWorkspaceForbidden(),
-    ApiResponse({ status: 403, description: 'Недостаточно прав' }),
+    ApiResponse({
+      status: 403,
+      description: 'Удалить может только автор комментария',
+    }),
     ApiResponse({
       status: 404,
       description: 'Страница или комментарий не найдены',

@@ -1,6 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { Transform } from 'class-transformer';
-import { IsBoolean, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
 import { MAX_ANCHOR_ID_LENGTH } from '@modules/page-comments/constants';
 
 export class ListPageCommentsQueryDto {
@@ -10,17 +9,14 @@ export class ListPageCommentsQueryDto {
   @MaxLength(MAX_ANCHOR_ID_LENGTH)
   anchorId?: string;
 
-  @ApiPropertyOptional({ example: false })
-  @IsOptional()
-  @Transform(({ value }: { value: unknown }) => {
-    if (value === 'true' || value === true) {
-      return true;
-    }
-    if (value === 'false' || value === false) {
-      return false;
-    }
-    return undefined;
+  @ApiPropertyOptional({
+    example: 'false',
+    enum: ['true', 'false'],
+    description: 'Фильтр по статусу «решён»',
   })
-  @IsBoolean()
-  resolved?: boolean;
+  @IsOptional()
+  @IsIn(['true', 'false'], {
+    message: 'resolved must be true or false',
+  })
+  resolved?: 'true' | 'false';
 }
