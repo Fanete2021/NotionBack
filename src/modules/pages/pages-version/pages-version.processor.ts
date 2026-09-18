@@ -34,7 +34,7 @@ export class PagesVersionProcessor extends WorkerHost {
       const lastVersion =
         await this.pagesVersionRepository.findLatestByPageId(pageId);
 
-      if (lastVersion && lastVersion.createdAt >= page.updatedAt) {
+      if (lastVersion && lastVersion.createdAt >= page.content.updatedAt) {
         this.logger.debug('Изменения не найдены. Пропускаем.');
         return;
       }

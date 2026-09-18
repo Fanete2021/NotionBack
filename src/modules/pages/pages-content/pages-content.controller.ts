@@ -2,9 +2,13 @@ import { Body, Controller, Get, Param, Put } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { WorkspacesService } from '../../workspaces/workspaces.service';
-import { PagesGetContentResponse, PagesUpdateContentResponse } from '../decorators';
 import { PagesService } from '../pages.service';
+import {
+  PagesGetContentResponse,
+  PagesUpdateContentResponse,
+} from './decorators';
 import { PageContentEntity } from './entities';
+import { PagesContentMapper } from './page-content.mapper';
 import { PagesContentService } from './pages-content.service';
 
 @ApiBearerAuth()
@@ -14,8 +18,9 @@ export class PagesContentController {
   constructor(
     private readonly pagesService: PagesService,
     private readonly pagesContentService: PagesContentService,
+    private readonly pagesContentMapper: PagesContentMapper,
     private readonly workspacesService: WorkspacesService,
-  ) { }
+  ) {}
 
   @Get(':id/content')
   @PagesGetContentResponse()
@@ -27,7 +32,9 @@ export class PagesContentController {
 
     await this.workspacesService.assertMemberOf(page.workspaceId, userId);
 
-    return this.pagesContentService.getContent(page);
+    const content = await this.pagesContentService.getContent(page);
+
+    return this.pagesContentMapper.toEntity(content);
   }
 
   @Put(':id/content')
@@ -41,6 +48,12 @@ export class PagesContentController {
 
     await this.workspacesService.assertMemberOf(page.workspaceId, userId);
 
-    return this.pagesContentService.updateContent(page, body);
+    const content = await this.pagesContentService.updateContent(
+      page,
+      body,
+      userId,
+    );
+
+    return this.pagesContentMapper.toEntity(content);
   }
 }

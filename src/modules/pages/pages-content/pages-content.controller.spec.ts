@@ -9,8 +9,10 @@ jest.mock('@nestjs/bullmq', () => ({
 }));
 
 import { Test, TestingModule } from '@nestjs/testing';
+import { PageContent } from '@prisma/client';
 import { WorkspacesService } from '../../workspaces/workspaces.service';
 import { PagesService } from '../pages.service';
+import { PagesContentMapper } from './page-content.mapper';
 import { PagesContentController } from './pages-content.controller';
 import { PagesContentService } from './pages-content.service';
 
@@ -32,6 +34,10 @@ describe('PagesContentController', () => {
     updateContent: jest.fn(),
   };
 
+  const mockPagesContentMapper = {
+    toEntity: jest.fn((content: PageContent): unknown => content),
+  };
+
   const mockWorkspacesService = {
     assertMemberOf: jest.fn(),
   };
@@ -42,8 +48,9 @@ describe('PagesContentController', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [PagesContentController],
       providers: [
-        { provide: PagesService, useValue: mockPagesService }, // Добавить PagesService
+        { provide: PagesService, useValue: mockPagesService },
         { provide: PagesContentService, useValue: mockPagesContentService },
+        { provide: PagesContentMapper, useValue: mockPagesContentMapper },
         { provide: WorkspacesService, useValue: mockWorkspacesService },
       ],
     }).compile();
@@ -54,8 +61,17 @@ describe('PagesContentController', () => {
   describe('getContent', () => {
     it('проверяет членство и возвращает контент', async () => {
       const page = { id: 'p1', workspaceId: 'ws-1' };
+      const rawContent = {
+        pageId: 'p1',
+        json: {},
+        yjsState: null,
+        updatedAt: new Date(),
+      };
+      const entity = { pageId: 'p1' };
+
       mockPagesService.findById.mockResolvedValue(page);
-      mockPagesContentService.getContent.mockResolvedValue({ pageId: 'p1' });
+      mockPagesContentService.getContent.mockResolvedValue(rawContent);
+      mockPagesContentMapper.toEntity.mockReturnValue(entity);
 
       const result = await controller.getContent('user-1', 'p1');
 
@@ -64,7 +80,8 @@ describe('PagesContentController', () => {
         'user-1',
       );
       expect(mockPagesContentService.getContent).toHaveBeenCalledWith(page);
-      expect(result).toEqual({ pageId: 'p1' });
+      expect(mockPagesContentMapper.toEntity).toHaveBeenCalledWith(rawContent);
+      expect(result).toEqual(entity);
     });
   });
 
@@ -72,11 +89,17 @@ describe('PagesContentController', () => {
     it('проверяет членство и перезаписывает контент', async () => {
       const body = { type: 'doc', content: [] };
       const page = { id: 'p1', workspaceId: 'ws-1' };
-      mockPagesService.findById.mockResolvedValue(page);
-      mockPagesContentService.updateContent.mockResolvedValue({
+      const rawContent = {
         pageId: 'p1',
         json: body,
-      });
+        yjsState: null,
+        updatedAt: new Date(),
+      };
+      const entity = { pageId: 'p1', json: body };
+
+      mockPagesService.findById.mockResolvedValue(page);
+      mockPagesContentService.updateContent.mockResolvedValue(rawContent);
+      mockPagesContentMapper.toEntity.mockReturnValue(entity);
 
       const result = await controller.updateContent('user-1', 'p1', body);
 
@@ -87,8 +110,10 @@ describe('PagesContentController', () => {
       expect(mockPagesContentService.updateContent).toHaveBeenCalledWith(
         page,
         body,
+        'user-1',
       );
-      expect(result).toEqual({ pageId: 'p1', json: body });
+      expect(mockPagesContentMapper.toEntity).toHaveBeenCalledWith(rawContent);
+      expect(result).toEqual(entity);
     });
   });
 });

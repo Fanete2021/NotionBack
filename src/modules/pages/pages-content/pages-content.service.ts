@@ -8,7 +8,6 @@ import { Prisma } from '@prisma/client';
 import { EMPTY_DOCUMENT } from '../constants';
 import { PageEntity } from '../entities/page.entity';
 import { PagesVersionService } from '../pages-version';
-import { PageContentEntity } from './entities';
 import { PagesContentRepository } from './pages-content.repository';
 
 @Injectable()
@@ -19,23 +18,20 @@ export class PagesContentService {
     private readonly pagesVersionService: PagesVersionService,
   ) {}
 
-  async getContent(page: PageEntity): Promise<PageContentEntity> {
+  async getContent(page: PageEntity) {
     const content = await this.pagesContentRepository.findContent(page.id);
     if (!content) {
-      return new PageContentEntity(
-        page.id,
-        EMPTY_DOCUMENT as Prisma.JsonValue,
-        new Date(),
-      );
+      return {
+        pageId: page.id,
+        json: EMPTY_DOCUMENT as Prisma.JsonValue,
+        yjsState: null,
+        updatedAt: new Date(),
+      };
     }
-
     return content;
   }
 
-  async updateContent(
-    page: PageEntity,
-    json: unknown,
-  ): Promise<PageContentEntity> {
+  async updateContent(page: PageEntity, json: unknown, editorId: string) {
     if (json === null || json === undefined) {
       throw new BadRequestException('Page content must be a JSON value');
     }
@@ -46,12 +42,12 @@ export class PagesContentService {
 
     this.assertSizeWithinLimit(json);
 
-    const updatedContent = this.pagesContentRepository.upsertContent(
+    const updatedContent = await this.pagesContentRepository.upsertContent(
       page.id,
       json,
     );
 
-    await this.pagesVersionService.scheduleAutoSnapshot(page.id, page.authorId);
+    await this.pagesVersionService.scheduleAutoSnapshot(page.id, editorId);
 
     return updatedContent;
   }
