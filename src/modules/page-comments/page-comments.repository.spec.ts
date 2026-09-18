@@ -1,9 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PageCommentsRepository } from './page-comments.repository';
 import { PrismaService } from '../../prisma';
-import { PageCommentEntity } from './entities';
 
 describe('PageCommentsRepository', () => {
   let repository: PageCommentsRepository;
@@ -61,21 +59,19 @@ describe('PageCommentsRepository', () => {
     repository = module.get(PageCommentsRepository);
   });
 
-  describe('assertActivePage', () => {
-    it('бросает 404, если страница не найдена или удалена', async () => {
+  describe('findActivePageId', () => {
+    it('возвращает null, если страница не найдена или удалена', async () => {
       mockPrisma.page.findUnique.mockResolvedValue(null);
 
-      await expect(repository.assertActivePage('page-1')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(repository.findActivePageId('page-1')).resolves.toBeNull();
     });
 
-    it('не бросает, если страница активна', async () => {
+    it('возвращает id активной страницы', async () => {
       mockPrisma.page.findUnique.mockResolvedValue({ id: 'page-1' });
 
-      await expect(
-        repository.assertActivePage('page-1'),
-      ).resolves.toBeUndefined();
+      await expect(repository.findActivePageId('page-1')).resolves.toBe(
+        'page-1',
+      );
     });
   });
 
@@ -99,8 +95,8 @@ describe('PageCommentsRepository', () => {
         },
         include: expect.any(Object) as object,
       });
-      expect(result).toBeInstanceOf(PageCommentEntity);
-      expect(result.authorInfo.id).toBe('user-1');
+      expect(result.authorId).toBe('user-1');
+      expect(result.author.id).toBe('user-1');
     });
   });
 

@@ -6,14 +6,12 @@ import {
 } from '@nestjs/common';
 import { PageCommentsService } from './page-comments.service';
 import { PageCommentsRepository } from './page-comments.repository';
-import { PageCommentEntity } from './entities';
-import { PageCommentAuthorEntity } from './entities';
 
 describe('PageCommentsService', () => {
   let service: PageCommentsService;
 
   const mockRepository = {
-    assertActivePage: jest.fn(),
+    findActivePageId: jest.fn(),
     findAllByPageId: jest.fn(),
     create: jest.fn(),
     findByIdAndPageId: jest.fn(),
@@ -22,28 +20,29 @@ describe('PageCommentsService', () => {
     delete: jest.fn(),
   };
 
-  const authorInfo = new PageCommentAuthorEntity({
-    id: 'user-1',
-    name: 'Author',
-    email: 'a@example.com',
-  });
-
-  const comment = new PageCommentEntity({
+  const commentFixture = {
     id: 'comment-1',
     pageId: 'page-1',
+    authorId: 'user-1',
     body: 'Text',
     anchorId: null,
     resolved: false,
     resolvedAt: null,
-    resolvedBy: null,
+    resolvedById: null,
     createdAt: new Date(),
     updatedAt: new Date(),
-    authorInfo,
-  });
+    author: {
+      id: 'user-1',
+      name: 'Author',
+      email: 'a@example.com',
+      avatarUrl: null,
+    },
+    resolvedBy: null,
+  };
 
   beforeEach(async () => {
     jest.clearAllMocks();
-    mockRepository.assertActivePage.mockResolvedValue(undefined);
+    mockRepository.findActivePageId.mockResolvedValue('page-1');
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -61,7 +60,7 @@ describe('PageCommentsService', () => {
 
       await service.list('page-1', { resolved: 'true' });
 
-      expect(mockRepository.assertActivePage).toHaveBeenCalledWith('page-1');
+      expect(mockRepository.findActivePageId).toHaveBeenCalledWith('page-1');
       expect(mockRepository.findAllByPageId).toHaveBeenCalledWith('page-1', {
         anchorId: undefined,
         resolved: true,
@@ -71,7 +70,7 @@ describe('PageCommentsService', () => {
 
   describe('create', () => {
     it('trim body и создаёт комментарий', async () => {
-      mockRepository.create.mockResolvedValue(comment);
+      mockRepository.create.mockResolvedValue(commentFixture);
 
       await service.create('page-1', 'user-1', { body: '  hello  ' });
 
@@ -92,7 +91,7 @@ describe('PageCommentsService', () => {
 
   describe('update', () => {
     it('запрещает редактирование чужого комментария', async () => {
-      mockRepository.findByIdAndPageId.mockResolvedValue(comment);
+      mockRepository.findByIdAndPageId.mockResolvedValue(commentFixture);
 
       await expect(
         service.update('page-1', 'comment-1', 'other-user', { body: 'X' }),
@@ -100,9 +99,9 @@ describe('PageCommentsService', () => {
     });
 
     it('обновляет свой комментарий', async () => {
-      mockRepository.findByIdAndPageId.mockResolvedValue(comment);
+      mockRepository.findByIdAndPageId.mockResolvedValue(commentFixture);
       mockRepository.updateBody.mockResolvedValue({
-        ...comment,
+        ...commentFixture,
         body: 'New',
       });
 
@@ -119,7 +118,7 @@ describe('PageCommentsService', () => {
   describe('setResolved', () => {
     it('переключает resolved одним update', async () => {
       mockRepository.setResolved.mockResolvedValue({
-        ...comment,
+        ...commentFixture,
         resolved: true,
       });
 
@@ -138,7 +137,7 @@ describe('PageCommentsService', () => {
 
   describe('delete', () => {
     it('удаляет свой комментарий', async () => {
-      mockRepository.findByIdAndPageId.mockResolvedValue(comment);
+      mockRepository.findByIdAndPageId.mockResolvedValue(commentFixture);
       mockRepository.delete.mockResolvedValue(true);
 
       await service.delete('page-1', 'comment-1', 'user-1');
@@ -147,7 +146,7 @@ describe('PageCommentsService', () => {
     });
 
     it('запрещает удаление чужого комментария', async () => {
-      mockRepository.findByIdAndPageId.mockResolvedValue(comment);
+      mockRepository.findByIdAndPageId.mockResolvedValue(commentFixture);
 
       await expect(
         service.delete('page-1', 'comment-1', 'other-user'),

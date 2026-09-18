@@ -1,6 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { PageCommentsController } from './page-comments.controller';
 import { PageCommentsService } from './page-comments.service';
+import { PageCommentMapper } from './page-comment.mapper';
+import { PageCommentEntity } from './entities';
 
 describe('PageCommentsController', () => {
   let controller: PageCommentsController;
@@ -13,12 +15,33 @@ describe('PageCommentsController', () => {
     delete: jest.fn(),
   };
 
+  const commentRow = {
+    id: 'comment-1',
+    pageId: 'page-1',
+    authorId: 'user-1',
+    body: 'Hi',
+    anchorId: null,
+    resolved: false,
+    resolvedAt: null,
+    resolvedById: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    author: {
+      id: 'user-1',
+      name: 'Author',
+      email: 'a@example.com',
+      avatarUrl: null,
+    },
+    resolvedBy: null,
+  };
+
   beforeEach(async () => {
     jest.resetAllMocks();
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [PageCommentsController],
       providers: [
+        PageCommentMapper,
         { provide: PageCommentsService, useValue: mockPageCommentsService },
       ],
     }).compile();
@@ -26,23 +49,26 @@ describe('PageCommentsController', () => {
     controller = module.get(PageCommentsController);
   });
 
-  it('list делегирует в сервис', async () => {
-    mockPageCommentsService.list.mockResolvedValue([]);
+  it('list маппит результат сервиса в entity', async () => {
+    mockPageCommentsService.list.mockResolvedValue([commentRow]);
 
-    await controller.list('page-1', {});
+    const result = await controller.list('page-1', {});
 
-    expect(mockPageCommentsService.list).toHaveBeenCalledWith('page-1', {});
+    expect(result).toHaveLength(1);
+    expect(result[0]).toBeInstanceOf(PageCommentEntity);
+    expect(result[0].authorInfo.id).toBe('user-1');
   });
 
-  it('create делегирует в сервис', async () => {
-    mockPageCommentsService.create.mockResolvedValue({ id: 'c1' });
+  it('create делегирует в сервис и маппит ответ', async () => {
+    mockPageCommentsService.create.mockResolvedValue(commentRow);
 
-    await controller.create('user-1', 'page-1', { body: 'Hi' });
+    const result = await controller.create('user-1', 'page-1', { body: 'Hi' });
 
     expect(mockPageCommentsService.create).toHaveBeenCalledWith(
       'page-1',
       'user-1',
       { body: 'Hi' },
     );
+    expect(result).toBeInstanceOf(PageCommentEntity);
   });
 });

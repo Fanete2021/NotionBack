@@ -6,10 +6,10 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PageCommentsRepository } from './page-comments.repository';
-import { PageCommentEntity } from './entities';
 import { CreatePageCommentDto } from './dto';
 import { UpdatePageCommentDto } from './dto';
 import { ListPageCommentsQueryDto } from './dto';
+import { PageCommentWithAuthor } from './types';
 
 @Injectable()
 export class PageCommentsService {
@@ -22,8 +22,8 @@ export class PageCommentsService {
   async list(
     pageId: string,
     query: ListPageCommentsQueryDto,
-  ): Promise<PageCommentEntity[]> {
-    await this.pageCommentsRepository.assertActivePage(pageId);
+  ): Promise<PageCommentWithAuthor[]> {
+    await this.assertActivePage(pageId);
 
     const resolved =
       query.resolved === undefined ? undefined : query.resolved === 'true';
@@ -38,8 +38,8 @@ export class PageCommentsService {
     pageId: string,
     authorId: string,
     dto: CreatePageCommentDto,
-  ): Promise<PageCommentEntity> {
-    await this.pageCommentsRepository.assertActivePage(pageId);
+  ): Promise<PageCommentWithAuthor> {
+    await this.assertActivePage(pageId);
 
     const body = dto.body.trim();
     if (!body) {
@@ -82,12 +82,12 @@ export class PageCommentsService {
     commentId: string,
     actorId: string,
     dto: UpdatePageCommentDto,
-  ): Promise<PageCommentEntity> {
-    await this.pageCommentsRepository.assertActivePage(pageId);
+  ): Promise<PageCommentWithAuthor> {
+    await this.assertActivePage(pageId);
 
     const comment = await this.getCommentOrThrow(pageId, commentId);
 
-    if (comment.authorInfo.id !== actorId) {
+    if (comment.authorId !== actorId) {
       this.logger.warn(
         JSON.stringify({
           action: 'page_comment_update',
@@ -149,8 +149,8 @@ export class PageCommentsService {
     commentId: string,
     actorId: string,
     resolved: boolean,
-  ): Promise<PageCommentEntity> {
-    await this.pageCommentsRepository.assertActivePage(pageId);
+  ): Promise<PageCommentWithAuthor> {
+    await this.assertActivePage(pageId);
 
     const resolvedAt = resolved ? new Date() : null;
     const resolvedById = resolved ? actorId : null;
@@ -191,11 +191,11 @@ export class PageCommentsService {
     commentId: string,
     actorId: string,
   ): Promise<void> {
-    await this.pageCommentsRepository.assertActivePage(pageId);
+    await this.assertActivePage(pageId);
 
     const comment = await this.getCommentOrThrow(pageId, commentId);
 
-    if (comment.authorInfo.id !== actorId) {
+    if (comment.authorId !== actorId) {
       this.logger.warn(
         JSON.stringify({
           action: 'page_comment_delete',
@@ -231,6 +231,14 @@ export class PageCommentsService {
     );
   }
 
+  private async assertActivePage(pageId: string): Promise<void> {
+    const activePageId =
+      await this.pageCommentsRepository.findActivePageId(pageId);
+    if (!activePageId) {
+      throw new NotFoundException('Page not found');
+    }
+  }
+
   private logCommentNotFound(
     action: string,
     pageId: string,
@@ -252,7 +260,7 @@ export class PageCommentsService {
   private async getCommentOrThrow(
     pageId: string,
     commentId: string,
-  ): Promise<PageCommentEntity> {
+  ): Promise<PageCommentWithAuthor> {
     const comment = await this.pageCommentsRepository.findByIdAndPageId(
       commentId,
       pageId,

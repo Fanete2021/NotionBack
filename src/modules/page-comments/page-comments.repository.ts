@@ -1,8 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma';
-import { PageCommentEntity } from './entities';
-import { PageCommentAuthorEntity } from './entities';
 import { COMMENT_AUTHOR_SELECT } from './constants';
 import { PageCommentWithAuthor } from './types';
 import { isNotFoundError } from '@common/utils';
@@ -12,19 +10,22 @@ type ListPageCommentsFilters = {
   resolved?: boolean;
 };
 
+const commentInclude = {
+  author: { select: COMMENT_AUTHOR_SELECT },
+  resolvedBy: { select: COMMENT_AUTHOR_SELECT },
+} as const;
+
 @Injectable()
 export class PageCommentsRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async assertActivePage(pageId: string): Promise<void> {
+  async findActivePageId(pageId: string): Promise<string | null> {
     const page = await this.prisma.page.findUnique({
       where: { id: pageId, deletedAt: null },
       select: { id: true },
     });
 
-    if (!page) {
-      throw new NotFoundException('Page not found');
-    }
+    return page?.id ?? null;
   }
 
   async create(
@@ -32,27 +33,22 @@ export class PageCommentsRepository {
     authorId: string,
     body: string,
     anchorId: string | null,
-  ): Promise<PageCommentEntity> {
-    const comment = await this.prisma.pageComment.create({
+  ): Promise<PageCommentWithAuthor> {
+    return this.prisma.pageComment.create({
       data: {
         pageId,
         authorId,
         body,
         anchorId,
       },
-      include: {
-        author: { select: COMMENT_AUTHOR_SELECT },
-        resolvedBy: { select: COMMENT_AUTHOR_SELECT },
-      },
+      include: commentInclude,
     });
-
-    return this.mapToEntity(comment);
   }
 
   async findAllByPageId(
     pageId: string,
     filters: ListPageCommentsFilters = {},
-  ): Promise<PageCommentEntity[]> {
+  ): Promise<PageCommentWithAuthor[]> {
     const where: Prisma.PageCommentWhereInput = { pageId };
 
     if (filters.anchorId !== undefined) {
@@ -62,50 +58,33 @@ export class PageCommentsRepository {
       where.resolved = filters.resolved;
     }
 
-    const comments = await this.prisma.pageComment.findMany({
+    return this.prisma.pageComment.findMany({
       where,
-      include: {
-        author: { select: COMMENT_AUTHOR_SELECT },
-        resolvedBy: { select: COMMENT_AUTHOR_SELECT },
-      },
+      include: commentInclude,
       orderBy: { createdAt: 'asc' },
     });
-
-    return comments.map((comment) => this.mapToEntity(comment));
   }
 
   async findByIdAndPageId(
     commentId: string,
     pageId: string,
-  ): Promise<PageCommentEntity | null> {
-    const comment = await this.prisma.pageComment.findFirst({
+  ): Promise<PageCommentWithAuthor | null> {
+    return this.prisma.pageComment.findFirst({
       where: { id: commentId, pageId },
-      include: {
-        author: { select: COMMENT_AUTHOR_SELECT },
-        resolvedBy: { select: COMMENT_AUTHOR_SELECT },
-      },
+      include: commentInclude,
     });
-
-    if (!comment) {
-      return null;
-    }
-
-    return this.mapToEntity(comment);
   }
 
   async updateBody(
     commentId: string,
     pageId: string,
     body: string,
-  ): Promise<PageCommentEntity | null> {
+  ): Promise<PageCommentWithAuthor | null> {
     const comment = await this.prisma.pageComment
       .update({
         where: { id: commentId, pageId },
         data: { body },
-        include: {
-          author: { select: COMMENT_AUTHOR_SELECT },
-          resolvedBy: { select: COMMENT_AUTHOR_SELECT },
-        },
+        include: commentInclude,
       })
       .catch((error) => {
         if (isNotFoundError(error)) {
@@ -114,7 +93,7 @@ export class PageCommentsRepository {
         throw error;
       });
 
-    return comment ? this.mapToEntity(comment) : null;
+    return comment;
   }
 
   async setResolved(
@@ -123,7 +102,7 @@ export class PageCommentsRepository {
     resolved: boolean,
     resolvedById: string | null,
     resolvedAt: Date | null,
-  ): Promise<PageCommentEntity | null> {
+  ): Promise<PageCommentWithAuthor | null> {
     const comment = await this.prisma.pageComment
       .update({
         where: { id: commentId, pageId },
@@ -132,10 +111,7 @@ export class PageCommentsRepository {
           resolvedById,
           resolvedAt,
         },
-        include: {
-          author: { select: COMMENT_AUTHOR_SELECT },
-          resolvedBy: { select: COMMENT_AUTHOR_SELECT },
-        },
+        include: commentInclude,
       })
       .catch((error) => {
         if (isNotFoundError(error)) {
@@ -144,7 +120,7 @@ export class PageCommentsRepository {
         throw error;
       });
 
-    return comment ? this.mapToEntity(comment) : null;
+    return comment;
   }
 
   async delete(commentId: string, pageId: string): Promise<boolean> {
@@ -159,33 +135,5 @@ export class PageCommentsRepository {
       }
       throw error;
     }
-  }
-
-  private mapToEntity(comment: PageCommentWithAuthor): PageCommentEntity {
-    return new PageCommentEntity({
-      id: comment.id,
-      pageId: comment.pageId,
-      body: comment.body,
-      anchorId: comment.anchorId,
-      resolved: comment.resolved,
-      resolvedAt: comment.resolvedAt,
-      resolvedBy: comment.resolvedBy
-        ? this.mapAuthorToEntity(comment.resolvedBy)
-        : null,
-      createdAt: comment.createdAt,
-      updatedAt: comment.updatedAt,
-      authorInfo: this.mapAuthorToEntity(comment.author),
-    });
-  }
-
-  private mapAuthorToEntity(
-    author: PageCommentWithAuthor['author'],
-  ): PageCommentAuthorEntity {
-    return new PageCommentAuthorEntity({
-      id: author.id,
-      name: author.name,
-      email: author.email,
-      avatarUrl: author.avatarUrl,
-    });
   }
 }

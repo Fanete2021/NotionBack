@@ -11,6 +11,7 @@ import {
   Query,
 } from '@nestjs/common';
 import { PageCommentsService } from './page-comments.service';
+import { PageCommentMapper } from './page-comment.mapper';
 import { CurrentUser } from '@common/decorators';
 import { PageCommentEntity } from './entities';
 import {
@@ -31,52 +32,64 @@ import {
 @PageCommentsControllerResponse()
 @Controller('pages/:pageId/comments')
 export class PageCommentsController {
-  constructor(private readonly pageCommentsService: PageCommentsService) {}
+  constructor(
+    private readonly pageCommentsService: PageCommentsService,
+    private readonly pageCommentMapper: PageCommentMapper,
+  ) {}
 
   @PageCommentsListResponse()
   @Get()
-  list(
+  async list(
     @Param('pageId') pageId: string,
     @Query() query: ListPageCommentsQueryDto,
   ): Promise<PageCommentEntity[]> {
-    return this.pageCommentsService.list(pageId, query);
+    const comments = await this.pageCommentsService.list(pageId, query);
+    return this.pageCommentMapper.toEntities(comments);
   }
 
   @PageCommentsCreateResponse()
   @Post()
-  create(
+  async create(
     @CurrentUser('id') userId: string,
     @Param('pageId') pageId: string,
     @Body() dto: CreatePageCommentDto,
   ): Promise<PageCommentEntity> {
-    return this.pageCommentsService.create(pageId, userId, dto);
+    const comment = await this.pageCommentsService.create(pageId, userId, dto);
+    return this.pageCommentMapper.toEntity(comment);
   }
 
   @PageCommentsUpdateResponse()
   @Patch(':commentId')
-  update(
+  async update(
     @CurrentUser('id') userId: string,
     @Param('pageId') pageId: string,
     @Param('commentId') commentId: string,
     @Body() dto: UpdatePageCommentDto,
   ): Promise<PageCommentEntity> {
-    return this.pageCommentsService.update(pageId, commentId, userId, dto);
+    const comment = await this.pageCommentsService.update(
+      pageId,
+      commentId,
+      userId,
+      dto,
+    );
+    return this.pageCommentMapper.toEntity(comment);
   }
 
   @PageCommentsSetResolvedResponse()
   @Patch(':commentId/resolved')
-  setResolved(
+  async setResolved(
     @CurrentUser('id') userId: string,
     @Param('pageId') pageId: string,
     @Param('commentId') commentId: string,
     @Body() dto: SetCommentResolvedDto,
   ): Promise<PageCommentEntity> {
-    return this.pageCommentsService.setResolved(
+    const comment = await this.pageCommentsService.setResolved(
       pageId,
       commentId,
       userId,
       dto.resolved,
     );
+    return this.pageCommentMapper.toEntity(comment);
   }
 
   @PageCommentsDeleteResponse()
