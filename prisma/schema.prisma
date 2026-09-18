@@ -19,6 +19,11 @@ enum PageType {
   ARTICLE
 }
 
+enum AttachmentStatus {
+  PENDING
+  CONFIRMED
+}
+
 model User {
   id           String    @id @default(uuid())
   email        String    @unique
@@ -32,6 +37,7 @@ model User {
   memberships     WorkspaceMember[]
   authoredPages   Page[]
   createdInvites  WorkspaceInvite[]  @relation("InviteCreator")
+  uploadedAttachments Attachment[]   @relation("AttachmentUploader")
 
   @@map("users")
 }
@@ -46,6 +52,7 @@ model Workspace {
   owner   User              @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   members WorkspaceMember[]
   invites WorkspaceInvite[]
+  attachments Attachment[]
   projects Project[]
   pages    Page[]
 
@@ -123,6 +130,7 @@ model Page {
   childPages Page[]      @relation("PageHierarchy")
   author     User        @relation(fields: [authorId], references: [id], onDelete: Restrict)
   content    PageContent?
+  attachments Attachment[]
 
   @@unique([id, workspaceId])
   @@unique([workspaceId, projectId, parentPageId, position])
@@ -140,4 +148,25 @@ model PageContent {
   page Page @relation(fields: [pageId], references: [id], onDelete: Cascade)
 
   @@map("page_contents")
+}
+
+model Attachment {
+  id          String           @id @default(uuid())
+  pageId      String
+  workspaceId String
+  uploadedBy  String
+  fileName    String
+  contentType String
+  size        Int
+  key         String           @unique
+  status      AttachmentStatus @default(PENDING)
+  createdAt   DateTime         @default(now())
+
+  page      Page      @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  uploader  User      @relation("AttachmentUploader", fields: [uploadedBy], references: [id], onDelete: Cascade)
+
+  @@index([pageId])
+  @@index([workspaceId, status])
+  @@map("attachments")
 }
