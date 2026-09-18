@@ -9,6 +9,7 @@ import {
   RefreshSession,
   RefreshTokenPayload,
 } from '@modules/auth/types';
+import { RefreshSessionFlags } from '@modules/auth/constants';
 
 @Injectable()
 export class TokenService {
@@ -47,7 +48,9 @@ export class TokenService {
     const sessionSetKey = this.userSessionsKey(data.userId);
     await this.redis.set(
       this.refreshTokenKey(data.userId, refreshTokenId),
-      '1',
+      data.rememberMe
+        ? RefreshSessionFlags.PERSISTENT
+        : RefreshSessionFlags.SESSION,
       'EX',
       refreshExpiresIn,
     );
@@ -57,6 +60,7 @@ export class TokenService {
     return {
       accessToken,
       refreshToken,
+      rememberMe: data.rememberMe,
       user: { id: data.userId, email: data.email },
     };
   }
@@ -73,9 +77,9 @@ export class TokenService {
       decodedRefreshToken.sub,
       refreshTokenId,
     );
-    const isTokenValid = await this.redis.exists(redisKey);
+    const storedValue = await this.redis.get(redisKey);
 
-    if (!isTokenValid) {
+    if (storedValue === null) {
       throw new UnauthorizedException('Invalid refresh token');
     }
 
@@ -88,6 +92,7 @@ export class TokenService {
     return {
       userId: decodedRefreshToken.sub,
       refreshTokenId,
+      rememberMe: storedValue !== RefreshSessionFlags.SESSION,
     };
   }
 

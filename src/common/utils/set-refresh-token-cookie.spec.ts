@@ -11,7 +11,13 @@ describe('setRefreshTokenCookie', () => {
   });
 
   it('ставит refresh cookie с базовыми опциями и maxAge в миллисекундах', () => {
-    setRefreshTokenCookie(res, 'refresh.jwt', 2592000, false, 'lax');
+    setRefreshTokenCookie({
+      res,
+      token: 'refresh.jwt',
+      maxAgeSeconds: 2592000,
+      secure: false,
+      sameSite: 'lax',
+    });
 
     expect(cookie).toHaveBeenCalledTimes(1);
     expect(cookie).toHaveBeenCalledWith(
@@ -26,8 +32,29 @@ describe('setRefreshTokenCookie', () => {
     );
   });
 
+  it('ставит сессионную cookie без maxAge, когда maxAgeSeconds = null', () => {
+    setRefreshTokenCookie({
+      res,
+      token: 'refresh.jwt',
+      maxAgeSeconds: null,
+      secure: false,
+      sameSite: 'lax',
+    });
+
+    const calls = cookie.mock.calls as unknown as unknown[][];
+    const options = calls[0][2] as Record<string, unknown>;
+    expect(options).not.toHaveProperty('maxAge');
+    expect(options).toMatchObject({ secure: false, sameSite: 'lax' });
+  });
+
   it('прокидывает secure: true и sameSite: none для кросс-сайта', () => {
-    setRefreshTokenCookie(res, 'refresh.jwt', 60, true, 'none');
+    setRefreshTokenCookie({
+      res,
+      token: 'refresh.jwt',
+      maxAgeSeconds: 60,
+      secure: true,
+      sameSite: 'none',
+    });
 
     expect(cookie).toHaveBeenCalledWith(
       COOKIE_NAMES.REFRESH_TOKEN,
@@ -41,7 +68,13 @@ describe('setRefreshTokenCookie', () => {
   });
 
   it('прокидывает sameSite: strict', () => {
-    setRefreshTokenCookie(res, 'token', 3600, true, 'strict');
+    setRefreshTokenCookie({
+      res,
+      token: 'token',
+      maxAgeSeconds: 3600,
+      secure: true,
+      sameSite: 'strict',
+    });
 
     expect(cookie).toHaveBeenCalledWith(
       COOKIE_NAMES.REFRESH_TOKEN,

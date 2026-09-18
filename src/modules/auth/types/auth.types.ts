@@ -8,6 +8,7 @@ type RegisterData = {
 type LoginData = {
   email: string;
   password: string;
+  rememberMe?: boolean;
 };
 
 type LogoutData = {
