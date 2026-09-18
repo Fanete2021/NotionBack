@@ -1,9 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { PageCommentsRepository } from '@modules/page-comments/page-comments.repository';
+import { PageCommentsRepository } from './page-comments.repository';
 import { PrismaService } from '../../prisma';
-import { PageCommentEntity } from '@modules/page-comments/entities';
+import { PageCommentEntity } from './entities';
 
 describe('PageCommentsRepository', () => {
   let repository: PageCommentsRepository;
@@ -73,7 +73,9 @@ describe('PageCommentsRepository', () => {
     it('не бросает, если страница активна', async () => {
       mockPrisma.page.findUnique.mockResolvedValue({ id: 'page-1' });
 
-      await expect(repository.assertActivePage('page-1')).resolves.toBeUndefined();
+      await expect(
+        repository.assertActivePage('page-1'),
+      ).resolves.toBeUndefined();
     });
   });
 

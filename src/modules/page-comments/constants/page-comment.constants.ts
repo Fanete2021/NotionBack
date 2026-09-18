@@ -1,4 +1,4 @@
-import { PageCommentAuthor } from '@modules/page-comments/types';
+import { PageCommentAuthor } from '../types';
 
 const MAX_COMMENT_BODY_LENGTH = 5000;
 const MAX_ANCHOR_ID_LENGTH = 128;

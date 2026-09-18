@@ -4,10 +4,10 @@ import {
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
-import { PageCommentsService } from '@modules/page-comments/page-comments.service';
-import { PageCommentsRepository } from '@modules/page-comments/page-comments.repository';
-import { PageCommentEntity } from '@modules/page-comments/entities';
-import { PageCommentAuthorEntity } from '@modules/page-comments/entities';
+import { PageCommentsService } from './page-comments.service';
+import { PageCommentsRepository } from './page-comments.repository';
+import { PageCommentEntity } from './entities';
+import { PageCommentAuthorEntity } from './entities';
 
 describe('PageCommentsService', () => {
   let service: PageCommentsService;
@@ -158,9 +158,9 @@ describe('PageCommentsService', () => {
     it('404 если комментарий не найден', async () => {
       mockRepository.findByIdAndPageId.mockResolvedValue(null);
 
-      await expect(
-        service.delete('page-1', 'ghost', 'user-1'),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.delete('page-1', 'ghost', 'user-1')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });

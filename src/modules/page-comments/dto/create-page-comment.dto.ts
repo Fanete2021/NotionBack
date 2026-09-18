@@ -1,9 +1,6 @@
 import { ApiPropertyOptional, ApiProperty } from '@nestjs/swagger';
 import { IsOptional, IsString, MaxLength } from 'class-validator';
-import {
-  MAX_ANCHOR_ID_LENGTH,
-  MAX_COMMENT_BODY_LENGTH,
-} from '@modules/page-comments/constants';
+import { MAX_ANCHOR_ID_LENGTH, MAX_COMMENT_BODY_LENGTH } from '../constants';
 
 export class CreatePageCommentDto {
   @ApiProperty({ example: 'Нужно уточнить формулировку.' })

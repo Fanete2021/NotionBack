@@ -5,11 +5,11 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { PageCommentsRepository } from '@modules/page-comments/page-comments.repository';
-import { PageCommentEntity } from '@modules/page-comments/entities';
-import { CreatePageCommentDto } from '@modules/page-comments/dto';
-import { UpdatePageCommentDto } from '@modules/page-comments/dto';
-import { ListPageCommentsQueryDto } from '@modules/page-comments/dto';
+import { PageCommentsRepository } from './page-comments.repository';
+import { PageCommentEntity } from './entities';
+import { CreatePageCommentDto } from './dto';
+import { UpdatePageCommentDto } from './dto';
+import { ListPageCommentsQueryDto } from './dto';
 
 @Injectable()
 export class PageCommentsService {
@@ -26,9 +26,7 @@ export class PageCommentsService {
     await this.pageCommentsRepository.assertActivePage(pageId);
 
     const resolved =
-      query.resolved === undefined
-        ? undefined
-        : query.resolved === 'true';
+      query.resolved === undefined ? undefined : query.resolved === 'true';
 
     return this.pageCommentsRepository.findAllByPageId(pageId, {
       anchorId: query.anchorId,
@@ -124,7 +122,12 @@ export class PageCommentsService {
       body,
     );
     if (!updated) {
-      this.logCommentNotFound('page_comment_update', pageId, commentId, actorId);
+      this.logCommentNotFound(
+        'page_comment_update',
+        pageId,
+        commentId,
+        actorId,
+      );
       throw new NotFoundException('Comment not found');
     }
 
@@ -208,7 +211,12 @@ export class PageCommentsService {
 
     const deleted = await this.pageCommentsRepository.delete(commentId, pageId);
     if (!deleted) {
-      this.logCommentNotFound('page_comment_delete', pageId, commentId, actorId);
+      this.logCommentNotFound(
+        'page_comment_delete',
+        pageId,
+        commentId,
+        actorId,
+      );
       throw new NotFoundException('Comment not found');
     }
 

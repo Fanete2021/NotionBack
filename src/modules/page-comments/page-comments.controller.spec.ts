@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { PageCommentsController } from '@modules/page-comments/page-comments.controller';
-import { PageCommentsService } from '@modules/page-comments/page-comments.service';
+import { PageCommentsController } from './page-comments.controller';
+import { PageCommentsService } from './page-comments.service';
 
 describe('PageCommentsController', () => {
   let controller: PageCommentsController;

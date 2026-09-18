@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
-import { MAX_ANCHOR_ID_LENGTH } from '@modules/page-comments/constants';
+import { MAX_ANCHOR_ID_LENGTH } from '../constants';
 
 export class ListPageCommentsQueryDto {
   @ApiPropertyOptional({ example: 'anchor-mark-uuid' })

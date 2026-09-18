@@ -1,10 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma';
-import { PageCommentEntity } from '@modules/page-comments/entities';
-import { PageCommentAuthorEntity } from '@modules/page-comments/entities';
-import { COMMENT_AUTHOR_SELECT } from '@modules/page-comments/constants';
-import { PageCommentWithAuthor } from '@modules/page-comments/types';
+import { PageCommentEntity } from './entities';
+import { PageCommentAuthorEntity } from './entities';
+import { COMMENT_AUTHOR_SELECT } from './constants';
+import { PageCommentWithAuthor } from './types';
 import { isNotFoundError } from '@common/utils';
 
 type ListPageCommentsFilters = {

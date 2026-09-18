@@ -10,15 +10,15 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import { PageCommentsService } from '@modules/page-comments/page-comments.service';
+import { PageCommentsService } from './page-comments.service';
 import { CurrentUser } from '@common/decorators';
-import { PageCommentEntity } from '@modules/page-comments/entities';
+import { PageCommentEntity } from './entities';
 import {
   CreatePageCommentDto,
   UpdatePageCommentDto,
   SetCommentResolvedDto,
   ListPageCommentsQueryDto,
-} from '@modules/page-comments/dto';
+} from './dto';
 import {
   PageCommentsControllerResponse,
   PageCommentsListResponse,
@@ -26,7 +26,7 @@ import {
   PageCommentsUpdateResponse,
   PageCommentsSetResolvedResponse,
   PageCommentsDeleteResponse,
-} from '@modules/page-comments/decorators';
+} from './decorators';
 
 @PageCommentsControllerResponse()
 @Controller('pages/:pageId/comments')

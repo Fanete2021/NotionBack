@@ -1,6 +1,6 @@
 import { validate } from 'class-validator';
 import { plainToInstance } from 'class-transformer';
-import { ListPageCommentsQueryDto } from '@modules/page-comments/dto/list-page-comments-query.dto';
+import { ListPageCommentsQueryDto } from './list-page-comments-query.dto';
 
 describe('ListPageCommentsQueryDto', () => {
   it('принимает resolved=true и resolved=false', async () => {

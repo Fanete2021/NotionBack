@@ -8,7 +8,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { ApiWorkspaceForbidden } from '@common/decorators';
-import { PageCommentEntity } from '@modules/page-comments/entities';
+import { PageCommentEntity } from '../entities';
 
 function PageCommentsControllerResponse() {
   return applyDecorators(ApiBearerAuth(), ApiTags('Комментарии к странице'));
