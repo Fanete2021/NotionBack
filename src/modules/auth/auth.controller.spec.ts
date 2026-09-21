@@ -48,6 +48,7 @@ describe('AuthController', () => {
     mockAuthService.register.mockResolvedValue({
       accessToken: 'access',
       refreshToken: 'refresh',
+      rememberMe: true,
       user: { id: '1', email: 'user@test.com' },
     });
 
@@ -82,11 +83,12 @@ describe('AuthController', () => {
     mockAuthService.login.mockResolvedValue({
       accessToken: 'access',
       refreshToken: 'refresh',
+      rememberMe: true,
       user: { id: '1', email: 'user@test.com' },
     });
 
     await controller.login(
-      { email: 'user@test.com', password: 'password123' },
+      { email: 'user@test.com', password: 'password123', rememberMe: true },
       res,
     );
 
@@ -98,6 +100,25 @@ describe('AuthController', () => {
         sameSite: 'lax',
       }),
     );
+  });
+
+  it('login без rememberMe ставит сессионную cookie (без maxAge)', async () => {
+    mockAuthService.login.mockResolvedValue({
+      accessToken: 'access',
+      refreshToken: 'refresh',
+      rememberMe: false,
+      user: { id: '1', email: 'user@test.com' },
+    });
+
+    await controller.login(
+      { email: 'user@test.com', password: 'password123' },
+      res,
+    );
+
+    const calls = cookie.mock.calls as unknown as unknown[][];
+    const cookieOptions = calls[0][2] as Record<string, unknown>;
+    expect(cookieOptions).not.toHaveProperty('maxAge');
+    expect(cookieOptions).toMatchObject({ secure: false, sameSite: 'lax' });
   });
 
   it('getProfile отдаёт профиль текущего пользователя из сервиса', async () => {
