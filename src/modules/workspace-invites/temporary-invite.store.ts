@@ -1,4 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { Role } from '@prisma/client';
 import { RedisClient } from '@common/providers';
 import {
@@ -12,9 +13,11 @@ import {
 
 @Injectable()
 export class TemporaryInviteStore {
-  private readonly logger = new Logger(TemporaryInviteStore.name);
-
-  constructor(private readonly redis: RedisClient) {}
+  constructor(
+    private readonly redis: RedisClient,
+    @InjectPinoLogger(TemporaryInviteStore.name)
+    private readonly logger: PinoLogger,
+  ) {}
 
   async save(
     tokenHash: string,
@@ -37,10 +40,10 @@ export class TemporaryInviteStore {
     try {
       remainingTtl = await this.redis.ttl(key);
       raw = await this.redis.getdel(key);
-    } catch (error) {
+    } catch (error: unknown) {
       this.logger.warn(
-        'Redis is unavailable, falling back to database invites',
-        error instanceof Error ? error.stack : undefined,
+        { action: 'invite_consume', reason: 'redis_unavailable', err: error },
+        'falling back to database invites',
       );
       return null;
     }
@@ -51,7 +54,10 @@ export class TemporaryInviteStore {
 
     const stored = this.parseStoredInvite(raw);
     if (!stored) {
-      this.logger.error(`Discarded a malformed invite payload at ${key}`);
+      this.logger.warn(
+        { action: 'invite_consume', reason: 'malformed_payload', key },
+        'discarded a malformed invite payload',
+      );
       return null;
     }
 
@@ -73,10 +79,10 @@ export class TemporaryInviteStore {
         'EX',
         consumed.remainingTtl,
       );
-    } catch (error) {
+    } catch (error: unknown) {
       this.logger.error(
-        `Failed to restore a temporary invite at ${this.key(tokenHash)}`,
-        error instanceof Error ? error.stack : undefined,
+        { action: 'invite_restore', key: this.key(tokenHash), err: error },
+        'failed to restore a temporary invite',
       );
     }
   }

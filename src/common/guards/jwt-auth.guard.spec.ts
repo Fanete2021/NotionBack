@@ -1,6 +1,7 @@
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { asPinoLogger, createMockPinoLogger } from '@common/testing';
 
 describe('JwtAuthGuard', () => {
   let guard: JwtAuthGuard;
@@ -8,7 +9,7 @@ describe('JwtAuthGuard', () => {
 
   beforeEach(() => {
     reflector = new Reflector();
-    guard = new JwtAuthGuard(reflector);
+    guard = new JwtAuthGuard(reflector, asPinoLogger(createMockPinoLogger()));
   });
 
   it('should be defined', () => {

@@ -6,6 +6,7 @@ import { WorkspacesRepository } from '@modules/workspaces/workspaces.repository'
 import { UsersRepository } from '@modules/users/users.repository';
 import { PrismaService } from '../../prisma';
 import { ConfigService } from '@nestjs/config';
+import { provideMockPinoLogger } from '@common/testing';
 import {
   ConflictException,
   ForbiddenException,
@@ -66,6 +67,8 @@ describe('WorkspaceMembersService', () => {
           },
         },
         { provide: ConfigService, useValue: { get: jest.fn() } },
+        provideMockPinoLogger(WorkspaceMembersService.name),
+        provideMockPinoLogger(WorkspacesService.name),
       ],
     }).compile();
 

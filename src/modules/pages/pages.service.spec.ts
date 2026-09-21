@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { PagesService } from '@modules/pages/pages.service';
 import { PagesRepository } from '@modules/pages/pages.repository';
+import { provideMockPinoLogger } from '@common/testing';
 import { ProjectsRepository } from '@modules/projects/projects.repository';
 import { ConfigService } from '@nestjs/config';
 import {
@@ -56,6 +57,7 @@ describe('PagesService', () => {
         { provide: PagesRepository, useValue: mockPagesRepository },
         { provide: ProjectsRepository, useValue: mockProjectsRepository },
         { provide: ConfigService, useValue: mockConfigService },
+        provideMockPinoLogger(PagesService.name),
       ],
     }).compile();
 

@@ -6,16 +6,19 @@ import {
   BadRequestException,
   ConflictException,
   NotFoundException,
-  Logger,
   InternalServerErrorException,
   HttpStatus,
 } from '@nestjs/common';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { Prisma } from '@prisma/client';
 import { Request, Response } from 'express';
 
 @Catch(Prisma.PrismaClientKnownRequestError)
 export class PrismaExceptionFilter implements ExceptionFilter {
-  private readonly logger = new Logger(PrismaExceptionFilter.name);
+  constructor(
+    @InjectPinoLogger(PrismaExceptionFilter.name)
+    private readonly logger: PinoLogger,
+  ) {}
 
   catch(
     exception: Prisma.PrismaClientKnownRequestError,
@@ -36,12 +39,18 @@ export class PrismaExceptionFilter implements ExceptionFilter {
       timestamp: new Date().toISOString(),
     });
 
-    const logMessage = `[Prisma ${exception.code}] ${request.method} ${request.url} - ${httpException.message}`;
+    const meta = {
+      prismaCode: exception.code,
+      method: request.method,
+      url: request.url,
+      statusCode: status,
+      message: httpException.message,
+    };
 
     if (status >= Number(HttpStatus.INTERNAL_SERVER_ERROR)) {
-      this.logger.error(logMessage, exception.message);
+      this.logger.error({ ...meta, err: exception }, 'prisma request failed');
     } else {
-      this.logger.warn(logMessage);
+      this.logger.warn(meta, 'prisma request rejected');
     }
   }
 

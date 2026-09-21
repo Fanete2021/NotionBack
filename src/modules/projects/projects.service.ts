@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { Prisma } from '@prisma/client';
 import { CreateProjectData } from '@modules/projects/types';
 import { ProjectsRepository } from '@modules/projects/projects.repository';
@@ -12,14 +13,25 @@ import { ReorderProjectsDto } from '@modules/projects/dto';
 
 @Injectable()
 export class ProjectsService {
-  constructor(private readonly projectsRepository: ProjectsRepository) {}
+  constructor(
+    private readonly projectsRepository: ProjectsRepository,
+    @InjectPinoLogger(ProjectsService.name)
+    private readonly logger: PinoLogger,
+  ) {}
 
   async create(
     workspaceId: string,
     data: CreateProjectData,
   ): Promise<ProjectEntity> {
     await this.assertParentInWorkspace(workspaceId, data.parentProjectId);
-    return this.projectsRepository.create(workspaceId, data);
+    const project = await this.projectsRepository.create(workspaceId, data);
+
+    this.logger.info(
+      { projectId: project.id, workspaceId, action: 'project_create' },
+      'project created',
+    );
+
+    return project;
   }
 
   async findAllByWorkspaceId(workspaceId: string): Promise<ProjectEntity[]> {
@@ -63,6 +75,16 @@ export class ProjectsService {
     if (!updated) {
       throw new NotFoundException('Project not found');
     }
+
+    this.logger.info(
+      {
+        projectId: id,
+        workspaceId: project.workspaceId,
+        action: 'project_update',
+      },
+      'project updated',
+    );
+
     return updated;
   }
 
@@ -80,10 +102,23 @@ export class ProjectsService {
     );
 
     if (!flat) {
+      this.logger.warn(
+        {
+          workspaceId,
+          action: 'project_reorder',
+          reason: 'invalid_ordered_ids',
+        },
+        'project reorder rejected',
+      );
       throw new BadRequestException(
         'orderedIds must include exactly the sibling projects',
       );
     }
+
+    this.logger.info(
+      { workspaceId, action: 'project_reorder' },
+      'projects reordered',
+    );
 
     return this.buildTree(flat);
   }
@@ -93,6 +128,11 @@ export class ProjectsService {
     if (!deleted) {
       throw new NotFoundException('Project not found');
     }
+
+    this.logger.info(
+      { projectId: id, action: 'project_delete' },
+      'project deleted',
+    );
   }
 
   private async assertParentInWorkspace(

@@ -5,6 +5,7 @@ import {
   ForbiddenException,
   forwardRef,
 } from '@nestjs/common';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { Role } from '@prisma/client';
 import { WorkspaceMembersRepository } from '@modules/workspace-members/workspace-members.repository';
 import { WorkspaceMemberEntity } from '@modules/workspace-members/entities';
@@ -19,6 +20,8 @@ export class WorkspaceMembersService {
     private readonly usersRepository: UsersRepository,
     @Inject(forwardRef(() => WorkspacesService))
     private readonly workspacesService: WorkspacesService,
+    @InjectPinoLogger(WorkspaceMembersService.name)
+    private readonly logger: PinoLogger,
   ) {}
 
   async listMembers(workspaceId: string): Promise<WorkspaceMemberEntity[]> {
@@ -49,11 +52,18 @@ export class WorkspaceMembersService {
     }
 
     try {
-      return await this.workspaceMembersRepository.addMember(
+      const member = await this.workspaceMembersRepository.addMember(
         workspaceId,
         userId,
         role,
       );
+
+      this.logger.info(
+        { workspaceId, userId, actorId, role, action: 'member_add' },
+        'workspace member added',
+      );
+
+      return member;
     } catch (error) {
       rethrowAddMemberError(error);
     }
@@ -116,6 +126,12 @@ export class WorkspaceMembersService {
     if (!updated) {
       throw new NotFoundException('Membership not found');
     }
+
+    this.logger.info(
+      { workspaceId, userId, actorId, role, action: 'member_role_change' },
+      'workspace member role changed',
+    );
+
     return updated;
   }
 
@@ -148,6 +164,11 @@ export class WorkspaceMembersService {
     if (!removed) {
       throw new NotFoundException('Membership not found');
     }
+
+    this.logger.info(
+      { workspaceId, userId, actorId, action: 'member_remove' },
+      'workspace member removed',
+    );
   }
 
   private assertCanChangeRole(

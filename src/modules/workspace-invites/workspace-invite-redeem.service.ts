@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { Role } from '@prisma/client';
 import { WorkspaceMembersService } from '@modules/workspace-members/workspace-members.service';
 import { WorkspaceMemberEntity } from '@modules/workspace-members/entities';
@@ -12,6 +13,8 @@ export class WorkspaceInviteRedeemService {
     private readonly invitesRepository: WorkspaceInvitesRepository,
     private readonly workspaceMembersService: WorkspaceMembersService,
     private readonly temporaryInvites: TemporaryInviteStore,
+    @InjectPinoLogger(WorkspaceInviteRedeemService.name)
+    private readonly logger: PinoLogger,
   ) {}
 
   async redeem(userId: string, token: string): Promise<WorkspaceMemberEntity> {
@@ -27,6 +30,14 @@ export class WorkspaceInviteRedeemService {
     } else {
       const invite = await this.invitesRepository.findByTokenHash(tokenHash);
       if (!invite) {
+        this.logger.warn(
+          {
+            userId,
+            action: 'invite_redeem',
+            reason: 'invite_invalid_or_expired',
+          },
+          'invite redeem rejected',
+        );
         throw new NotFoundException('Invite is invalid or expired');
       }
       workspaceId = invite.workspaceId;
@@ -34,11 +45,18 @@ export class WorkspaceInviteRedeemService {
     }
 
     try {
-      return await this.workspaceMembersService.addMemberViaInvite(
+      const member = await this.workspaceMembersService.addMemberViaInvite(
         workspaceId,
         userId,
         role,
       );
+
+      this.logger.info(
+        { workspaceId, userId, action: 'invite_redeem', role },
+        'invite redeemed',
+      );
+
+      return member;
     } catch (error) {
       if (consumed) {
         await this.temporaryInvites.restore(tokenHash, consumed);

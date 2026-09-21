@@ -10,6 +10,7 @@ describe('Auth & Health (e2e)', () => {
   let app: INestApplication;
 
   beforeAll(async () => {
+    process.env.NODE_ENV = 'development';
     process.env.DATABASE_URL ??=
       'postgresql://postgres:postgres@localhost:5432/notionback?schema=public';
     process.env.JWT_ACCESS_SECRET ??= 'test-access-secret';

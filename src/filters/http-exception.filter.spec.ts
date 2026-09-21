@@ -1,13 +1,14 @@
 import { HttpExceptionsFilter } from './http-exception.filter';
+import { ArgumentsHost, HttpException, HttpStatus } from '@nestjs/common';
 import {
-  ArgumentsHost,
-  HttpException,
-  HttpStatus,
-  Logger,
-} from '@nestjs/common';
+  asPinoLogger,
+  createMockPinoLogger,
+  MockPinoLogger,
+} from '@common/testing';
 
 describe('HttpExceptionsFilter', () => {
   let filter: HttpExceptionsFilter;
+  let logger: MockPinoLogger;
 
   const jsonMock = jest.fn();
   const statusMock = jest.fn().mockReturnThis();
@@ -21,25 +22,17 @@ describe('HttpExceptionsFilter', () => {
     }),
   } as unknown as ArgumentsHost;
 
-  let loggerErrorSpy: jest.SpyInstance;
-  let loggerWarnSpy: jest.SpyInstance;
+  let loggerErrorSpy: jest.Mock;
+  let loggerWarnSpy: jest.Mock;
 
   beforeEach(() => {
     jest.clearAllMocks();
 
-    loggerErrorSpy = jest
-      .spyOn(Logger.prototype, 'error')
-      .mockImplementation(() => {});
-    loggerWarnSpy = jest
-      .spyOn(Logger.prototype, 'warn')
-      .mockImplementation(() => {});
+    logger = createMockPinoLogger();
+    loggerErrorSpy = logger.error;
+    loggerWarnSpy = logger.warn;
 
-    filter = new HttpExceptionsFilter();
-  });
-
-  afterEach(() => {
-    loggerErrorSpy.mockRestore();
-    loggerWarnSpy.mockRestore();
+    filter = new HttpExceptionsFilter(asPinoLogger(logger));
   });
 
   it('должен корректно обрабатывать стандартную ошибку (например, 404)', () => {

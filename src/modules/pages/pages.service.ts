@@ -5,6 +5,7 @@ import {
   PayloadTooLargeException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { Prisma } from '@prisma/client';
 import { EMPTY_DOCUMENT } from '@modules/pages/constants';
 import { PagesRepository } from '@modules/pages/pages.repository';
@@ -20,6 +21,8 @@ export class PagesService {
     private readonly pagesRepository: PagesRepository,
     private readonly projectsRepository: ProjectsRepository,
     private readonly configService: ConfigService,
+    @InjectPinoLogger(PagesService.name)
+    private readonly logger: PinoLogger,
   ) {}
 
   async create(
@@ -29,12 +32,19 @@ export class PagesService {
   ): Promise<PageEntity> {
     await this.assertProjectInWorkspace(workspaceId, dto.projectId);
 
-    return this.pagesRepository.create(workspaceId, authorId, {
+    const page = await this.pagesRepository.create(workspaceId, authorId, {
       projectId: dto.projectId,
       title: dto.title,
       icon: dto.icon ?? null,
       type: dto.type ?? 'DOC',
     });
+
+    this.logger.info(
+      { pageId: page.id, workspaceId, userId: authorId, action: 'page_create' },
+      'page created',
+    );
+
+    return page;
   }
 
   async findAllByWorkspaceId(
@@ -72,6 +82,12 @@ export class PagesService {
     if (!updated) {
       throw new NotFoundException('Page not found');
     }
+
+    this.logger.info(
+      { pageId: page.id, workspaceId: page.workspaceId, action: 'page_update' },
+      'page updated',
+    );
+
     return updated;
   }
 
@@ -80,6 +96,11 @@ export class PagesService {
     if (!deleted) {
       throw new NotFoundException('Page not found');
     }
+
+    this.logger.info(
+      { pageId: page.id, workspaceId: page.workspaceId, action: 'page_delete' },
+      'page deleted',
+    );
   }
 
   async getContent(page: PageEntity): Promise<PageContentEntity> {
@@ -109,7 +130,14 @@ export class PagesService {
 
     this.assertSizeWithinLimit(json);
 
-    return this.pagesRepository.upsertContent(page.id, json);
+    const content = await this.pagesRepository.upsertContent(page.id, json);
+
+    this.logger.info(
+      { pageId: page.id, action: 'page_content_update' },
+      'page content updated',
+    );
+
+    return content;
   }
 
   private assertSizeWithinLimit(json: unknown): void {

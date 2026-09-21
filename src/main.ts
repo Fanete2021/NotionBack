@@ -3,6 +3,7 @@ import { NestFactory, Reflector } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { SwaggerModule, DocumentBuilder, OpenAPIObject } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
+import { Logger } from 'nestjs-pino';
 import * as express from 'express';
 import { AppModule } from './app.module';
 import { HttpExceptionsFilter, PrismaExceptionFilter } from './filters';
@@ -18,7 +19,10 @@ const GLOBAL_PREFIX = 'api';
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     bodyParser: false,
+    bufferLogs: true,
   });
+
+  app.useLogger(app.get(Logger));
 
   const configService = app.get(ConfigService);
 
@@ -66,7 +70,10 @@ async function bootstrap(): Promise<void> {
   };
   app.use(bodyParserErrorHandler);
 
-  app.useGlobalFilters(new PrismaExceptionFilter(), new HttpExceptionsFilter());
+  app.useGlobalFilters(
+    app.get(PrismaExceptionFilter),
+    app.get(HttpExceptionsFilter),
+  );
   app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
   app.useGlobalPipes(
     new ValidationPipe({

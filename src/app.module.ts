@@ -1,6 +1,7 @@
 import { Module, Global } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { LoggerModule } from 'nestjs-pino';
 import { SentryModule, SentryGlobalFilter } from '@sentry/nestjs/setup';
 import { HealthController } from './health/health.controller';
 import { PrismaModule } from './prisma';
@@ -13,7 +14,13 @@ import { PagesModule } from '@modules/pages/pages.module';
 import { PageCommentsModule } from '@modules/page-comments/page-comments.module';
 import { JwtAuthGuard } from '@common/guards';
 import { RedisClient } from '@common/providers';
-import { appConfig, authConfig, databaseConfig } from './config';
+import { HttpExceptionsFilter, PrismaExceptionFilter } from './filters';
+import {
+  appConfig,
+  authConfig,
+  createLoggerOptions,
+  databaseConfig,
+} from './config';
 import { sentryValidationSchema } from './validation';
 import * as Joi from 'joi';
 
@@ -25,6 +32,12 @@ import * as Joi from 'joi';
       isGlobal: true,
       load: [appConfig, authConfig, databaseConfig],
       validationSchema: Joi.object({
+        NODE_ENV: Joi.string()
+          .valid('development', 'production')
+          .default('development'),
+        LOG_LEVEL: Joi.string()
+          .valid('fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent')
+          .optional(),
         PORT: Joi.number().default(8000),
         DATABASE_URL: Joi.string().required(),
         JWT_ACCESS_SECRET: Joi.string().required(),
@@ -50,6 +63,11 @@ import * as Joi from 'joi';
         ...sentryValidationSchema,
       }),
     }),
+    LoggerModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) =>
+        createLoggerOptions(configService),
+    }),
     PrismaModule,
     AuthModule,
     UsersModule,
@@ -66,6 +84,8 @@ import * as Joi from 'joi';
       useClass: SentryGlobalFilter,
     },
     RedisClient,
+    PrismaExceptionFilter,
+    HttpExceptionsFilter,
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,

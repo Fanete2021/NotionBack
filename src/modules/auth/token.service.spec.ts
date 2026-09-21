@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { UnauthorizedException } from '@nestjs/common';
 import { TokenService } from '@modules/auth/token.service';
 import { RedisClient } from '@common/providers';
+import { provideMockPinoLogger } from '@common/testing';
 
 describe('TokenService', () => {
   let service: TokenService;
@@ -50,6 +51,7 @@ describe('TokenService', () => {
         { provide: JwtService, useValue: mockJwtService },
         { provide: ConfigService, useValue: mockConfigService },
         { provide: RedisClient, useValue: mockRedis },
+        provideMockPinoLogger(TokenService.name),
       ],
     }).compile();
 

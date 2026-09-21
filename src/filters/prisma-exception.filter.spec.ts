@@ -1,6 +1,7 @@
 import { PrismaExceptionFilter } from './prisma-exception.filter';
 import { Prisma } from '@prisma/client';
 import { ArgumentsHost } from '@nestjs/common';
+import { asPinoLogger, createMockPinoLogger } from '@common/testing';
 
 describe('PrismaExceptionFilter', () => {
   let filter: PrismaExceptionFilter;
@@ -25,7 +26,7 @@ describe('PrismaExceptionFilter', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    filter = new PrismaExceptionFilter();
+    filter = new PrismaExceptionFilter(asPinoLogger(createMockPinoLogger()));
   });
 
   it.each([

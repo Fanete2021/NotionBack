@@ -11,6 +11,7 @@ import {
 } from '@modules/workspace-members/entities';
 import { RedisClient } from '@common/providers';
 import { TemporaryInviteStore } from '@modules/workspace-invites/temporary-invite.store';
+import { provideMockPinoLogger } from '@common/testing';
 
 describe('WorkspaceInviteRedeemService', () => {
   let service: WorkspaceInviteRedeemService;
@@ -60,6 +61,8 @@ describe('WorkspaceInviteRedeemService', () => {
           useValue: mockWorkspaceMembersService,
         },
         { provide: RedisClient, useValue: mockRedis },
+        provideMockPinoLogger(WorkspaceInviteRedeemService.name),
+        provideMockPinoLogger(TemporaryInviteStore.name),
       ],
     }).compile();
 

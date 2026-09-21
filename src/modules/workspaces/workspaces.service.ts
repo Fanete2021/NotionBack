@@ -4,6 +4,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { Role } from '@prisma/client';
 import { PrismaService } from '../../prisma';
 import { WorkspacesRepository } from '@modules/workspaces/workspaces.repository';
@@ -19,6 +20,8 @@ export class WorkspacesService {
     private readonly workspacesRepository: WorkspacesRepository,
     private readonly workspaceMembersRepository: WorkspaceMembersRepository,
     private readonly configService: ConfigService,
+    @InjectPinoLogger(WorkspacesService.name)
+    private readonly logger: PinoLogger,
   ) {}
 
   async create(ownerId: string, name: string): Promise<WorkspaceEntity> {
@@ -29,25 +32,40 @@ export class WorkspacesService {
 
     const ownedCount = await this.workspacesRepository.countOwnedBy(ownerId);
     if (ownedCount >= maxWorkspaces) {
+      this.logger.warn(
+        {
+          userId: ownerId,
+          action: 'workspace_create',
+          reason: 'workspace_limit_reached',
+        },
+        'workspace create rejected',
+      );
       throw new ForbiddenException(
         `Workspace limit reached (max ${maxWorkspaces} per user)`,
       );
     }
 
-    return this.prisma.$transaction(async (tx) => {
-      const workspace = await this.workspacesRepository.create(
-        ownerId,
-        name,
-        tx,
-      );
+    const workspace = await this.prisma.$transaction(async (tx) => {
+      const created = await this.workspacesRepository.create(ownerId, name, tx);
       await this.workspaceMembersRepository.addMember(
-        workspace.id,
+        created.id,
         ownerId,
         Role.OWNER,
         tx,
       );
-      return workspace;
+      return created;
     });
+
+    this.logger.info(
+      {
+        workspaceId: workspace.id,
+        userId: ownerId,
+        action: 'workspace_create',
+      },
+      'workspace created',
+    );
+
+    return workspace;
   }
 
   async findById(id: string, userId: string): Promise<WorkspaceEntity> {
@@ -86,6 +104,12 @@ export class WorkspacesService {
     if (!workspace) {
       throw new NotFoundException('Workspace not found');
     }
+
+    this.logger.info(
+      { workspaceId: id, userId, action: 'workspace_update' },
+      'workspace updated',
+    );
+
     return workspace;
   }
 
@@ -96,6 +120,11 @@ export class WorkspacesService {
     if (!deleted) {
       throw new NotFoundException('Workspace not found');
     }
+
+    this.logger.info(
+      { workspaceId: id, userId, action: 'workspace_delete' },
+      'workspace deleted',
+    );
   }
 
   async assertMemberOf(workspaceId: string, userId: string): Promise<void> {

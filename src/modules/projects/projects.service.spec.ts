@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ProjectsService } from '@modules/projects/projects.service';
 import { ProjectsRepository } from '@modules/projects/projects.repository';
+import { provideMockPinoLogger } from '@common/testing';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 
 describe('ProjectsService', () => {
@@ -21,6 +22,7 @@ describe('ProjectsService', () => {
       providers: [
         ProjectsService,
         { provide: ProjectsRepository, useValue: mockProjectsRepository },
+        provideMockPinoLogger(ProjectsService.name),
       ],
     }).compile();
 
