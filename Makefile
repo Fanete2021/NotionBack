@@ -7,9 +7,9 @@ NPM := npm
 
 help: ## Show this help
 	@echo "Available targets:"
-	@echo "  dev-up            - bring up the full dev stack (auto-creates .env)"
-	@echo "  dev-logs          - follow app logs"
-	@echo "  dev-down          - tear down the dev stack"
+	@echo "  dev-up            - start local infra (docker) + app in watch mode (auto-creates .env)"
+	@echo "  dev-logs          - follow local infra logs (postgres/redis/minio)"
+	@echo "  dev-down          - tear down local infra"
 	@echo "  db-up             - start only postgres"
 	@echo "  db-down           - stop databases"
 	@echo "  env-init          - create .env from .env.example if missing"
@@ -52,13 +52,13 @@ start-debug: ## Start in debug mode
 start-prod: ## Start compiled app
 	$(NPM) run start:prod
 
-dev-up: ## Bring up the full dev stack (auto-creates .env)
+dev-up: ## Start local infra (docker) + app in watch mode (auto-creates .env)
 	$(NPM) run dev:up
 
-dev-logs: ## Tail app logs
+dev-logs: ## Tail local infra logs (postgres/redis/minio)
 	$(NPM) run dev:logs
 
-dev-down: ## Tear down the dev stack
+dev-down: ## Tear down local infra
 	$(NPM) run dev:down
 
 db-up: ## Start only postgres

@@ -18,9 +18,10 @@ NestJS бэкенд проекта NotionBack: Prisma, JWT-авторизаци�
 - npm
 - `make` — только если хочешь использовать make-команды (Git Bash / WSL / macOS / Linux). Все make-команды — тонкие обёртки над `npm run`, так что сырые npm-команды работают везде.
 
-## Быстрый старт (Docker, рекомендуется)
+## Быстрый старт (рекомендуется)
 
-Весь стек (PostgreSQL + Redis + приложение с hot-reload) запускается в Docker:
+Инфраструктура (PostgreSQL + Redis + MinIO) поднимается в Docker через
+`docker-compose.local.yml`, а само приложение запускается на хосте в watch-режиме:
 
 ```bash
 npm run dev:up   # или: make dev-up
@@ -29,22 +30,24 @@ npm run dev:up   # или: make dev-up
 Что произойдёт автоматически:
 
 1. При первом запуске создастся `.env` из `.env.example` (если `.env` отсутствует).
-2. Соберутся и запустятся контейнеры `postgres`, `redis` и `app`.
-3. Команда дождётся, пока БД станут здоровыми.
-4. Применятся миграции Prisma, и приложение стартует в watch-режиме (`start:dev`).
+2. Поднимутся контейнеры `postgres`, `redis`, `minio` (+ разовый `minio-setup`).
+3. Приложение стартует локально в watch-режиме (`start:dev`).
 
-Всё, ничего больше руками делать не нужно — ни ставить зависимости, ни гонять миграции вручную.
+Миграции Prisma применяются отдельно (`npm run prisma:migrate`) — на хосте они не
+запускаются автоматически.
 
 Дальше:
 
 ```bash
-npm run dev:logs   # или: make dev-logs  — следить за логами приложения
-npm run dev:down   # или: make dev-down  — остановить стек
+npm run dev:logs   # или: make dev-logs  — логи инфраструктуры (postgres/redis/minio)
+npm run dev:down   # или: make dev-down  — остановить инфраструктуру
 ```
 
 Swagger UI: http://localhost:8000/api/docs
 
-> Примечание: простой `docker compose up` тоже работает (приложение тогда использует dev-секреты по умолчанию из `docker-compose.yml`), но `.env` автоматически создаётся только через `npm run dev:up`. Предпочтительно использовать `dev:up`.
+> Раньше был отдельный `docker-compose.yml` с приложением в контейнере — он удалён.
+> Для локальной разработки используется `docker-compose.local.yml` (только
+> инфраструктура), для продакшена — `docker-compose.prod.yml`.
 
 ## Команды
 
@@ -166,7 +169,7 @@ BCRYPT_SALT_ROUNDS=10
 
 MAX_WORKSPACES_PER_USER=3
 
-# Docker Compose (используется в docker-compose.yml)
+# Docker Compose (используется в docker-compose.local.yml / .prod.yml)
 POSTGRES_DB=notionback
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=postgres

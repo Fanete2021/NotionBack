@@ -19,8 +19,9 @@ fi
 echo "==> Pull image"
 $COMPOSE pull api
 
-echo "==> Ensure postgres & redis are up"
-$COMPOSE up -d postgres redis
+echo "==> Ensure postgres, redis & minio are up"
+$COMPOSE up -d postgres redis minio
+$COMPOSE up minio-setup
 
 echo "==> Run migrations"
 # В Dockerfile уже прописана команда prisma migrate deploy перед стартом,
