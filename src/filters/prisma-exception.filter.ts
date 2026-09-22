@@ -10,6 +10,7 @@ import {
   InternalServerErrorException,
   HttpStatus,
 } from '@nestjs/common';
+import * as Sentry from '@sentry/nestjs';
 import { Prisma } from '@prisma/client';
 import { Request, Response } from 'express';
 
@@ -40,6 +41,9 @@ export class PrismaExceptionFilter implements ExceptionFilter {
 
     if (status >= Number(HttpStatus.INTERNAL_SERVER_ERROR)) {
       this.logger.error(logMessage, exception.message);
+      Sentry.captureException(exception, {
+        mechanism: { handled: true, type: 'nestjs.prisma_exception_filter' },
+      });
     } else {
       this.logger.warn(logMessage);
     }

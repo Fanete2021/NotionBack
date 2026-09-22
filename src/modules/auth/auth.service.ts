@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { UsersRepository } from '@modules/users/users.repository';
+import { UserEntity } from '@modules/users/user.entity';
 import * as bcrypt from 'bcrypt';
 import {
   TokenData,
@@ -50,7 +51,11 @@ export class AuthService {
     };
     const user = await this.usersRepository.create(createUserData);
 
-    const tokenData: TokenData = { userId: user.id, email: user.email };
+    const tokenData: TokenData = {
+      userId: user.id,
+      email: user.email,
+      rememberMe: true,
+    };
     return this.tokenService.generateTokens(tokenData);
   }
 
@@ -68,8 +73,21 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const tokenData: TokenData = { userId: user.id, email: user.email };
+    const tokenData: TokenData = {
+      userId: user.id,
+      email: user.email,
+      rememberMe: data.rememberMe ?? false,
+    };
     return this.tokenService.generateTokens(tokenData);
+  }
+
+  async getProfile(userId: string): Promise<UserEntity> {
+    const user = await this.usersRepository.findById(userId);
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    return user;
   }
 
   async refresh(data: RefreshData): Promise<TokenPair> {
@@ -82,7 +100,11 @@ export class AuthService {
         throw new UnauthorizedException('User not found');
       }
 
-      const tokenData: TokenData = { userId: user.id, email: user.email };
+      const tokenData: TokenData = {
+        userId: user.id,
+        email: user.email,
+        rememberMe: refreshSession.rememberMe,
+      };
       return this.tokenService.generateTokens(tokenData);
     } catch (error) {
       if (error instanceof HttpException) {

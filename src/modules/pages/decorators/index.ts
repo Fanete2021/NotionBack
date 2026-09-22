@@ -1,10 +1,8 @@
 export {
   PagesControllerResponse,
   PagesCreateResponse,
+  PagesDeleteResponse,
+  PagesFindAllByWorkspaceIdResponse,
   PagesFindByIdResponse,
   PagesUpdateResponse,
-  PagesDeleteResponse,
-  PagesGetContentResponse,
-  PagesUpdateContentResponse,
-  PagesFindAllByWorkspaceIdResponse,
 } from './page-swagger.decorator';
