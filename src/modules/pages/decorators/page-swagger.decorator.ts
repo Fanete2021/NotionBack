@@ -8,9 +8,8 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { PageEntity, PageContentEntity } from '../entities';
 import { ApiWorkspaceForbidden } from '@common/decorators';
-import { PageEntity } from '@modules/pages/entities';
-import { PageContentEntity } from '@modules/pages/entities';
 
 function PagesControllerResponse() {
   return applyDecorators(ApiBearerAuth(), ApiTags('Pages'));

@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ProjectsService } from '@modules/projects/projects.service';
-import { ProjectsRepository } from '@modules/projects/projects.repository';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { ProjectsService } from './projects.service';
+import { ProjectsRepository } from './projects.repository';
 
 describe('ProjectsService', () => {
   let service: ProjectsService;

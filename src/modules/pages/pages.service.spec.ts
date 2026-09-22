@@ -1,14 +1,14 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { PagesService } from '@modules/pages/pages.service';
-import { PagesRepository } from '@modules/pages/pages.repository';
-import { ProjectsRepository } from '@modules/projects/projects.repository';
 import { ConfigService } from '@nestjs/config';
 import {
   BadRequestException,
   NotFoundException,
   PayloadTooLargeException,
 } from '@nestjs/common';
-import { PageEntity } from '@modules/pages/entities';
+import { PagesService } from './pages.service';
+import { PagesRepository } from './pages.repository';
+import { PageEntity } from './entities';
+import { ProjectsRepository } from '@modules/projects/projects.repository';
 
 describe('PagesService', () => {
   let service: PagesService;

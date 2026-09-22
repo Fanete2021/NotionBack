@@ -11,15 +11,10 @@ import {
   Put,
   Query,
 } from '@nestjs/common';
-import { PagesService } from '@modules/pages/pages.service';
-import { WorkspacesService } from '@modules/workspaces/workspaces.service';
-import { CreatePageDto } from '@modules/pages/dto';
-import { UpdatePageDto } from '@modules/pages/dto';
-import { ReorderPagesDto } from '@modules/pages/dto';
-import { CurrentUser } from '@common/decorators';
-import { PageEntity } from '@modules/pages/entities';
-import { PageContentEntity } from '@modules/pages/entities';
-import { PAGE_CONTENT_ROUTE } from '@modules/pages/constants';
+import { PagesService } from './pages.service';
+import { CreatePageDto, UpdatePageDto, ReorderPagesDto } from './dto';
+import { PageEntity, PageContentEntity } from './entities';
+import { PAGE_CONTENT_ROUTE } from './constants';
 import {
   PagesControllerResponse,
   PagesCreateResponse,
@@ -30,7 +25,9 @@ import {
   PagesReorderResponse,
   PagesUpdateContentResponse,
   PagesUpdateResponse,
-} from '@modules/pages/decorators';
+} from './decorators';
+import { WorkspacesService } from '@modules/workspaces/workspaces.service';
+import { CurrentUser } from '@common/decorators';
 
 @PagesControllerResponse()
 @Controller()
