@@ -15,13 +15,7 @@ export class UsersService {
     userId: string,
     dto: UpdateProfileDto,
   ): Promise<UserEntity> {
-    const payload = {
-      ...(dto.email !== undefined && { email: dto.email }),
-      ...(dto.name !== undefined && { name: dto.name }),
-      ...(dto.avatarUrl !== undefined && { avatarUrl: dto.avatarUrl }),
-    };
-
-    const user = await this.usersRepository.update(userId, payload);
+    const user = await this.usersRepository.update(userId, dto);
     if (!user) {
       throw new NotFoundException('User not found');
     }

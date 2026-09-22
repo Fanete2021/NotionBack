@@ -37,33 +37,18 @@ describe('UsersService', () => {
   });
 
   describe('updateProfile', () => {
-    it('обновляет только переданные поля', async () => {
-      const updatedUser = { id: '123', name: 'Новое имя' };
+    it('передаёт dto в репозиторий как есть и маппит результат в entity', async () => {
+      const dto = { name: 'Новое имя', email: 'new@test.com' };
+      const updatedUser = { id: '123', ...dto };
       const updatedEntity = { ...updatedUser };
       mockUsersRepository.update.mockResolvedValue(updatedUser);
       mockUsersMapper.toEntity.mockReturnValue(updatedEntity);
 
-      const result = await usersService.updateProfile('123', {
-        name: 'Новое имя',
-      });
+      const result = await usersService.updateProfile('123', dto);
 
-      expect(mockUsersRepository.update).toHaveBeenCalledWith('123', {
-        name: 'Новое имя',
-      });
+      expect(mockUsersRepository.update).toHaveBeenCalledWith('123', dto);
       expect(mockUsersMapper.toEntity).toHaveBeenCalledWith(updatedUser);
       expect(result).toBe(updatedEntity);
-    });
-
-    it('обновляет email, если он передан', async () => {
-      const updatedUser = { id: '123', email: 'new@test.com' };
-      mockUsersRepository.update.mockResolvedValue(updatedUser);
-      mockUsersMapper.toEntity.mockReturnValue(updatedUser);
-
-      await usersService.updateProfile('123', { email: 'new@test.com' });
-
-      expect(mockUsersRepository.update).toHaveBeenCalledWith('123', {
-        email: 'new@test.com',
-      });
     });
 
     it('бросает NotFoundException, если пользователь не найден', async () => {
