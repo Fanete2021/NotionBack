@@ -1,52 +1,31 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../prisma';
-import { UserEntity } from '@modules/users/user.entity';
 import { User } from '@prisma/client';
-import { CreateUserData } from '@modules/users/types';
+import { PrismaService } from '../../prisma';
+import { CreateUserData, UpdateUserData } from './types';
+import { isNotFoundError } from '@common/utils';
 
 @Injectable()
 export class UsersRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(data: CreateUserData): Promise<UserEntity> {
-    const user = await this.prisma.user.create({ data });
-
-    return this.mapToEntity(user);
+  async create(data: CreateUserData): Promise<User> {
+    return this.prisma.user.create({ data });
   }
 
-  async findByEmail(email: string): Promise<UserEntity | null> {
-    const user = await this.prisma.user.findUnique({
-      where: { email },
+  async update(id: string, data: UpdateUserData): Promise<User | null> {
+    return this.prisma.user.update({ where: { id }, data }).catch((error) => {
+      if (isNotFoundError(error)) {
+        return null;
+      }
+      throw error;
     });
-
-    if (!user) {
-      return null;
-    }
-
-    return this.mapToEntity(user);
   }
 
-  async findById(id: string): Promise<UserEntity | null> {
-    const user = await this.prisma.user.findUnique({
-      where: { id },
-    });
-
-    if (!user) {
-      return null;
-    }
-
-    return this.mapToEntity(user);
+  async findByEmail(email: string): Promise<User | null> {
+    return this.prisma.user.findUnique({ where: { email } });
   }
 
-  private mapToEntity(user: User): UserEntity {
-    return new UserEntity({
-      id: user.id,
-      email: user.email,
-      passwordHash: user.passwordHash,
-      name: user.name,
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt,
-      avatarUrl: user.avatarUrl,
-    });
+  async findById(id: string): Promise<User | null> {
+    return this.prisma.user.findUnique({ where: { id } });
   }
 }

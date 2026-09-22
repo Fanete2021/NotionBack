@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { UsersRepository } from '@modules/users/users.repository';
+import { UsersMapper } from '@modules/users/users.mapper';
 import { UserEntity } from '@modules/users/user.entity';
 import * as bcrypt from 'bcrypt';
 import {
@@ -30,6 +31,7 @@ export class AuthService {
 
   constructor(
     private readonly usersRepository: UsersRepository,
+    private readonly usersMapper: UsersMapper,
     private readonly tokenService: TokenService,
     private readonly configService: ConfigService,
   ) {}
@@ -87,7 +89,7 @@ export class AuthService {
       throw new UnauthorizedException('User not found');
     }
 
-    return user;
+    return this.usersMapper.toEntity(user);
   }
 
   async refresh(data: RefreshData): Promise<TokenPair> {
