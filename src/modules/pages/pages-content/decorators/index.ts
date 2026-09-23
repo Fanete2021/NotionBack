@@ -1,5 +1,4 @@
 export {
   PagesGetContentResponse,
-  PagesUpdateContentResponse
+  PagesUpdateContentResponse,
 } from './page-content-swagger.decorator';
-

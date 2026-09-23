@@ -1,8 +1,5 @@
 import { ProjectsRepository } from '@modules/projects/projects.repository';
-import {
-  BadRequestException,
-  NotFoundException
-} from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { PageEntity } from './entities';

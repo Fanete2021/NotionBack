@@ -1,11 +1,6 @@
 import { ApiWorkspaceForbidden } from '@common/decorators';
 import { applyDecorators } from '@nestjs/common';
-import {
-  ApiBody,
-  ApiOperation,
-  ApiParam,
-  ApiResponse
-} from '@nestjs/swagger';
+import { ApiBody, ApiOperation, ApiParam, ApiResponse } from '@nestjs/swagger';
 import { PageContentEntity } from '../entities';
 
 function PagesGetContentResponse() {
@@ -36,8 +31,4 @@ function PagesUpdateContentResponse() {
   );
 }
 
-export {
-  PagesGetContentResponse,
-  PagesUpdateContentResponse
-};
-
+export { PagesGetContentResponse, PagesUpdateContentResponse };

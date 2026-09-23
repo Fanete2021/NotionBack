@@ -1,4 +1,4 @@
-export { } from './sentry.validation';
+export {} from './sentry.validation';
 
 import * as Joi from 'joi';
 import { appValidationSchema } from './app.validation';
@@ -18,5 +18,5 @@ export const validationSchema = Joi.object({
   ...s3ValidationSchema,
   ...attachmentsValidationSchema,
   ...workspaceValidationSchema,
-  ...sentryValidationSchema
+  ...sentryValidationSchema,
 });

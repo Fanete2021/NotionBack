@@ -14,7 +14,7 @@ export class PagesService {
   constructor(
     private readonly pagesRepository: PagesRepository,
     private readonly projectsRepository: ProjectsRepository,
-  ) { }
+  ) {}
 
   async create(
     workspaceId: string,

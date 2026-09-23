@@ -6,7 +6,7 @@ import {
   ApiParam,
   ApiQuery,
   ApiResponse,
-  ApiTags
+  ApiTags,
 } from '@nestjs/swagger';
 import { PageEntity } from '../entities';
 
@@ -82,6 +82,9 @@ function PagesFindAllByWorkspaceIdResponse() {
 
 export {
   PagesControllerResponse,
-  PagesCreateResponse, PagesDeleteResponse, PagesFindAllByWorkspaceIdResponse, PagesFindByIdResponse, PagesUpdateResponse
+  PagesCreateResponse,
+  PagesDeleteResponse,
+  PagesFindAllByWorkspaceIdResponse,
+  PagesFindByIdResponse,
+  PagesUpdateResponse,
 };
-

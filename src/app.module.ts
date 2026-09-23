@@ -11,6 +11,7 @@ import databaseConfig from './config/database.config';
 import { HealthController } from './health/health.controller';
 import { AttachmentsModule } from './modules/attachments/attachments.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { PageCommentsModule } from './modules/page-comments/page-comments.module';
 import {
   PagesContentModule,
   PagesModule,
@@ -51,6 +52,7 @@ import { validationSchema } from './validation';
     PagesModule,
     PagesContentModule,
     PagesVersionModule,
+    PageCommentsModule,
   ],
   controllers: [HealthController],
   providers: [
@@ -66,4 +68,4 @@ import { validationSchema } from './validation';
   ],
   exports: [RedisClient],
 })
-export class AppModule { }
+export class AppModule {}

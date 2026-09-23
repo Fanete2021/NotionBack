@@ -12,7 +12,14 @@ import {
   Query,
 } from '@nestjs/common';
 import { WorkspacesService } from '../workspaces/workspaces.service';
-import { PagesControllerResponse, PagesCreateResponse, PagesDeleteResponse, PagesFindAllByWorkspaceIdResponse, PagesFindByIdResponse, PagesUpdateResponse } from './decorators';
+import {
+  PagesControllerResponse,
+  PagesCreateResponse,
+  PagesDeleteResponse,
+  PagesFindAllByWorkspaceIdResponse,
+  PagesFindByIdResponse,
+  PagesUpdateResponse,
+} from './decorators';
 import { CreatePageDto, UpdatePageDto } from './dto';
 import { PageEntity } from './entities';
 import { PagesService } from './pages.service';
@@ -23,7 +30,7 @@ export class PagesController {
   constructor(
     private readonly pagesService: PagesService,
     private readonly workspacesService: WorkspacesService,
-  ) { }
+  ) {}
 
   @PagesCreateResponse()
   @Post('pages')

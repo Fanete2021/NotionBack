@@ -8,7 +8,7 @@ import { CreatePageData } from './types';
 
 @Injectable()
 export class PagesRepository {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService) {}
 
   async create(
     workspaceId: string,

@@ -30,12 +30,14 @@ model User {
   updatedAt    DateTime @updatedAt
   avatarUrl    String?
 
-  ownedWorkspaces     Workspace[]       @relation("WorkspaceOwner")
-  memberships         WorkspaceMember[]
-  authoredPages       Page[]
-  createdInvites      WorkspaceInvite[] @relation("InviteCreator")
-  uploadedAttachments Attachment[]      @relation("AttachmentUploader")
-  pageVersions        PageVersion[]
+  ownedWorkspaces      Workspace[]       @relation("WorkspaceOwner")
+  memberships          WorkspaceMember[]
+  authoredPages        Page[]
+  createdInvites       WorkspaceInvite[] @relation("InviteCreator")
+  uploadedAttachments  Attachment[]      @relation("AttachmentUploader")
+  pageVersions         PageVersion[]
+  pageCommentsAuthored PageComment[]     @relation("PageCommentAuthor")
+  pageCommentsResolved PageComment[]     @relation("PageCommentResolver")
 
   @@map("users")
 }
