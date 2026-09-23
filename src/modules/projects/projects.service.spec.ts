@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ProjectsService } from '@modules/projects/projects.service';
-import { ProjectsRepository } from '@modules/projects/projects.repository';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { ProjectsService } from './projects.service';
+import { ProjectsRepository } from './projects.repository';
 
 describe('ProjectsService', () => {
   let service: ProjectsService;
@@ -10,6 +10,7 @@ describe('ProjectsService', () => {
     create: jest.fn(),
     findById: jest.fn(),
     findAllByWorkspaceId: jest.fn(),
+    nextPosition: jest.fn(),
     update: jest.fn(),
     delete: jest.fn(),
     reorder: jest.fn(),
@@ -94,10 +95,19 @@ describe('ProjectsService', () => {
       expect(mockProjectsRepository.update).not.toHaveBeenCalled();
     });
 
-    it('успешно обновляет с валидным родителем', async () => {
+    it('успешно обновляет с валидным родителем и пересчитывает позицию', async () => {
       mockProjectsRepository.findById
-        .mockResolvedValueOnce({ id: 'p1', workspaceId: 'ws-1' })
+        .mockResolvedValueOnce({
+          id: 'p1',
+          workspaceId: 'ws-1',
+          parentProjectId: null,
+        })
         .mockResolvedValueOnce({ id: 'parent', workspaceId: 'ws-1' });
+      mockProjectsRepository.findAllByWorkspaceId.mockResolvedValue([
+        { id: 'p1', parentProjectId: null },
+        { id: 'parent', parentProjectId: null },
+      ]);
+      mockProjectsRepository.nextPosition.mockResolvedValue(3);
       mockProjectsRepository.update.mockResolvedValue({ id: 'p1' });
 
       const result = await service.update('p1', {
@@ -105,9 +115,17 @@ describe('ProjectsService', () => {
         parentProjectId: 'parent',
       });
 
+      expect(mockProjectsRepository.nextPosition).toHaveBeenCalledWith(
+        'ws-1',
+        'parent',
+      );
       expect(mockProjectsRepository.update).toHaveBeenCalledWith(
         'p1',
-        expect.objectContaining({ name: 'New', parentProjectId: 'parent' }),
+        expect.objectContaining({
+          name: 'New',
+          parentProjectId: 'parent',
+          position: 3,
+        }),
       );
       expect(result).toEqual({ id: 'p1' });
     });
@@ -116,16 +134,41 @@ describe('ProjectsService', () => {
       mockProjectsRepository.findById.mockResolvedValue({
         id: 'p1',
         workspaceId: 'ws-1',
+        parentProjectId: 'parent',
       });
+      mockProjectsRepository.nextPosition.mockResolvedValue(0);
       mockProjectsRepository.update.mockResolvedValue({ id: 'p1' });
 
       await service.update('p1', { parentProjectId: null });
 
       expect(mockProjectsRepository.findById).toHaveBeenCalledTimes(1);
+      expect(mockProjectsRepository.nextPosition).toHaveBeenCalledWith(
+        'ws-1',
+        null,
+      );
       expect(mockProjectsRepository.update).toHaveBeenCalledWith(
         'p1',
-        expect.objectContaining({ parentProjectId: null }),
+        expect.objectContaining({ parentProjectId: null, position: 0 }),
       );
+    });
+
+    it('бросает 400 при попытке переместить проект в собственное поддерево', async () => {
+      mockProjectsRepository.findById
+        .mockResolvedValueOnce({
+          id: 'p1',
+          workspaceId: 'ws-1',
+          parentProjectId: null,
+        })
+        .mockResolvedValueOnce({ id: 'child', workspaceId: 'ws-1' });
+      mockProjectsRepository.findAllByWorkspaceId.mockResolvedValue([
+        { id: 'p1', parentProjectId: null },
+        { id: 'child', parentProjectId: 'p1' },
+      ]);
+
+      await expect(
+        service.update('p1', { parentProjectId: 'child' }),
+      ).rejects.toThrow(BadRequestException);
+      expect(mockProjectsRepository.update).not.toHaveBeenCalled();
     });
   });
 

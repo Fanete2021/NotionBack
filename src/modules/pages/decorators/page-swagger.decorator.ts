@@ -80,11 +80,31 @@ function PagesFindAllByWorkspaceIdResponse() {
   );
 }
 
+function PagesReorderResponse() {
+  return applyDecorators(
+    ApiOperation({
+      summary: 'Переупорядочивание документов внутри проекта (drag and drop)',
+    }),
+    ApiParam({
+      name: 'workspaceId',
+      type: String,
+      description: 'Id воркспейса',
+    }),
+    ApiResponse({ status: 200, type: [PageEntity] }),
+    ApiResponse({
+      status: 400,
+      description: 'orderedIds должен содержать ровно все документы проекта',
+    }),
+    ApiWorkspaceForbidden(),
+  );
+}
+
 export {
   PagesControllerResponse,
   PagesCreateResponse,
   PagesDeleteResponse,
   PagesFindAllByWorkspaceIdResponse,
   PagesFindByIdResponse,
+  PagesReorderResponse,
   PagesUpdateResponse,
 };

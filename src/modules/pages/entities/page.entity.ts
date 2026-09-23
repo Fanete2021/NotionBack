@@ -11,6 +11,13 @@ export class PageEntity {
   @ApiPropertyOptional({ example: '3fa85f64-5717-4562-b3fc-2c963f66afa6' })
   readonly projectId: string | null;
 
+  @ApiPropertyOptional({
+    example: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
+    description:
+      'Id родительского документа, null если документ лежит в корне проекта',
+  })
+  readonly parentPageId: string | null;
+
   @ApiProperty({ example: 'Введение' })
   readonly title: string;
 
@@ -36,6 +43,7 @@ export class PageEntity {
     id: string,
     workspaceId: string,
     projectId: string | null,
+    parentPageId: string | null,
     title: string,
     icon: string | null,
     type: PageType,
@@ -47,6 +55,7 @@ export class PageEntity {
     this.id = id;
     this.workspaceId = workspaceId;
     this.projectId = projectId;
+    this.parentPageId = parentPageId;
     this.title = title;
     this.icon = icon;
     this.type = type;

@@ -18,9 +18,10 @@ import {
   PagesDeleteResponse,
   PagesFindAllByWorkspaceIdResponse,
   PagesFindByIdResponse,
+  PagesReorderResponse,
   PagesUpdateResponse,
 } from './decorators';
-import { CreatePageDto, UpdatePageDto } from './dto';
+import { CreatePageDto, ReorderPagesDto, UpdatePageDto } from './dto';
 import { PageEntity } from './entities';
 import { PagesService } from './pages.service';
 
@@ -86,5 +87,20 @@ export class PagesController {
   ): Promise<PageEntity[]> {
     await this.workspacesService.assertMemberOf(workspaceId, userId);
     return this.pagesService.findAllByWorkspaceId(workspaceId, projectId);
+  }
+
+  @PagesReorderResponse()
+  @Patch('workspaces/:workspaceId/pages/order')
+  async reorder(
+    @CurrentUser('id') userId: string,
+    @Param('workspaceId') workspaceId: string,
+    @Body() dto: ReorderPagesDto,
+  ): Promise<PageEntity[]> {
+    await this.workspacesService.assertMemberOf(workspaceId, userId);
+    return this.pagesService.reorder(
+      workspaceId,
+      dto.projectId,
+      dto.orderedIds,
+    );
   }
 }

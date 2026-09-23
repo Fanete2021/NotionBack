@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma, Project } from '@prisma/client';
 import { PrismaService } from '../../prisma';
-import { ProjectEntity } from '@modules/projects/entities';
+import { ProjectEntity } from './entities';
+import { CreateProjectData } from './types';
 import { isNotFoundError } from '@common/utils';
-import { CreateProjectData } from '@modules/projects/types';
 
 @Injectable()
 export class ProjectsRepository {
@@ -36,6 +36,21 @@ export class ProjectsRepository {
     });
 
     return this.mapToEntity(project);
+  }
+
+  async nextPosition(
+    workspaceId: string,
+    parentProjectId: string | null,
+  ): Promise<number> {
+    const { _max } = await this.prisma.project.aggregate({
+      where: {
+        workspaceId,
+        parentProjectId: parentProjectId ?? null,
+      },
+      _max: { position: true },
+    });
+
+    return (_max.position ?? -1) + 1;
   }
 
   async findAllByWorkspaceId(workspaceId: string): Promise<ProjectEntity[]> {

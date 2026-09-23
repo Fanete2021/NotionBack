@@ -9,6 +9,7 @@ export class PagesMapper {
       page.id,
       page.workspaceId,
       page.projectId,
+      page.parentPageId,
       page.title,
       page.icon,
       page.type,

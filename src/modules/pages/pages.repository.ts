@@ -1,6 +1,6 @@
 import { isNotFoundError } from '@common/utils';
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Page, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma';
 import { EMPTY_DOCUMENT } from './constants';
 import { PageEntity } from './entities';
@@ -60,6 +60,56 @@ export class PagesRepository {
     });
 
     return (_max.position ?? -1) + 1;
+  }
+
+  async reorder(
+    workspaceId: string,
+    projectId: string,
+    orderedIds: string[],
+  ): Promise<PageEntity[] | null> {
+    return this.prisma.$transaction(async (tx) => {
+      await this.lockSiblingGroup(tx, workspaceId, projectId);
+
+      const siblings = await tx.page.findMany({
+        where: {
+          workspaceId,
+          projectId,
+          parentPageId: null,
+          deletedAt: null,
+        },
+      });
+
+      const siblingIds = siblings.map((page) => page.id);
+      if (!this.isExactPermutation(orderedIds, siblingIds)) {
+        return null;
+      }
+
+      if (orderedIds.length > 0) {
+        await tx.page.updateMany({
+          where: { id: { in: orderedIds } },
+          data: { position: { increment: orderedIds.length } },
+        });
+
+        for (const [index, id] of orderedIds.entries()) {
+          await tx.page.update({
+            where: { id },
+            data: { position: index },
+          });
+        }
+      }
+
+      const pages = await tx.page.findMany({
+        where: {
+          workspaceId,
+          projectId,
+          parentPageId: null,
+          deletedAt: null,
+        },
+        orderBy: { position: 'asc' },
+      });
+
+      return pages.map((page) => this.mapToEntity(page));
+    });
   }
 
   async findAllByWorkspaceId(
@@ -124,5 +174,46 @@ export class PagesRepository {
       }
       throw error;
     }
+  }
+
+  private isExactPermutation(
+    orderedIds: string[],
+    siblingIds: string[],
+  ): boolean {
+    if (orderedIds.length !== siblingIds.length) {
+      return false;
+    }
+
+    const orderedSet = new Set(orderedIds);
+    return siblingIds.every((id) => orderedSet.has(id));
+  }
+
+  private lockSiblingGroup(
+    tx: Prisma.TransactionClient,
+    workspaceId: string,
+    projectId: string,
+  ): Promise<unknown> {
+    return tx.$executeRaw`
+      SELECT pg_advisory_xact_lock(
+        hashtext(${workspaceId}),
+        hashtext(${`page:${projectId}`})
+      )
+    `;
+  }
+
+  private mapToEntity(page: Page): PageEntity {
+    return new PageEntity(
+      page.id,
+      page.workspaceId,
+      page.projectId,
+      page.parentPageId,
+      page.title,
+      page.icon,
+      page.type,
+      page.authorId,
+      page.position,
+      page.createdAt,
+      page.updatedAt,
+    );
   }
 }
