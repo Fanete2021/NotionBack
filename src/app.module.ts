@@ -2,27 +2,32 @@ import { BullModule } from '@nestjs/bullmq';
 import { Global, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
+import { LoggerModule } from 'nestjs-pino';
 import { SentryGlobalFilter, SentryModule } from '@sentry/nestjs/setup';
-import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
-import { RedisClient } from './common/providers/redis-client';
-import appConfig from './config/app.config';
-import authConfig from './config/auth.config';
-import databaseConfig from './config/database.config';
+import { JwtAuthGuard } from '@common/guards';
+import { RedisClient } from '@common/providers';
+import { HttpExceptionsFilter, PrismaExceptionFilter } from './filters';
+import {
+  appConfig,
+  authConfig,
+  createLoggerOptions,
+  databaseConfig,
+} from './config';
+import { validationSchema } from './validation';
 import { HealthController } from './health/health.controller';
-import { AttachmentsModule } from './modules/attachments/attachments.module';
-import { AuthModule } from './modules/auth/auth.module';
-import { PageCommentsModule } from './modules/page-comments/page-comments.module';
+import { AttachmentsModule } from '@modules/attachments/attachments.module';
+import { AuthModule } from '@modules/auth/auth.module';
+import { PageCommentsModule } from '@modules/page-comments/page-comments.module';
 import {
   PagesContentModule,
   PagesModule,
   PagesVersionModule,
-} from './modules/pages';
-import { ProjectsModule } from './modules/projects/projects.module';
-import { UsersModule } from './modules/users/users.module';
-import { WorkspaceInvitesModule } from './modules/workspace-invites/workspace-invites.module';
-import { WorkspacesModule } from './modules/workspaces/workspaces.module';
-import { PrismaModule } from './prisma/prisma.module';
-import { validationSchema } from './validation';
+} from '@modules/pages';
+import { ProjectsModule } from '@modules/projects/projects.module';
+import { UsersModule } from '@modules/users/users.module';
+import { WorkspaceInvitesModule } from '@modules/workspace-invites/workspace-invites.module';
+import { WorkspacesModule } from '@modules/workspaces/workspaces.module';
+import { PrismaModule } from './prisma';
 
 @Global()
 @Module({
@@ -41,6 +46,11 @@ import { validationSchema } from './validation';
         },
       }),
       inject: [ConfigService],
+    }),
+    LoggerModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) =>
+        createLoggerOptions(configService),
     }),
     PrismaModule,
     AuthModule,
@@ -61,6 +71,8 @@ import { validationSchema } from './validation';
       useClass: SentryGlobalFilter,
     },
     RedisClient,
+    PrismaExceptionFilter,
+    HttpExceptionsFilter,
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,

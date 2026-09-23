@@ -2,9 +2,9 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
-  Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { PageCommentsRepository } from './page-comments.repository';
 import { CreatePageCommentDto } from './dto';
 import { UpdatePageCommentDto } from './dto';
@@ -13,10 +13,10 @@ import { PageCommentWithAuthor } from './types';
 
 @Injectable()
 export class PageCommentsService {
-  private readonly logger = new Logger(PageCommentsService.name);
-
   constructor(
     private readonly pageCommentsRepository: PageCommentsRepository,
+    @InjectPinoLogger(PageCommentsService.name)
+    private readonly logger: PinoLogger,
   ) {}
 
   async list(
@@ -44,12 +44,12 @@ export class PageCommentsService {
     const body = dto.body.trim();
     if (!body) {
       this.logger.warn(
-        JSON.stringify({
+        {
           action: 'page_comment_create',
           pageId,
           userId: authorId,
           reason: 'empty_body',
-        }),
+        },
         'page comment create rejected',
       );
       throw new BadRequestException('Comment body must not be empty');
@@ -64,13 +64,13 @@ export class PageCommentsService {
       anchorId,
     );
 
-    this.logger.log(
-      JSON.stringify({
+    this.logger.info(
+      {
         action: 'page_comment_create',
         pageId,
         commentId: comment.id,
         userId: authorId,
-      }),
+      },
       'page comment created',
     );
 
@@ -89,13 +89,13 @@ export class PageCommentsService {
 
     if (comment.authorId !== actorId) {
       this.logger.warn(
-        JSON.stringify({
+        {
           action: 'page_comment_update',
           pageId,
           commentId,
           userId: actorId,
           reason: 'not_author',
-        }),
+        },
         'page comment update rejected',
       );
       throw new ForbiddenException('You can only edit your own comments');
@@ -104,13 +104,13 @@ export class PageCommentsService {
     const body = dto.body.trim();
     if (!body) {
       this.logger.warn(
-        JSON.stringify({
+        {
           action: 'page_comment_update',
           pageId,
           commentId,
           userId: actorId,
           reason: 'empty_body',
-        }),
+        },
         'page comment update rejected',
       );
       throw new BadRequestException('Comment body must not be empty');
@@ -131,13 +131,13 @@ export class PageCommentsService {
       throw new NotFoundException('Comment not found');
     }
 
-    this.logger.log(
-      JSON.stringify({
+    this.logger.info(
+      {
         action: 'page_comment_update',
         pageId,
         commentId,
         userId: actorId,
-      }),
+      },
       'page comment updated',
     );
 
@@ -172,14 +172,14 @@ export class PageCommentsService {
       throw new NotFoundException('Comment not found');
     }
 
-    this.logger.log(
-      JSON.stringify({
+    this.logger.info(
+      {
         action: 'page_comment_resolve',
         pageId,
         commentId,
         userId: actorId,
         resolved,
-      }),
+      },
       'page comment resolve status updated',
     );
 
@@ -197,13 +197,13 @@ export class PageCommentsService {
 
     if (comment.authorId !== actorId) {
       this.logger.warn(
-        JSON.stringify({
+        {
           action: 'page_comment_delete',
           pageId,
           commentId,
           userId: actorId,
           reason: 'not_author',
-        }),
+        },
         'page comment delete rejected',
       );
       throw new ForbiddenException('You can only delete your own comments');
@@ -220,13 +220,13 @@ export class PageCommentsService {
       throw new NotFoundException('Comment not found');
     }
 
-    this.logger.log(
-      JSON.stringify({
+    this.logger.info(
+      {
         action: 'page_comment_delete',
         pageId,
         commentId,
         userId: actorId,
-      }),
+      },
       'page comment deleted',
     );
   }
@@ -246,13 +246,13 @@ export class PageCommentsService {
     userId: string,
   ): void {
     this.logger.warn(
-      JSON.stringify({
+      {
         action,
         pageId,
         commentId,
         userId,
         reason: 'comment_not_found',
-      }),
+      },
       'page comment action rejected',
     );
   }

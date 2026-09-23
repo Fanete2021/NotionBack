@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { Role, WorkspaceInvite } from '@prisma/client';
 import { randomBytes } from 'crypto';
 import { WorkspacesService } from '@modules/workspaces/workspaces.service';
@@ -25,6 +26,8 @@ export class WorkspaceInvitesService {
     private readonly workspacesService: WorkspacesService,
     private readonly temporaryInvites: TemporaryInviteStore,
     private readonly configService: ConfigService,
+    @InjectPinoLogger(WorkspaceInvitesService.name)
+    private readonly logger: PinoLogger,
   ) {}
 
   async create(
@@ -36,6 +39,16 @@ export class WorkspaceInvitesService {
     await this.workspacesService.assertCanManageMembers(workspaceId, actorId);
 
     if (!WORKSPACE_INVITE_ROLES.includes(role)) {
+      this.logger.warn(
+        {
+          workspaceId,
+          userId: actorId,
+          action: 'invite_create',
+          reason: 'role_not_allowed',
+          role,
+        },
+        'invite create rejected',
+      );
       throw new ForbiddenException(
         'Invite links can only grant the VIEWER or EDITOR role',
       );
@@ -61,6 +74,11 @@ export class WorkspaceInvitesService {
         ttlSeconds,
       );
 
+      this.logger.info(
+        { workspaceId, userId: actorId, action: 'invite_create', type, role },
+        'invite created',
+      );
+
       return new WorkspaceInviteEntity(
         token,
         url,
@@ -70,8 +88,13 @@ export class WorkspaceInvitesService {
       );
     }
 
-    await this.assertInviteLimitNotReached(workspaceId);
+    await this.assertInviteLimitNotReached(workspaceId, actorId);
     await this.invitesRepository.create(workspaceId, actorId, token, role);
+
+    this.logger.info(
+      { workspaceId, userId: actorId, action: 'invite_create', type, role },
+      'invite created',
+    );
 
     return new WorkspaceInviteEntity(token, url, type, role, null);
   }
@@ -109,6 +132,11 @@ export class WorkspaceInvitesService {
     if (!revoked) {
       throw new NotFoundException('Invite not found');
     }
+
+    this.logger.info(
+      { workspaceId, inviteId, userId: actorId, action: 'invite_revoke' },
+      'invite revoked',
+    );
   }
 
   private toPermanentSummary(
@@ -144,6 +172,7 @@ export class WorkspaceInvitesService {
 
   private async assertInviteLimitNotReached(
     workspaceId: string,
+    actorId: string,
   ): Promise<void> {
     const maxInvites = this.configService.get<number>(
       'MAX_INVITES_PER_WORKSPACE',
@@ -154,6 +183,15 @@ export class WorkspaceInvitesService {
       await this.invitesRepository.countByWorkspaceId(workspaceId);
 
     if (activeInvites >= maxInvites) {
+      this.logger.warn(
+        {
+          workspaceId,
+          userId: actorId,
+          action: 'invite_create',
+          reason: 'invite_limit_reached',
+        },
+        'invite create rejected',
+      );
       throw new ForbiddenException(
         `Permanent invite limit reached (max ${maxInvites} per workspace), revoke an existing link first`,
       );

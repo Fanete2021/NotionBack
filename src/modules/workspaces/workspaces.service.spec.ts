@@ -6,6 +6,7 @@ import { PrismaService } from '../../prisma';
 import { ConfigService } from '@nestjs/config';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { Role } from '@prisma/client';
+import { provideMockPinoLogger } from '@common/testing';
 
 describe('WorkspacesService', () => {
   let service: WorkspacesService;
@@ -57,6 +58,7 @@ describe('WorkspacesService', () => {
         },
         { provide: PrismaService, useValue: mockPrisma },
         { provide: ConfigService, useValue: mockConfigService },
+        provideMockPinoLogger(WorkspacesService.name),
       ],
     }).compile();
 

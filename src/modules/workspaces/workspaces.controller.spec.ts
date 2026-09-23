@@ -1,6 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { WorkspacesController } from '@modules/workspaces/workspaces.controller';
 import { WorkspacesService } from '@modules/workspaces/workspaces.service';
+import { JwtAuthGuard } from '@common/guards';
+import { provideMockPinoLogger } from '@common/testing';
 
 describe('WorkspacesController', () => {
   let controller: WorkspacesController;
@@ -19,6 +21,7 @@ describe('WorkspacesController', () => {
       controllers: [WorkspacesController],
       providers: [
         { provide: WorkspacesService, useValue: mockWorkspacesService },
+        provideMockPinoLogger(JwtAuthGuard.name),
       ],
     }).compile();
 

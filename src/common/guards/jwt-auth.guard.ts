@@ -2,18 +2,20 @@ import {
   ExecutionContext,
   Injectable,
   UnauthorizedException,
-  Logger,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { AuthGuard } from '@nestjs/passport';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { Observable } from 'rxjs';
 import { IS_PUBLIC_KEY } from '@common/decorators';
 
 @Injectable()
 export class JwtAuthGuard extends AuthGuard('jwt-access') {
-  private readonly logger = new Logger(JwtAuthGuard.name);
-
-  constructor(private readonly reflector: Reflector) {
+  constructor(
+    private readonly reflector: Reflector,
+    @InjectPinoLogger(JwtAuthGuard.name)
+    private readonly logger: PinoLogger,
+  ) {
     super();
   }
 
@@ -38,7 +40,13 @@ export class JwtAuthGuard extends AuthGuard('jwt-access') {
     info: unknown,
   ): TUser {
     if (err || !user) {
-      this.logger.warn(`Unauthorized access attempt: ${JSON.stringify(info)}`);
+      this.logger.warn(
+        {
+          guard: 'jwt-access',
+          reason: info instanceof Error ? info.message : 'invalid_token',
+        },
+        'access denied',
+      );
       throw new UnauthorizedException('Invalid or missing token');
     }
     return user;

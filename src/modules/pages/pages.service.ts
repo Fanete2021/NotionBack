@@ -4,6 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { Prisma } from '@prisma/client';
 import { CreatePageDto, UpdatePageDto } from './dto';
 import { PageEntity } from './entities';
@@ -14,6 +15,8 @@ export class PagesService {
   constructor(
     private readonly pagesRepository: PagesRepository,
     private readonly projectsRepository: ProjectsRepository,
+    @InjectPinoLogger(PagesService.name)
+    private readonly logger: PinoLogger,
   ) {}
 
   async create(
@@ -23,12 +26,19 @@ export class PagesService {
   ): Promise<PageEntity> {
     await this.assertProjectInWorkspace(workspaceId, dto.projectId);
 
-    return this.pagesRepository.create(workspaceId, authorId, {
+    const page = await this.pagesRepository.create(workspaceId, authorId, {
       projectId: dto.projectId,
       title: dto.title,
       icon: dto.icon ?? null,
       type: dto.type ?? 'DOC',
     });
+
+    this.logger.info(
+      { pageId: page.id, workspaceId, userId: authorId, action: 'page_create' },
+      'page created',
+    );
+
+    return page;
   }
 
   async findAllByWorkspaceId(
@@ -88,6 +98,12 @@ export class PagesService {
     if (!updated) {
       throw new NotFoundException('Page not found');
     }
+
+    this.logger.info(
+      { pageId: page.id, workspaceId: page.workspaceId, action: 'page_update' },
+      'page updated',
+    );
+
     return updated;
   }
 
@@ -96,6 +112,11 @@ export class PagesService {
     if (!deleted) {
       throw new NotFoundException('Page not found');
     }
+
+    this.logger.info(
+      { pageId: page.id, workspaceId: page.workspaceId, action: 'page_delete' },
+      'page deleted',
+    );
   }
 
   private async assertProjectInWorkspace(

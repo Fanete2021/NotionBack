@@ -3,13 +3,11 @@ import { AuthService } from '@modules/auth/auth.service';
 import { UsersRepository } from '@modules/users/users.repository';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import {
-  ConflictException,
-  Logger,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { ConflictException, UnauthorizedException } from '@nestjs/common';
+import { getLoggerToken } from 'nestjs-pino';
 import * as bcrypt from 'bcrypt';
 import { TokenService } from '@modules/auth/token.service';
+import { createMockPinoLogger } from '@common/testing';
 
 jest.mock('bcrypt');
 
@@ -38,6 +36,8 @@ describe('AuthService', () => {
     revokeToken: jest.fn(),
   };
 
+  const mockLogger = createMockPinoLogger();
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -46,6 +46,7 @@ describe('AuthService', () => {
         { provide: JwtService, useValue: mockJwtService },
         { provide: ConfigService, useValue: mockConfigService },
         { provide: TokenService, useValue: mockTokenService },
+        { provide: getLoggerToken(AuthService.name), useValue: mockLogger },
       ],
     }).compile();
 
@@ -263,16 +264,12 @@ describe('AuthService', () => {
     it('не маскирует сбой инфраструктуры как Invalid refresh token', async () => {
       const redisError = new Error('Redis connection refused');
       mockTokenService.validateRefreshToken.mockRejectedValue(redisError);
-      const errorSpy = jest
-        .spyOn(Logger.prototype, 'error')
-        .mockImplementation();
 
       await expect(
         authService.refresh({ token: 'refresh.jwt.token' }),
       ).rejects.toThrow(redisError);
 
-      expect(errorSpy).toHaveBeenCalled();
-      errorSpy.mockRestore();
+      expect(mockLogger.error).toHaveBeenCalled();
     });
   });
 

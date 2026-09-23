@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { PageCommentsService } from './page-comments.service';
 import { PageCommentsRepository } from './page-comments.repository';
+import { provideMockPinoLogger } from '@common/testing';
 
 describe('PageCommentsService', () => {
   let service: PageCommentsService;
@@ -48,6 +49,7 @@ describe('PageCommentsService', () => {
       providers: [
         PageCommentsService,
         { provide: PageCommentsRepository, useValue: mockRepository },
+        provideMockPinoLogger(PageCommentsService.name),
       ],
     }).compile();
 

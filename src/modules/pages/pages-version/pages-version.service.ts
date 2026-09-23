@@ -1,13 +1,16 @@
 import { InjectQueue } from '@nestjs/bullmq';
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { Queue } from 'bullmq';
 import { AUTO_SNAPSHOT_DELAY } from './consts';
 
 @Injectable()
 export class PagesVersionService {
-  private readonly logger = new Logger(PagesVersionService.name);
-
-  constructor(@InjectQueue('page-versions') private readonly queue: Queue) {}
+  constructor(
+    @InjectQueue('page-versions') private readonly queue: Queue,
+    @InjectPinoLogger(PagesVersionService.name)
+    private readonly logger: PinoLogger,
+  ) {}
 
   async scheduleAutoSnapshot(pageId: string, authorId: string) {
     const jobId = `auto-snapshot-${pageId}`;
@@ -21,6 +24,9 @@ export class PagesVersionService {
       },
     );
 
-    this.logger.debug(`Автоснэпшот запланирован для страницы ${pageId}`);
+    this.logger.debug(
+      { action: 'page_autosnapshot_schedule', pageId, userId: authorId },
+      'auto snapshot scheduled',
+    );
   }
 }

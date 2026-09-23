@@ -1,3 +1,4 @@
+import { Logger } from 'nestjs-pino';
 import { PAGE_CONTENT_ROUTE } from '@modules/pages/constants';
 import {
   ClassSerializerInterceptor,
@@ -18,7 +19,10 @@ const GLOBAL_PREFIX = 'api';
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     bodyParser: false,
+    bufferLogs: true,
   });
+
+  app.useLogger(app.get(Logger));
 
   const configService = app.get(ConfigService);
 
@@ -66,7 +70,10 @@ async function bootstrap(): Promise<void> {
   };
   app.use(bodyParserErrorHandler);
 
-  app.useGlobalFilters(new PrismaExceptionFilter(), new HttpExceptionsFilter());
+  app.useGlobalFilters(
+    app.get(PrismaExceptionFilter),
+    app.get(HttpExceptionsFilter),
+  );
   app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
   app.useGlobalPipes(
     new ValidationPipe({

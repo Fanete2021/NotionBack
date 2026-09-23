@@ -1,3 +1,4 @@
+import { provideMockPinoLogger } from '@common/testing';
 import { ProjectsRepository } from '@modules/projects/projects.repository';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -52,6 +53,7 @@ describe('PagesService', () => {
         { provide: PagesRepository, useValue: mockPagesRepository },
         { provide: ProjectsRepository, useValue: mockProjectsRepository },
         { provide: ConfigService, useValue: mockConfigService },
+        provideMockPinoLogger(PagesService.name),
       ],
     }).compile();
 

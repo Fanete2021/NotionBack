@@ -1,6 +1,7 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { RedisClient } from '@common/providers';
 import {
   RevokeData,
@@ -17,6 +18,8 @@ export class TokenService {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly redis: RedisClient,
+    @InjectPinoLogger(TokenService.name)
+    private readonly logger: PinoLogger,
   ) {}
 
   async generateTokens(data: TokenData): Promise<TokenPair> {
@@ -57,6 +60,11 @@ export class TokenService {
     await this.redis.sadd(sessionSetKey, refreshTokenId);
     await this.redis.expire(sessionSetKey, refreshExpiresIn);
 
+    this.logger.debug(
+      { action: 'tokens_generate', userId: data.userId },
+      'auth tokens issued',
+    );
+
     return {
       accessToken,
       refreshToken,
@@ -87,6 +95,11 @@ export class TokenService {
     await this.redis.srem(
       this.userSessionsKey(decodedRefreshToken.sub),
       refreshTokenId,
+    );
+
+    this.logger.debug(
+      { action: 'tokens_refresh', userId: decodedRefreshToken.sub },
+      'old refresh token deleted',
     );
 
     return {

@@ -13,7 +13,7 @@ export class SomeService {
 
 ## Уровень логов в dev/prod
 
-Настройка в `src/shared/logger/logger.config.ts`:
+Настройка в `src/config/logger.config.ts`:
 
 ```ts
 const isProduction = configService.get<string>("NODE_ENV", "development") === "production";

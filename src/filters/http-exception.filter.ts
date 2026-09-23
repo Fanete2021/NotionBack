@@ -3,9 +3,9 @@ import {
   Catch,
   ArgumentsHost,
   HttpException,
-  Logger,
   HttpStatus,
 } from '@nestjs/common';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import * as Sentry from '@sentry/nestjs';
 import { Request, Response } from 'express';
 
@@ -16,7 +16,10 @@ type HttpExceptionPayload = {
 
 @Catch(HttpException)
 export class HttpExceptionsFilter implements ExceptionFilter {
-  private readonly logger = new Logger(HttpExceptionsFilter.name);
+  constructor(
+    @InjectPinoLogger(HttpExceptionsFilter.name)
+    private readonly logger: PinoLogger,
+  ) {}
 
   catch(exception: HttpException, host: ArgumentsHost): void {
     const ctx = host.switchToHttp();
@@ -34,15 +37,20 @@ export class HttpExceptionsFilter implements ExceptionFilter {
       timestamp: new Date().toISOString(),
     };
 
-    const logMessage = `${request.method} ${request.url} - Status: ${status} - Message: ${JSON.stringify(message)}`;
+    const meta = {
+      method: request.method,
+      url: request.url,
+      statusCode: status,
+      message,
+    };
 
     if (status >= Number(HttpStatus.INTERNAL_SERVER_ERROR)) {
-      this.logger.error(logMessage, exception.stack);
+      this.logger.error({ ...meta, err: exception }, 'request failed');
       Sentry.captureException(exception, {
         mechanism: { handled: true, type: 'nestjs.http_exception_filter' },
       });
     } else {
-      this.logger.warn(logMessage);
+      this.logger.warn(meta, 'request rejected');
     }
 
     response.status(status).json(errorResponse);
