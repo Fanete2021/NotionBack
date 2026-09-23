@@ -1,8 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma, Role, WorkspaceInvite } from '@prisma/client';
 import { PrismaService } from '../../prisma';
-import { WorkspaceInviteSummaryEntity } from '@modules/workspace-invites/entities';
-import { WorkspaceInviteType } from '@modules/workspace-invites/types';
 
 @Injectable()
 export class WorkspaceInvitesRepository {
@@ -11,39 +9,25 @@ export class WorkspaceInvitesRepository {
   async create(
     workspaceId: string,
     createdBy: string,
-    tokenHash: string,
+    token: string,
     role: Role,
-  ): Promise<WorkspaceInviteSummaryEntity> {
-    const invite = await this.prisma.workspaceInvite.create({
-      data: { workspaceId, createdBy, tokenHash, role },
+  ): Promise<WorkspaceInvite> {
+    return this.prisma.workspaceInvite.create({
+      data: { workspaceId, createdBy, token, role },
     });
-
-    return this.mapToEntity(invite);
   }
 
-  async findByTokenHash(
-    tokenHash: string,
-  ): Promise<WorkspaceInviteSummaryEntity | null> {
-    const invite = await this.prisma.workspaceInvite.findUnique({
-      where: { tokenHash },
+  async findByToken(token: string): Promise<WorkspaceInvite | null> {
+    return this.prisma.workspaceInvite.findUnique({
+      where: { token },
     });
-
-    if (!invite) {
-      return null;
-    }
-
-    return this.mapToEntity(invite);
   }
 
-  async findAllByWorkspaceId(
-    workspaceId: string,
-  ): Promise<WorkspaceInviteSummaryEntity[]> {
-    const invites = await this.prisma.workspaceInvite.findMany({
+  async findAllByWorkspaceId(workspaceId: string): Promise<WorkspaceInvite[]> {
+    return this.prisma.workspaceInvite.findMany({
       where: { workspaceId },
       orderBy: { createdAt: 'asc' },
     });
-
-    return invites.map((invite) => this.mapToEntity(invite));
   }
 
   async countByWorkspaceId(workspaceId: string): Promise<number> {
@@ -67,16 +51,5 @@ export class WorkspaceInvitesRepository {
       }
       throw error;
     }
-  }
-
-  private mapToEntity(invite: WorkspaceInvite): WorkspaceInviteSummaryEntity {
-    return new WorkspaceInviteSummaryEntity(
-      invite.id,
-      invite.workspaceId,
-      WorkspaceInviteType.PERMANENT,
-      invite.role,
-      invite.createdBy,
-      invite.createdAt,
-    );
   }
 }

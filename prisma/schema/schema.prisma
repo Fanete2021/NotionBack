@@ -1,0 +1,132 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  EDITOR
+  VIEWER
+}
+
+
+
+enum AttachmentStatus {
+  PENDING
+  CONFIRMED
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  avatarUrl    String?
+
+  ownedWorkspaces      Workspace[]       @relation("WorkspaceOwner")
+  memberships          WorkspaceMember[]
+  authoredPages        Page[]
+  createdInvites       WorkspaceInvite[] @relation("InviteCreator")
+  uploadedAttachments  Attachment[]      @relation("AttachmentUploader")
+  pageVersions         PageVersion[]
+  pageCommentsAuthored PageComment[]     @relation("PageCommentAuthor")
+  pageCommentsResolved PageComment[]     @relation("PageCommentResolver")
+
+  @@map("users")
+}
+
+model Workspace {
+  id        String   @id @default(uuid())
+  name      String
+  ownerId   String
+  isPublic  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  owner       User              @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members     WorkspaceMember[]
+  invites     WorkspaceInvite[]
+  attachments Attachment[]
+  projects    Project[]
+  pages       Page[]
+
+  @@map("workspaces")
+}
+
+model WorkspaceMember {
+  id          String   @id @default(uuid())
+  workspaceId String
+  userId      String
+  role        Role     @default(EDITOR)
+  createdAt   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+  @@map("workspace_members")
+}
+
+model WorkspaceInvite {
+  id          String   @id @default(uuid())
+  token       String   @unique
+  workspaceId String
+  createdBy   String
+  role        Role     @default(VIEWER)
+  createdAt   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  creator   User      @relation("InviteCreator", fields: [createdBy], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@map("workspace_invites")
+}
+
+model Project {
+  id              String   @id @default(uuid())
+  workspaceId     String
+  parentProjectId String?
+  name            String
+  color           String?
+  icon            String?
+  position        Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  parentProject Project?  @relation("ProjectHierarchy", fields: [parentProjectId, workspaceId], references: [id, workspaceId], onDelete: Cascade)
+  childProjects Project[] @relation("ProjectHierarchy")
+  pages         Page[]
+
+  @@unique([id, workspaceId])
+  @@unique([workspaceId, parentProjectId, position])
+  @@index([workspaceId, parentProjectId])
+  @@map("projects")
+}
+
+model Attachment {
+  id          String           @id @default(uuid())
+  pageId      String
+  workspaceId String
+  uploadedBy  String
+  fileName    String
+  contentType String
+  size        Int
+  key         String           @unique
+  status      AttachmentStatus @default(PENDING)
+  createdAt   DateTime         @default(now())
+
+  page      Page      @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  uploader  User      @relation("AttachmentUploader", fields: [uploadedBy], references: [id], onDelete: Cascade)
+
+  @@index([pageId])
+  @@index([workspaceId, status])
+  @@map("attachments")
+}

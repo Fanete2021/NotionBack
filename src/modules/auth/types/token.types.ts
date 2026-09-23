@@ -1,6 +1,7 @@
 type TokenData = {
   userId: string;
   email: string;
+  rememberMe: boolean;
 };
 
 type RefreshData = {
@@ -15,6 +16,7 @@ type RevokeData = {
 type TokenPair = {
   accessToken: string;
   refreshToken: string;
+  rememberMe: boolean;
   user: {
     id: string;
     email: string;
@@ -24,6 +26,7 @@ type TokenPair = {
 type RefreshSession = {
   userId: string;
   refreshTokenId: string;
+  rememberMe: boolean;
 };
 
 type TokenPayload = {

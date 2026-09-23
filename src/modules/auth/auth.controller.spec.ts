@@ -13,6 +13,7 @@ describe('AuthController', () => {
     login: jest.fn(),
     refresh: jest.fn(),
     logout: jest.fn(),
+    getProfile: jest.fn(),
   };
 
   const mockConfigService = {
@@ -47,6 +48,7 @@ describe('AuthController', () => {
     mockAuthService.register.mockResolvedValue({
       accessToken: 'access',
       refreshToken: 'refresh',
+      rememberMe: true,
       user: { id: '1', email: 'user@test.com' },
     });
 
@@ -81,11 +83,12 @@ describe('AuthController', () => {
     mockAuthService.login.mockResolvedValue({
       accessToken: 'access',
       refreshToken: 'refresh',
+      rememberMe: true,
       user: { id: '1', email: 'user@test.com' },
     });
 
     await controller.login(
-      { email: 'user@test.com', password: 'password123' },
+      { email: 'user@test.com', password: 'password123', rememberMe: true },
       res,
     );
 
@@ -99,15 +102,38 @@ describe('AuthController', () => {
     );
   });
 
-  it('getProfile возвращает пользователя из запроса', () => {
-    const req = {
+  it('login без rememberMe ставит сессионную cookie (без maxAge)', async () => {
+    mockAuthService.login.mockResolvedValue({
+      accessToken: 'access',
+      refreshToken: 'refresh',
+      rememberMe: false,
       user: { id: '1', email: 'user@test.com' },
-    } as unknown as Request;
+    });
 
-    expect(controller.getProfile(req)).toEqual({
+    await controller.login(
+      { email: 'user@test.com', password: 'password123' },
+      res,
+    );
+
+    const calls = cookie.mock.calls as unknown as unknown[][];
+    const cookieOptions = calls[0][2] as Record<string, unknown>;
+    expect(cookieOptions).not.toHaveProperty('maxAge');
+    expect(cookieOptions).toMatchObject({ secure: false, sameSite: 'lax' });
+  });
+
+  it('getProfile отдаёт профиль текущего пользователя из сервиса', async () => {
+    const profile = {
       id: '1',
       email: 'user@test.com',
-    });
+      name: 'Иван Иванов',
+      avatarUrl: 'https://example.com/avatar.jpg',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    mockAuthService.getProfile.mockResolvedValue(profile);
+
+    await expect(controller.getProfile('1')).resolves.toBe(profile);
+    expect(mockAuthService.getProfile).toHaveBeenCalledWith('1');
   });
 
   it('logout без cookie и allDevices бросает 401', async () => {

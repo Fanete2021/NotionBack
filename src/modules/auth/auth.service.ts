@@ -7,6 +7,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { UsersRepository } from '@modules/users/users.repository';
+import { UserEntity } from '@modules/users/user.entity';
 import * as bcrypt from 'bcrypt';
 import {
   TokenData,
@@ -55,7 +56,11 @@ export class AuthService {
     };
     const user = await this.usersRepository.create(createUserData);
 
-    const tokenData: TokenData = { userId: user.id, email: user.email };
+    const tokenData: TokenData = {
+      userId: user.id,
+      email: user.email,
+      rememberMe: true,
+    };
     const tokens = await this.tokenService.generateTokens(tokenData);
 
     this.logger.info(
@@ -92,7 +97,11 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const tokenData: TokenData = { userId: user.id, email: user.email };
+    const tokenData: TokenData = {
+      userId: user.id,
+      email: user.email,
+      rememberMe: data.rememberMe ?? false,
+    };
     const tokens = await this.tokenService.generateTokens(tokenData);
 
     this.logger.info(
@@ -101,6 +110,15 @@ export class AuthService {
     );
 
     return tokens;
+  }
+
+  async getProfile(userId: string): Promise<UserEntity> {
+    const user = await this.usersRepository.findById(userId);
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    return user;
   }
 
   async refresh(data: RefreshData): Promise<TokenPair> {
@@ -121,7 +139,11 @@ export class AuthService {
         throw new UnauthorizedException('User not found');
       }
 
-      const tokenData: TokenData = { userId: user.id, email: user.email };
+      const tokenData: TokenData = {
+        userId: user.id,
+        email: user.email,
+        rememberMe: refreshSession.rememberMe,
+      };
       const tokens = await this.tokenService.generateTokens(tokenData);
 
       this.logger.info(

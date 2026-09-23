@@ -1,26 +1,20 @@
+import { ProjectsRepository } from '@modules/projects/projects.repository';
 import {
   BadRequestException,
   Injectable,
   NotFoundException,
-  PayloadTooLargeException,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { Prisma } from '@prisma/client';
-import { EMPTY_DOCUMENT } from '@modules/pages/constants';
-import { PagesRepository } from '@modules/pages/pages.repository';
-import { ProjectsRepository } from '@modules/projects/projects.repository';
-import { PageEntity } from '@modules/pages/entities';
-import { PageContentEntity } from '@modules/pages/entities';
-import { CreatePageDto } from '@modules/pages/dto';
-import { UpdatePageDto } from '@modules/pages/dto';
+import { CreatePageDto, UpdatePageDto } from './dto';
+import { PageEntity } from './entities';
+import { PagesRepository } from './pages.repository';
 
 @Injectable()
 export class PagesService {
   constructor(
     private readonly pagesRepository: PagesRepository,
     private readonly projectsRepository: ProjectsRepository,
-    private readonly configService: ConfigService,
     @InjectPinoLogger(PagesService.name)
     private readonly logger: PinoLogger,
   ) {}
@@ -52,6 +46,28 @@ export class PagesService {
     projectId?: string,
   ): Promise<PageEntity[]> {
     return this.pagesRepository.findAllByWorkspaceId(workspaceId, projectId);
+  }
+
+  async reorder(
+    workspaceId: string,
+    projectId: string,
+    orderedIds: string[],
+  ): Promise<PageEntity[]> {
+    await this.assertProjectInWorkspace(workspaceId, projectId);
+
+    const pages = await this.pagesRepository.reorder(
+      workspaceId,
+      projectId,
+      orderedIds,
+    );
+
+    if (!pages) {
+      throw new BadRequestException(
+        'orderedIds должен содержать ровно все документы-соседи проекта',
+      );
+    }
+
+    return pages;
   }
 
   async findById(id: string): Promise<PageEntity> {
@@ -101,57 +117,6 @@ export class PagesService {
       { pageId: page.id, workspaceId: page.workspaceId, action: 'page_delete' },
       'page deleted',
     );
-  }
-
-  async getContent(page: PageEntity): Promise<PageContentEntity> {
-    const content = await this.pagesRepository.findContent(page.id);
-    if (!content) {
-      return new PageContentEntity(
-        page.id,
-        EMPTY_DOCUMENT as Prisma.JsonValue,
-        new Date(),
-      );
-    }
-
-    return content;
-  }
-
-  async updateContent(
-    page: PageEntity,
-    json: unknown,
-  ): Promise<PageContentEntity> {
-    if (json === null || json === undefined) {
-      throw new BadRequestException('Page content must be a JSON value');
-    }
-
-    if (typeof json !== 'object' || Array.isArray(json)) {
-      throw new BadRequestException('Page content must be a JSON object');
-    }
-
-    this.assertSizeWithinLimit(json);
-
-    const content = await this.pagesRepository.upsertContent(page.id, json);
-
-    this.logger.info(
-      { pageId: page.id, action: 'page_content_update' },
-      'page content updated',
-    );
-
-    return content;
-  }
-
-  private assertSizeWithinLimit(json: unknown): void {
-    const maxBytes = this.configService.get<number>(
-      'MAX_PAGE_CONTENT_BYTES',
-      1048576,
-    );
-    const size = Buffer.byteLength(JSON.stringify(json), 'utf8');
-
-    if (size > maxBytes) {
-      throw new PayloadTooLargeException(
-        `Page content exceeds the size limit of ${maxBytes} bytes`,
-      );
-    }
   }
 
   private async assertProjectInWorkspace(

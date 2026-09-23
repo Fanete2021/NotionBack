@@ -1,11 +1,10 @@
-import { Injectable } from '@nestjs/common';
-import { Page, PageContent, Prisma } from '@prisma/client';
-import { PrismaService } from '../../prisma';
-import { PageEntity } from '@modules/pages/entities';
-import { PageContentEntity } from '@modules/pages/entities';
-import { EMPTY_DOCUMENT } from '@modules/pages/constants';
-import { CreatePageData } from '@modules/pages/types';
 import { isNotFoundError } from '@common/utils';
+import { Injectable } from '@nestjs/common';
+import { Page, Prisma } from '@prisma/client';
+import { PrismaService } from '../../prisma';
+import { EMPTY_DOCUMENT } from './constants';
+import { PageEntity } from './entities';
+import { CreatePageData } from './types';
 
 @Injectable()
 export class PagesRepository {
@@ -47,7 +46,7 @@ export class PagesRepository {
       return created;
     });
 
-    return this.mapToEntity(page);
+    return page;
   }
 
   async nextPosition(workspaceId: string, projectId: string): Promise<number> {
@@ -63,11 +62,61 @@ export class PagesRepository {
     return (_max.position ?? -1) + 1;
   }
 
+  async reorder(
+    workspaceId: string,
+    projectId: string,
+    orderedIds: string[],
+  ): Promise<PageEntity[] | null> {
+    return this.prisma.$transaction(async (tx) => {
+      await this.lockSiblingGroup(tx, workspaceId, projectId);
+
+      const siblings = await tx.page.findMany({
+        where: {
+          workspaceId,
+          projectId,
+          parentPageId: null,
+          deletedAt: null,
+        },
+      });
+
+      const siblingIds = siblings.map((page) => page.id);
+      if (!this.isExactPermutation(orderedIds, siblingIds)) {
+        return null;
+      }
+
+      if (orderedIds.length > 0) {
+        await tx.page.updateMany({
+          where: { id: { in: orderedIds } },
+          data: { position: { increment: orderedIds.length } },
+        });
+
+        for (const [index, id] of orderedIds.entries()) {
+          await tx.page.update({
+            where: { id },
+            data: { position: index },
+          });
+        }
+      }
+
+      const pages = await tx.page.findMany({
+        where: {
+          workspaceId,
+          projectId,
+          parentPageId: null,
+          deletedAt: null,
+        },
+        orderBy: { position: 'asc' },
+      });
+
+      return pages.map((page) => this.mapToEntity(page));
+    });
+  }
+
   async findAllByWorkspaceId(
     workspaceId: string,
     projectId?: string,
   ): Promise<PageEntity[]> {
-    const pages = await this.prisma.page.findMany({
+    return this.prisma.page.findMany({
       where: {
         workspaceId,
         deletedAt: null,
@@ -75,20 +124,22 @@ export class PagesRepository {
       },
       orderBy: { position: 'asc' },
     });
-
-    return pages.map((page) => this.mapToEntity(page));
   }
 
-  async findById(id: string): Promise<PageEntity | null> {
+  async findById<T extends Prisma.PageInclude>(
+    id: string,
+    include?: T,
+  ): Promise<Prisma.PageGetPayload<{ include: T }> | null> {
     const page = await this.prisma.page.findUnique({
       where: { id, deletedAt: null },
+      include,
     });
 
     if (!page) {
       return null;
     }
 
-    return this.mapToEntity(page);
+    return page as Prisma.PageGetPayload<{ include: T }>;
   }
 
   async update(
@@ -107,7 +158,7 @@ export class PagesRepository {
         throw error;
       });
 
-    return page ? this.mapToEntity(page) : null;
+    return page;
   }
 
   async softDelete(id: string): Promise<boolean> {
@@ -125,29 +176,29 @@ export class PagesRepository {
     }
   }
 
-  async findContent(pageId: string): Promise<PageContentEntity | null> {
-    const content = await this.prisma.pageContent.findUnique({
-      where: { pageId },
-    });
-
-    if (!content) {
-      return null;
+  private isExactPermutation(
+    orderedIds: string[],
+    siblingIds: string[],
+  ): boolean {
+    if (orderedIds.length !== siblingIds.length) {
+      return false;
     }
 
-    return this.mapContentToEntity(content);
+    const orderedSet = new Set(orderedIds);
+    return siblingIds.every((id) => orderedSet.has(id));
   }
 
-  async upsertContent(
-    pageId: string,
-    json: Prisma.InputJsonValue,
-  ): Promise<PageContentEntity> {
-    const content = await this.prisma.pageContent.upsert({
-      where: { pageId },
-      create: { pageId, json },
-      update: { json },
-    });
-
-    return this.mapContentToEntity(content);
+  private lockSiblingGroup(
+    tx: Prisma.TransactionClient,
+    workspaceId: string,
+    projectId: string,
+  ): Promise<unknown> {
+    return tx.$executeRaw`
+      SELECT pg_advisory_xact_lock(
+        hashtext(${workspaceId}),
+        hashtext(${`page:${projectId}`})
+      )
+    `;
   }
 
   private mapToEntity(page: Page): PageEntity {
@@ -155,6 +206,7 @@ export class PagesRepository {
       page.id,
       page.workspaceId,
       page.projectId,
+      page.parentPageId,
       page.title,
       page.icon,
       page.type,
@@ -162,14 +214,6 @@ export class PagesRepository {
       page.position,
       page.createdAt,
       page.updatedAt,
-    );
-  }
-
-  private mapContentToEntity(content: PageContent): PageContentEntity {
-    return new PageContentEntity(
-      content.pageId,
-      content.json,
-      content.updatedAt,
     );
   }
 }

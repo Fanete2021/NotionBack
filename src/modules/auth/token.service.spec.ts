@@ -31,6 +31,7 @@ describe('TokenService', () => {
     sadd: jest.fn(),
     expire: jest.fn(),
     exists: jest.fn(),
+    get: jest.fn(),
     del: jest.fn(),
     srem: jest.fn(),
     smembers: jest.fn(),
@@ -70,11 +71,13 @@ describe('TokenService', () => {
       const result = await service.generateTokens({
         userId: 'user-1',
         email: 'test@test.com',
+        rememberMe: true,
       });
 
       expect(result).toEqual({
         accessToken: 'access-token',
         refreshToken: 'refresh-token',
+        rememberMe: true,
         user: { id: 'user-1', email: 'test@test.com' },
       });
       expect(mockRedis.set).toHaveBeenCalledWith(
@@ -93,12 +96,35 @@ describe('TokenService', () => {
       );
       expect(mockRedis.keys).not.toHaveBeenCalled();
     });
+
+    it('хранит "0" для сессионной куки (rememberMe: false)', async () => {
+      mockJwtService.sign
+        .mockReturnValueOnce('access-token')
+        .mockReturnValueOnce('refresh-token');
+      mockRedis.set.mockResolvedValue('OK');
+      mockRedis.sadd.mockResolvedValue(1);
+      mockRedis.expire.mockResolvedValue(1);
+
+      const result = await service.generateTokens({
+        userId: 'user-1',
+        email: 'test@test.com',
+        rememberMe: false,
+      });
+
+      expect(result.rememberMe).toBe(false);
+      expect(mockRedis.set).toHaveBeenCalledWith(
+        expect.stringMatching(/^refresh_token:user-1:/),
+        '0',
+        'EX',
+        2592000,
+      );
+    });
   });
 
   describe('validateRefreshToken', () => {
     it('возвращает сессию и удаляет ключи при валидном токене', async () => {
       mockJwtService.verify.mockReturnValue(payload);
-      mockRedis.exists.mockResolvedValue(1);
+      mockRedis.get.mockResolvedValue('1');
       mockRedis.del.mockResolvedValue(1);
       mockRedis.srem.mockResolvedValue(1);
 
@@ -107,6 +133,7 @@ describe('TokenService', () => {
       ).resolves.toEqual({
         userId: 'user-1',
         refreshTokenId: 'user-1:1',
+        rememberMe: true,
       });
 
       expect(mockRedis.del).toHaveBeenCalledWith(
@@ -126,12 +153,12 @@ describe('TokenService', () => {
       await expect(service.validateRefreshToken('bad.jwt')).rejects.toThrow(
         UnauthorizedException,
       );
-      expect(mockRedis.exists).not.toHaveBeenCalled();
+      expect(mockRedis.get).not.toHaveBeenCalled();
     });
 
     it('бросает UnauthorizedException, если токена нет в Redis', async () => {
       mockJwtService.verify.mockReturnValue(payload);
-      mockRedis.exists.mockResolvedValue(0);
+      mockRedis.get.mockResolvedValue(null);
 
       await expect(service.validateRefreshToken('refresh.jwt')).rejects.toThrow(
         UnauthorizedException,
@@ -141,7 +168,7 @@ describe('TokenService', () => {
     it('пробрасывает ошибку Redis, не превращая её в 401', async () => {
       mockJwtService.verify.mockReturnValue(payload);
       const redisError = new Error('Redis connection refused');
-      mockRedis.exists.mockRejectedValue(redisError);
+      mockRedis.get.mockRejectedValue(redisError);
 
       await expect(service.validateRefreshToken('refresh.jwt')).rejects.toThrow(
         redisError,

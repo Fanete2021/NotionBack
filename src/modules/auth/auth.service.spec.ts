@@ -90,10 +90,39 @@ describe('AuthService', () => {
       expect(mockTokenService.generateTokens).toHaveBeenCalledWith({
         userId: '123',
         email: 'test@test.com',
+        rememberMe: false,
       });
       expect(result).toHaveProperty('accessToken', 'fake_access_token');
       expect(result).toHaveProperty('refreshToken');
       expect(result.user).toEqual({ id: '123', email: 'test@test.com' });
+    });
+
+    it('прокидывает rememberMe: true в generateTokens', async () => {
+      const loginDto = {
+        email: 'test@test.com',
+        password: 'password123',
+        rememberMe: true,
+      };
+      mockUsersRepository.findByEmail.mockResolvedValue({
+        id: '123',
+        email: 'test@test.com',
+        passwordHash: 'hashedPass',
+      });
+      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+      mockTokenService.generateTokens.mockResolvedValue({
+        accessToken: 'a',
+        refreshToken: 'r',
+        rememberMe: true,
+        user: { id: '123', email: 'test@test.com' },
+      });
+
+      await authService.login(loginDto);
+
+      expect(mockTokenService.generateTokens).toHaveBeenCalledWith({
+        userId: '123',
+        email: 'test@test.com',
+        rememberMe: true,
+      });
     });
 
     it('должен выбрасывать ошибку UnauthorizedException при неверном пароле', async () => {
@@ -154,6 +183,7 @@ describe('AuthService', () => {
       expect(mockTokenService.generateTokens).toHaveBeenCalledWith({
         userId: '123',
         email: registerDto.email,
+        rememberMe: true,
       });
       expect(result).toHaveProperty('accessToken', 'fake_access');
     });
@@ -184,11 +214,13 @@ describe('AuthService', () => {
       mockTokenService.validateRefreshToken.mockResolvedValue({
         userId,
         refreshTokenId: tokenId,
+        rememberMe: false,
       });
       mockUsersRepository.findById.mockResolvedValue(fakeUser);
       mockTokenService.generateTokens.mockResolvedValue({
         accessToken: 'new_access',
         refreshToken: 'new_refresh',
+        rememberMe: false,
         user: { id: userId, email: fakeUser.email },
       });
 
@@ -197,6 +229,11 @@ describe('AuthService', () => {
       expect(mockTokenService.validateRefreshToken).toHaveBeenCalledWith(
         refreshToken,
       );
+      expect(mockTokenService.generateTokens).toHaveBeenCalledWith({
+        userId,
+        email: fakeUser.email,
+        rememberMe: false,
+      });
       expect(result).toHaveProperty('accessToken', 'new_access');
       expect(result).toHaveProperty('refreshToken');
     });
@@ -233,6 +270,31 @@ describe('AuthService', () => {
       ).rejects.toThrow(redisError);
 
       expect(mockLogger.error).toHaveBeenCalled();
+    });
+  });
+
+  describe('getProfile', () => {
+    it('возвращает профиль пользователя по id', async () => {
+      const fakeUser = {
+        id: '123',
+        email: 'test@test.com',
+        name: 'Иван Иванов',
+        avatarUrl: 'https://example.com/avatar.jpg',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      mockUsersRepository.findById.mockResolvedValue(fakeUser);
+
+      await expect(authService.getProfile('123')).resolves.toBe(fakeUser);
+      expect(mockUsersRepository.findById).toHaveBeenCalledWith('123');
+    });
+
+    it('бросает UnauthorizedException, если пользователь не найден', async () => {
+      mockUsersRepository.findById.mockResolvedValue(null);
+
+      await expect(authService.getProfile('missing')).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
   });
 

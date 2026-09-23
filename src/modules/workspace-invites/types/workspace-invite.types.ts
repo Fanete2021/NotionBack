@@ -9,6 +9,7 @@ interface StoredWorkspaceInvite {
   workspaceId: string;
   role: Role;
   createdBy: string;
+  createdAt: string;
 }
 
 interface ConsumedWorkspaceInvite {
@@ -17,5 +18,17 @@ interface ConsumedWorkspaceInvite {
   remainingTtl: number;
 }
 
+interface TemporaryInviteSummary {
+  token: string;
+  role: Role;
+  createdBy: string;
+  createdAt: Date;
+  expiresAt: Date;
+}
+
 export { WorkspaceInviteType };
-export type { StoredWorkspaceInvite, ConsumedWorkspaceInvite };
+export type {
+  StoredWorkspaceInvite,
+  ConsumedWorkspaceInvite,
+  TemporaryInviteSummary,
+};

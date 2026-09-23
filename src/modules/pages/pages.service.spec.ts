@@ -1,15 +1,11 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { PagesService } from '@modules/pages/pages.service';
-import { PagesRepository } from '@modules/pages/pages.repository';
 import { provideMockPinoLogger } from '@common/testing';
 import { ProjectsRepository } from '@modules/projects/projects.repository';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import {
-  BadRequestException,
-  NotFoundException,
-  PayloadTooLargeException,
-} from '@nestjs/common';
-import { PageEntity } from '@modules/pages/entities';
+import { Test, TestingModule } from '@nestjs/testing';
+import { PageEntity } from './entities';
+import { PagesRepository } from './pages.repository';
+import { PagesService } from './pages.service';
 
 describe('PagesService', () => {
   let service: PagesService;
@@ -19,10 +15,9 @@ describe('PagesService', () => {
     findAllByWorkspaceId: jest.fn(),
     findById: jest.fn(),
     nextPosition: jest.fn(),
+    reorder: jest.fn(),
     update: jest.fn(),
     softDelete: jest.fn(),
-    findContent: jest.fn(),
-    upsertContent: jest.fn(),
   };
 
   const mockProjectsRepository = {
@@ -38,6 +33,7 @@ describe('PagesService', () => {
       overrides.id ?? 'p1',
       overrides.workspaceId ?? 'ws-1',
       overrides.projectId ?? 'prj-1',
+      overrides.parentPageId ?? null,
       overrides.title ?? 'Введение',
       overrides.icon ?? null,
       overrides.type ?? 'DOC',
@@ -233,6 +229,47 @@ describe('PagesService', () => {
     });
   });
 
+  describe('reorder', () => {
+    it('переупорядочивает документы проекта', async () => {
+      mockProjectsRepository.findById.mockResolvedValue({
+        id: 'prj-1',
+        workspaceId: 'ws-1',
+      });
+      const reordered = [pageFixture({ id: 'a' }), pageFixture({ id: 'b' })];
+      mockPagesRepository.reorder.mockResolvedValue(reordered);
+
+      const result = await service.reorder('ws-1', 'prj-1', ['a', 'b']);
+
+      expect(mockPagesRepository.reorder).toHaveBeenCalledWith(
+        'ws-1',
+        'prj-1',
+        ['a', 'b'],
+      );
+      expect(result).toBe(reordered);
+    });
+
+    it('бросает 400, если orderedIds не совпадают с документами проекта', async () => {
+      mockProjectsRepository.findById.mockResolvedValue({
+        id: 'prj-1',
+        workspaceId: 'ws-1',
+      });
+      mockPagesRepository.reorder.mockResolvedValue(null);
+
+      await expect(service.reorder('ws-1', 'prj-1', ['a'])).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('бросает 404, если проект не найден', async () => {
+      mockProjectsRepository.findById.mockResolvedValue(null);
+
+      await expect(service.reorder('ws-1', 'missing', ['a'])).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(mockPagesRepository.reorder).not.toHaveBeenCalled();
+    });
+  });
+
   describe('delete', () => {
     it('мягко удаляет страницу', async () => {
       mockPagesRepository.softDelete.mockResolvedValue(true);
@@ -247,82 +284,6 @@ describe('PagesService', () => {
       await expect(service.delete(pageFixture())).rejects.toThrow(
         NotFoundException,
       );
-    });
-  });
-
-  describe('getContent', () => {
-    it('возвращает пустой документ, если контента ещё нет', async () => {
-      mockPagesRepository.findContent.mockResolvedValue(null);
-
-      const result = await service.getContent(pageFixture());
-
-      expect(result.pageId).toBe('p1');
-      expect(result.json).toEqual({ type: 'doc', content: [] });
-      expect(mockPagesRepository.findContent).toHaveBeenCalledWith('p1');
-    });
-
-    it('возвращает сохранённый контент', async () => {
-      mockPagesRepository.findContent.mockResolvedValue({
-        pageId: 'p1',
-        json: { type: 'doc', content: [{ type: 'paragraph' }] },
-      });
-
-      const result = await service.getContent(pageFixture());
-
-      expect(result.json).toEqual({
-        type: 'doc',
-        content: [{ type: 'paragraph' }],
-      });
-    });
-  });
-
-  describe('updateContent', () => {
-    it('бросает 400, если тело не является JSON-значением', async () => {
-      await expect(service.updateContent(pageFixture(), null)).rejects.toThrow(
-        BadRequestException,
-      );
-      await expect(
-        service.updateContent(pageFixture(), undefined),
-      ).rejects.toThrow(BadRequestException);
-      expect(mockPagesRepository.upsertContent).not.toHaveBeenCalled();
-    });
-
-    it('бросает 400, если тело не является объектом', async () => {
-      await expect(service.updateContent(pageFixture(), 'doc')).rejects.toThrow(
-        BadRequestException,
-      );
-      await expect(
-        service.updateContent(pageFixture(), [1, 2, 3]),
-      ).rejects.toThrow(BadRequestException);
-      expect(mockPagesRepository.upsertContent).not.toHaveBeenCalled();
-    });
-
-    it('бросает 413, если размер превышает лимит', async () => {
-      mockConfigService.get.mockReturnValue(10);
-
-      await expect(
-        service.updateContent(pageFixture(), {
-          type: 'doc',
-          content: [{ type: 'paragraph', text: 'Слишком длинный контент' }],
-        }),
-      ).rejects.toThrow(PayloadTooLargeException);
-      expect(mockPagesRepository.upsertContent).not.toHaveBeenCalled();
-    });
-
-    it('перезаписывает контент целиком', async () => {
-      mockPagesRepository.upsertContent.mockResolvedValue({
-        pageId: 'p1',
-        json: { type: 'doc' },
-      });
-
-      const json = { type: 'doc', content: [{ type: 'paragraph' }] };
-      const result = await service.updateContent(pageFixture(), json);
-
-      expect(mockPagesRepository.upsertContent).toHaveBeenCalledWith(
-        'p1',
-        json,
-      );
-      expect(result.json).toEqual({ type: 'doc' });
     });
   });
 });

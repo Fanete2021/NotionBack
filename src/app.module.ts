@@ -1,17 +1,9 @@
-import { Module, Global } from '@nestjs/common';
-import { APP_FILTER, APP_GUARD } from '@nestjs/core';
+import { BullModule } from '@nestjs/bullmq';
+import { Global, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { LoggerModule } from 'nestjs-pino';
-import { SentryModule, SentryGlobalFilter } from '@sentry/nestjs/setup';
-import { HealthController } from './health/health.controller';
-import { PrismaModule } from './prisma';
-import { AuthModule } from '@modules/auth/auth.module';
-import { UsersModule } from '@modules/users/users.module';
-import { ProjectsModule } from '@modules/projects/projects.module';
-import { WorkspacesModule } from '@modules/workspaces/workspaces.module';
-import { WorkspaceInvitesModule } from '@modules/workspace-invites/workspace-invites.module';
-import { PagesModule } from '@modules/pages/pages.module';
-import { PageCommentsModule } from '@modules/page-comments/page-comments.module';
+import { SentryGlobalFilter, SentryModule } from '@sentry/nestjs/setup';
 import { JwtAuthGuard } from '@common/guards';
 import { RedisClient } from '@common/providers';
 import { HttpExceptionsFilter, PrismaExceptionFilter } from './filters';
@@ -21,8 +13,21 @@ import {
   createLoggerOptions,
   databaseConfig,
 } from './config';
-import { sentryValidationSchema } from './validation';
-import * as Joi from 'joi';
+import { validationSchema } from './validation';
+import { HealthController } from './health/health.controller';
+import { AttachmentsModule } from '@modules/attachments/attachments.module';
+import { AuthModule } from '@modules/auth/auth.module';
+import { PageCommentsModule } from '@modules/page-comments/page-comments.module';
+import {
+  PagesContentModule,
+  PagesModule,
+  PagesVersionModule,
+} from '@modules/pages';
+import { ProjectsModule } from '@modules/projects/projects.module';
+import { UsersModule } from '@modules/users/users.module';
+import { WorkspaceInvitesModule } from '@modules/workspace-invites/workspace-invites.module';
+import { WorkspacesModule } from '@modules/workspaces/workspaces.module';
+import { PrismaModule } from './prisma';
 
 @Global()
 @Module({
@@ -31,37 +36,16 @@ import * as Joi from 'joi';
     ConfigModule.forRoot({
       isGlobal: true,
       load: [appConfig, authConfig, databaseConfig],
-      validationSchema: Joi.object({
-        NODE_ENV: Joi.string()
-          .valid('development', 'production')
-          .default('development'),
-        LOG_LEVEL: Joi.string()
-          .valid('fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent')
-          .optional(),
-        PORT: Joi.number().default(8000),
-        DATABASE_URL: Joi.string().required(),
-        JWT_ACCESS_SECRET: Joi.string().required(),
-        JWT_ACCESS_EXPIRES_IN: Joi.number().default(900),
-        JWT_REFRESH_SECRET: Joi.string().required(),
-        JWT_REFRESH_EXPIRES_IN: Joi.number().default(2592000),
-        BCRYPT_SALT_ROUNDS: Joi.number().default(10),
-        REDIS_HOST: Joi.string().default('localhost'),
-        REDIS_PORT: Joi.number().default(6379),
-        CORS_ORIGINS: Joi.string().default('http://localhost:3000'),
-        MAX_WORKSPACES_PER_USER: Joi.number().default(3),
-        MAX_PAGE_CONTENT_BYTES: Joi.number().default(1048576),
-        INVITE_TTL_SECONDS: Joi.number().integer().positive().default(86400),
-        MAX_INVITES_PER_WORKSPACE: Joi.number()
-          .integer()
-          .positive()
-          .default(10),
-        FRONT_URL: Joi.string().uri().default('http://localhost:3000'),
-        COOKIE_SECURE: Joi.boolean().default(false),
-        COOKIE_SAME_SITE: Joi.string()
-          .valid('lax', 'strict', 'none')
-          .default('lax'),
-        ...sentryValidationSchema,
+      validationSchema,
+    }),
+    BullModule.forRootAsync({
+      useFactory: (configService: ConfigService) => ({
+        connection: {
+          host: configService.getOrThrow<string>('REDIS_HOST'),
+          port: configService.getOrThrow<number>('REDIS_PORT'),
+        },
       }),
+      inject: [ConfigService],
     }),
     LoggerModule.forRootAsync({
       inject: [ConfigService],
@@ -74,7 +58,10 @@ import * as Joi from 'joi';
     ProjectsModule,
     WorkspacesModule,
     WorkspaceInvitesModule,
+    AttachmentsModule,
     PagesModule,
+    PagesContentModule,
+    PagesVersionModule,
     PageCommentsModule,
   ],
   controllers: [HealthController],

@@ -7,12 +7,9 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import {
-  AuthResponseDto,
-  AuthUserDto,
-  MessageResponseDto,
-} from '@modules/auth/dto';
+import { AuthResponseDto, MessageResponseDto } from '@modules/auth/dto';
 import { ErrorResponseDto } from '@common/dto';
+import { UserEntity } from '@modules/users/user.entity';
 import { RegisterDto } from '@modules/auth/dto';
 import { ApiValidationErrorResponse } from '@common/decorators/swagger';
 import { LoginDto } from '@modules/auth/dto';
@@ -125,7 +122,7 @@ function MeResponse() {
     ApiResponse({
       status: 200,
       description: 'Данные пользователя получены',
-      type: AuthUserDto,
+      type: UserEntity,
     }),
     ApiResponse({
       status: 401,

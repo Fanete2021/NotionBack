@@ -3,12 +3,14 @@ import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { Role } from '@prisma/client';
 import { RedisClient } from '@common/providers';
 import {
+  WORKSPACE_INVITE_INDEX_PREFIX,
   WORKSPACE_INVITE_KEY_PREFIX,
   WORKSPACE_INVITE_ROLES,
 } from '@modules/workspace-invites/constants';
 import {
   ConsumedWorkspaceInvite,
   StoredWorkspaceInvite,
+  TemporaryInviteSummary,
 } from '@modules/workspace-invites/types';
 
 @Injectable()
@@ -20,20 +22,88 @@ export class TemporaryInviteStore {
   ) {}
 
   async save(
-    tokenHash: string,
+    token: string,
     stored: StoredWorkspaceInvite,
     ttlSeconds: number,
   ): Promise<void> {
-    await this.redis.set(
-      this.key(tokenHash),
-      JSON.stringify(stored),
-      'EX',
-      ttlSeconds,
+    await this.redis
+      .multi()
+      .set(this.key(token), JSON.stringify(stored), 'EX', ttlSeconds)
+      .sadd(this.indexKey(stored.workspaceId), token)
+      .expire(this.indexKey(stored.workspaceId), ttlSeconds, 'GT')
+      .exec();
+  }
+
+  async listByWorkspace(
+    workspaceId: string,
+  ): Promise<TemporaryInviteSummary[]> {
+    const indexKey = this.indexKey(workspaceId);
+    let tokens: string[];
+
+    try {
+      tokens = await this.redis.smembers(indexKey);
+    } catch (error) {
+      this.logger.warn(
+        'Redis is unavailable, temporary invites are omitted from the list',
+        error instanceof Error ? error.stack : undefined,
+      );
+      return [];
+    }
+
+    if (tokens.length === 0) {
+      return [];
+    }
+
+    const summaries: TemporaryInviteSummary[] = [];
+    const staleTokens: string[] = [];
+
+    for (const token of tokens) {
+      const key = this.key(token);
+      let raw: string | null;
+      let ttl: number;
+
+      try {
+        [raw, ttl] = await Promise.all([
+          this.redis.get(key),
+          this.redis.ttl(key),
+        ]);
+      } catch (error) {
+        this.logger.warn(
+          `Failed to read a temporary invite at ${key}`,
+          error instanceof Error ? error.stack : undefined,
+        );
+        continue;
+      }
+
+      if (!raw || ttl <= 0) {
+        staleTokens.push(token);
+        continue;
+      }
+
+      const stored = this.parseStoredInvite(raw);
+      if (!stored) {
+        staleTokens.push(token);
+        continue;
+      }
+
+      summaries.push({
+        token,
+        role: stored.role,
+        createdBy: stored.createdBy,
+        createdAt: new Date(stored.createdAt),
+        expiresAt: new Date(Date.now() + ttl * 1000),
+      });
+    }
+
+    await this.dropStale(indexKey, staleTokens);
+
+    return summaries.sort(
+      (a, b) => a.createdAt.getTime() - b.createdAt.getTime(),
     );
   }
 
-  async consume(tokenHash: string): Promise<ConsumedWorkspaceInvite | null> {
-    const key = this.key(tokenHash);
+  async consume(token: string): Promise<ConsumedWorkspaceInvite | null> {
+    const key = this.key(token);
     let remainingTtl: number;
     let raw: string | null;
 
@@ -61,11 +131,13 @@ export class TemporaryInviteStore {
       return null;
     }
 
+    await this.dropStale(this.indexKey(stored.workspaceId), [token]);
+
     return { raw, stored, remainingTtl };
   }
 
   async restore(
-    tokenHash: string,
+    token: string,
     consumed: ConsumedWorkspaceInvite,
   ): Promise<void> {
     if (consumed.remainingTtl <= 0) {
@@ -73,22 +145,45 @@ export class TemporaryInviteStore {
     }
 
     try {
-      await this.redis.set(
-        this.key(tokenHash),
-        consumed.raw,
-        'EX',
-        consumed.remainingTtl,
-      );
+      await this.redis
+        .multi()
+        .set(this.key(token), consumed.raw, 'EX', consumed.remainingTtl)
+        .sadd(this.indexKey(consumed.stored.workspaceId), token)
+        .expire(
+          this.indexKey(consumed.stored.workspaceId),
+          consumed.remainingTtl,
+          'GT',
+        )
+        .exec();
     } catch (error: unknown) {
       this.logger.error(
-        { action: 'invite_restore', key: this.key(tokenHash), err: error },
+        { action: 'invite_restore', key: this.key(token), err: error },
         'failed to restore a temporary invite',
       );
     }
   }
 
-  private key(tokenHash: string): string {
-    return WORKSPACE_INVITE_KEY_PREFIX + tokenHash;
+  private async dropStale(indexKey: string, tokens: string[]): Promise<void> {
+    if (tokens.length === 0) {
+      return;
+    }
+
+    try {
+      await this.redis.srem(indexKey, ...tokens);
+    } catch (error) {
+      this.logger.warn(
+        `Failed to prune the temporary invite index ${indexKey}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+    }
+  }
+
+  private key(token: string): string {
+    return WORKSPACE_INVITE_KEY_PREFIX + token;
+  }
+
+  private indexKey(workspaceId: string): string {
+    return WORKSPACE_INVITE_INDEX_PREFIX + workspaceId;
   }
 
   private parseStoredInvite(raw: string): StoredWorkspaceInvite | null {
@@ -104,7 +199,10 @@ export class TemporaryInviteStore {
       return null;
     }
 
-    const { workspaceId, role, createdBy } = parsed as Record<string, unknown>;
+    const { workspaceId, role, createdBy, createdAt } = parsed as Record<
+      string,
+      unknown
+    >;
 
     if (typeof workspaceId !== 'string' || workspaceId.length === 0) {
       return null;
@@ -119,6 +217,11 @@ export class TemporaryInviteStore {
       return null;
     }
 
-    return { workspaceId, role: role as Role, createdBy };
+    return {
+      workspaceId,
+      role: role as Role,
+      createdBy,
+      createdAt: typeof createdAt === 'string' ? createdAt : '',
+    };
   }
 }

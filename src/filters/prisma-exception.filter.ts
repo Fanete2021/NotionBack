@@ -10,6 +10,7 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
+import * as Sentry from '@sentry/nestjs';
 import { Prisma } from '@prisma/client';
 import { Request, Response } from 'express';
 
@@ -49,6 +50,9 @@ export class PrismaExceptionFilter implements ExceptionFilter {
 
     if (status >= Number(HttpStatus.INTERNAL_SERVER_ERROR)) {
       this.logger.error({ ...meta, err: exception }, 'prisma request failed');
+      Sentry.captureException(exception, {
+        mechanism: { handled: true, type: 'nestjs.prisma_exception_filter' },
+      });
     } else {
       this.logger.warn(meta, 'prisma request rejected');
     }

@@ -1,14 +1,15 @@
-import { Module } from '@nestjs/common';
 import { PagesController } from '@modules/pages/pages.controller';
-import { PagesService } from '@modules/pages/pages.service';
 import { PagesRepository } from '@modules/pages/pages.repository';
-import { PrismaModule } from '../../prisma';
-import { WorkspacesModule } from '@modules/workspaces/workspaces.module';
+import { PagesService } from '@modules/pages/pages.service';
 import { ProjectsModule } from '@modules/projects/projects.module';
+import { WorkspacesModule } from '@modules/workspaces/workspaces.module';
+import { Module } from '@nestjs/common';
+import { PagesMapper } from './pages.mapper';
 
 @Module({
-  imports: [PrismaModule, WorkspacesModule, ProjectsModule],
+  imports: [WorkspacesModule, ProjectsModule],
   controllers: [PagesController],
-  providers: [PagesService, PagesRepository],
+  providers: [PagesService, PagesRepository, PagesMapper],
+  exports: [PagesService, PagesRepository],
 })
 export class PagesModule {}

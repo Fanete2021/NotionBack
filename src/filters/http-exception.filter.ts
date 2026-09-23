@@ -6,6 +6,7 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
+import * as Sentry from '@sentry/nestjs';
 import { Request, Response } from 'express';
 
 type HttpExceptionPayload = {
@@ -45,6 +46,9 @@ export class HttpExceptionsFilter implements ExceptionFilter {
 
     if (status >= Number(HttpStatus.INTERNAL_SERVER_ERROR)) {
       this.logger.error({ ...meta, err: exception }, 'request failed');
+      Sentry.captureException(exception, {
+        mechanism: { handled: true, type: 'nestjs.http_exception_filter' },
+      });
     } else {
       this.logger.warn(meta, 'request rejected');
     }

@@ -27,6 +27,8 @@ import { getCookieValue } from '@common/utils';
 import { setRefreshTokenCookie } from '@common/utils';
 import { clearRefreshTokenCookie } from '@common/utils';
 import { Public } from '@common/decorators';
+import { CurrentUser } from '@common/decorators';
+import { UserEntity } from '@modules/users/user.entity';
 import {
   AuthControllerResponse,
   LoginResponse,
@@ -52,8 +54,8 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ): Promise<AuthResponseDto> {
     const result = await this.authService.register(dto);
-    const { refreshToken, ...responseBody } = result;
-    this.handleSetCookie(res, refreshToken);
+    const { refreshToken, rememberMe, ...responseBody } = result;
+    this.handleSetCookie(res, refreshToken, rememberMe);
     return responseBody;
   }
 
@@ -66,8 +68,8 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ): Promise<AuthResponseDto> {
     const result = await this.authService.login(dto);
-    const { refreshToken, ...responseBody } = result;
-    this.handleSetCookie(res, refreshToken);
+    const { refreshToken, rememberMe, ...responseBody } = result;
+    this.handleSetCookie(res, refreshToken, rememberMe);
     return responseBody;
   }
 
@@ -87,8 +89,8 @@ export class AuthController {
 
     const refreshData: RefreshData = { token: oldRefreshToken };
     const result = await this.authService.refresh(refreshData);
-    const { refreshToken, ...responseBody } = result;
-    this.handleSetCookie(res, refreshToken);
+    const { refreshToken, rememberMe, ...responseBody } = result;
+    this.handleSetCookie(res, refreshToken, rememberMe);
     return responseBody;
   }
 
@@ -127,20 +129,23 @@ export class AuthController {
   @MeResponse()
   @UseGuards(AuthGuard('jwt-access'))
   @Get('me')
-  getProfile(@Req() req: Request): UserPayload {
-    return req.user as UserPayload;
+  getProfile(@CurrentUser('id') userId: string): Promise<UserEntity> {
+    return this.authService.getProfile(userId);
   }
 
-  private handleSetCookie(res: Response, token: string): void {
-    const maxAgeSeconds = this.configService.get<number>(
-      'JWT_REFRESH_EXPIRES_IN',
-      2592000,
-    );
+  private handleSetCookie(
+    res: Response,
+    token: string,
+    rememberMe: boolean,
+  ): void {
+    const maxAgeSeconds = rememberMe
+      ? this.configService.get<number>('JWT_REFRESH_EXPIRES_IN', 2592000)
+      : null;
     const secure = this.configService.get<boolean>('COOKIE_SECURE', false);
     const sameSite = this.configService.get<SameSite>(
       'COOKIE_SAME_SITE',
       'lax',
     );
-    setRefreshTokenCookie(res, token, maxAgeSeconds, secure, sameSite);
+    setRefreshTokenCookie({ res, token, maxAgeSeconds, secure, sameSite });
   }
 }

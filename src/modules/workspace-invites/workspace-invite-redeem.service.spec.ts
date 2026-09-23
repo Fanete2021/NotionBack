@@ -1,7 +1,7 @@
 import { Test } from '@nestjs/testing';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Role } from '@prisma/client';
-import { createHash, randomBytes } from 'crypto';
+import { randomBytes } from 'crypto';
 import { WorkspaceInviteRedeemService } from '@modules/workspace-invites/workspace-invite-redeem.service';
 import { WorkspaceInvitesRepository } from '@modules/workspace-invites/workspace-invites.repository';
 import { WorkspaceMembersService } from '@modules/workspace-members/workspace-members.service';
@@ -17,15 +17,23 @@ describe('WorkspaceInviteRedeemService', () => {
   let service: WorkspaceInviteRedeemService;
 
   const mockInvitesRepository = {
-    findByTokenHash: jest.fn(),
+    findByToken: jest.fn(),
   };
   const mockWorkspaceMembersService = {
     addMemberViaInvite: jest.fn(),
   };
+  const mockRedisMulti = {
+    set: jest.fn(),
+    sadd: jest.fn(),
+    expire: jest.fn(),
+    exec: jest.fn(),
+  };
   const mockRedis = {
+    multi: jest.fn(() => mockRedisMulti),
     set: jest.fn(),
     ttl: jest.fn(),
     getdel: jest.fn(),
+    srem: jest.fn(),
   };
 
   const member = new WorkspaceMemberEntity(
@@ -47,6 +55,11 @@ describe('WorkspaceInviteRedeemService', () => {
 
   beforeEach(async () => {
     jest.resetAllMocks();
+    mockRedis.multi.mockReturnValue(mockRedisMulti);
+    mockRedisMulti.set.mockReturnValue(mockRedisMulti);
+    mockRedisMulti.sadd.mockReturnValue(mockRedisMulti);
+    mockRedisMulti.expire.mockReturnValue(mockRedisMulti);
+    mockRedisMulti.exec.mockResolvedValue([]);
 
     const module = await Test.createTestingModule({
       providers: [
@@ -73,14 +86,13 @@ describe('WorkspaceInviteRedeemService', () => {
 
   it('добавляет пользователя по временной ссылке, атомарно потребляя её из Redis', async () => {
     const token = randomBytes(32).toString('base64url');
-    const hash = createHash('sha256').update(token).digest('hex');
     mockRedis.ttl.mockResolvedValue(12345);
     mockRedis.getdel.mockResolvedValue(storedInviteJson);
     mockWorkspaceMembersService.addMemberViaInvite.mockResolvedValue(member);
 
     const result = await service.redeem('user-2', token);
 
-    expect(mockRedis.getdel).toHaveBeenCalledWith(`workspace_invite:${hash}`);
+    expect(mockRedis.getdel).toHaveBeenCalledWith(`workspace_invite:${token}`);
     expect(mockWorkspaceMembersService.addMemberViaInvite).toHaveBeenCalledWith(
       'ws-1',
       'user-2',
@@ -101,7 +113,7 @@ describe('WorkspaceInviteRedeemService', () => {
 
     mockRedis.ttl.mockResolvedValueOnce(-2);
     mockRedis.getdel.mockResolvedValueOnce(null);
-    mockInvitesRepository.findByTokenHash.mockResolvedValue(null);
+    mockInvitesRepository.findByToken.mockResolvedValue(null);
 
     await expect(service.redeem('user-3', token)).rejects.toThrow(
       NotFoundException,
@@ -113,10 +125,9 @@ describe('WorkspaceInviteRedeemService', () => {
 
   it('находит постоянную ссылку в базе и не трогает Redis после использования', async () => {
     const token = randomBytes(32).toString('base64url');
-    const hash = createHash('sha256').update(token).digest('hex');
     mockRedis.ttl.mockResolvedValue(-2);
     mockRedis.getdel.mockResolvedValue(null);
-    mockInvitesRepository.findByTokenHash.mockResolvedValue({
+    mockInvitesRepository.findByToken.mockResolvedValue({
       id: 'invite-1',
       workspaceId: 'ws-1',
       role: Role.VIEWER,
@@ -134,7 +145,7 @@ describe('WorkspaceInviteRedeemService', () => {
 
     const result = await service.redeem('user-2', token);
 
-    expect(mockInvitesRepository.findByTokenHash).toHaveBeenCalledWith(hash);
+    expect(mockInvitesRepository.findByToken).toHaveBeenCalledWith(token);
     expect(result.role).toBe(Role.VIEWER);
     expect(mockRedis.set).not.toHaveBeenCalled();
   });
@@ -142,7 +153,7 @@ describe('WorkspaceInviteRedeemService', () => {
   it('бросает NotFoundException, если ссылка не найдена нигде', async () => {
     mockRedis.ttl.mockResolvedValue(-2);
     mockRedis.getdel.mockResolvedValue(null);
-    mockInvitesRepository.findByTokenHash.mockResolvedValue(null);
+    mockInvitesRepository.findByToken.mockResolvedValue(null);
 
     await expect(service.redeem('user-2', 'bad-token')).rejects.toThrow(
       NotFoundException,
@@ -169,7 +180,7 @@ describe('WorkspaceInviteRedeemService', () => {
     await expect(service.redeem('user-2', token)).rejects.toThrow(
       NotFoundException,
     );
-    const [, value, ex, ttl] = mockRedis.set.mock.calls[0] as unknown as [
+    const [, value, ex, ttl] = mockRedisMulti.set.mock.calls[0] as unknown as [
       string,
       string,
       string,
@@ -191,7 +202,7 @@ describe('WorkspaceInviteRedeemService', () => {
     await expect(service.redeem('user-2', 'any-token')).rejects.toThrow(
       ConflictException,
     );
-    expect(mockRedis.set).toHaveBeenCalledTimes(1);
+    expect(mockRedisMulti.set).toHaveBeenCalledTimes(1);
   });
 
   it('сбой компенсации не подменяет исходную ошибку клиента', async () => {
@@ -200,7 +211,9 @@ describe('WorkspaceInviteRedeemService', () => {
     mockWorkspaceMembersService.addMemberViaInvite.mockRejectedValue(
       new ConflictException('User is already a member of this workspace'),
     );
-    mockRedis.set.mockRejectedValue(new Error('READONLY: replica is down'));
+    mockRedisMulti.exec.mockRejectedValue(
+      new Error('READONLY: replica is down'),
+    );
 
     await expect(service.redeem('user-2', 'any-token')).rejects.toThrow(
       ConflictException,
@@ -210,7 +223,7 @@ describe('WorkspaceInviteRedeemService', () => {
   it('битое значение в Redis даёт 404, а не 500', async () => {
     mockRedis.ttl.mockResolvedValue(12345);
     mockRedis.getdel.mockResolvedValue('{not json');
-    mockInvitesRepository.findByTokenHash.mockResolvedValue(null);
+    mockInvitesRepository.findByToken.mockResolvedValue(null);
 
     await expect(service.redeem('user-2', 'any-token')).rejects.toThrow(
       NotFoundException,
@@ -225,7 +238,7 @@ describe('WorkspaceInviteRedeemService', () => {
     mockRedis.getdel.mockResolvedValue(
       JSON.stringify({ workspaceId: 'ws-1', createdBy: 'actor-1' }),
     );
-    mockInvitesRepository.findByTokenHash.mockResolvedValue(null);
+    mockInvitesRepository.findByToken.mockResolvedValue(null);
 
     await expect(service.redeem('user-2', 'any-token')).rejects.toThrow(
       NotFoundException,
@@ -244,7 +257,7 @@ describe('WorkspaceInviteRedeemService', () => {
         createdBy: 'actor-1',
       }),
     );
-    mockInvitesRepository.findByTokenHash.mockResolvedValue(null);
+    mockInvitesRepository.findByToken.mockResolvedValue(null);
 
     await expect(service.redeem('user-2', 'any-token')).rejects.toThrow(
       NotFoundException,
@@ -257,7 +270,7 @@ describe('WorkspaceInviteRedeemService', () => {
   it('недоступность Redis не ломает погашение постоянных ссылок', async () => {
     const token = randomBytes(32).toString('base64url');
     mockRedis.ttl.mockRejectedValue(new Error('ECONNREFUSED'));
-    mockInvitesRepository.findByTokenHash.mockResolvedValue({
+    mockInvitesRepository.findByToken.mockResolvedValue({
       id: 'invite-1',
       workspaceId: 'ws-1',
       role: Role.VIEWER,
