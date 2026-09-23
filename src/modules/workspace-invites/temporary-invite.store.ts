@@ -42,10 +42,10 @@ export class TemporaryInviteStore {
 
     try {
       tokens = await this.redis.smembers(indexKey);
-    } catch (error) {
+    } catch (error: unknown) {
       this.logger.warn(
-        'Redis is unavailable, temporary invites are omitted from the list',
-        error instanceof Error ? error.stack : undefined,
+        { action: 'invite_list', reason: 'redis_unavailable', err: error },
+        'temporary invites omitted from the list',
       );
       return [];
     }
@@ -67,10 +67,10 @@ export class TemporaryInviteStore {
           this.redis.get(key),
           this.redis.ttl(key),
         ]);
-      } catch (error) {
+      } catch (error: unknown) {
         this.logger.warn(
-          `Failed to read a temporary invite at ${key}`,
-          error instanceof Error ? error.stack : undefined,
+          { action: 'invite_list', key, err: error },
+          'failed to read a temporary invite',
         );
         continue;
       }
@@ -170,10 +170,10 @@ export class TemporaryInviteStore {
 
     try {
       await this.redis.srem(indexKey, ...tokens);
-    } catch (error) {
+    } catch (error: unknown) {
       this.logger.warn(
-        `Failed to prune the temporary invite index ${indexKey}`,
-        error instanceof Error ? error.stack : undefined,
+        { action: 'invite_index_prune', indexKey, err: error },
+        'failed to prune the temporary invite index',
       );
     }
   }

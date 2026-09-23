@@ -1,5 +1,5 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
-import { Logger } from '@nestjs/common';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { Job } from 'bullmq';
 import { PagesRepository } from '../pages.repository';
 import { PagesVersionRepository } from './pages-version.repository';
@@ -7,11 +7,11 @@ import { AutoSnapshotJobData } from './types';
 
 @Processor('page-versions')
 export class PagesVersionProcessor extends WorkerHost {
-  private readonly logger = new Logger(PagesVersionProcessor.name);
-
   constructor(
     private readonly pagesVersionRepository: PagesVersionRepository,
     private readonly pagesRepository: PagesRepository,
+    @InjectPinoLogger(PagesVersionProcessor.name)
+    private readonly logger: PinoLogger,
   ) {
     super();
   }
@@ -26,7 +26,8 @@ export class PagesVersionProcessor extends WorkerHost {
 
       if (!page || !page.content) {
         this.logger.debug(
-          'Страница или контент страницы не найден. Пропускаем.',
+          { action: 'page_autosnapshot', pageId, reason: 'no_content' },
+          'auto snapshot skipped',
         );
         return;
       }
@@ -35,7 +36,10 @@ export class PagesVersionProcessor extends WorkerHost {
         await this.pagesVersionRepository.findLatestByPageId(pageId);
 
       if (lastVersion && lastVersion.createdAt >= page.content.updatedAt) {
-        this.logger.debug('Изменения не найдены. Пропускаем.');
+        this.logger.debug(
+          { action: 'page_autosnapshot', pageId, reason: 'no_changes' },
+          'auto snapshot skipped',
+        );
         return;
       }
 
@@ -45,11 +49,11 @@ export class PagesVersionProcessor extends WorkerHost {
         snapshot: page.content.json || {},
         label: new Date().toISOString(),
       });
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-
-      this.logger.error(`Ошибка создания автоснэпшота: ${errorMessage}`);
+    } catch (error: unknown) {
+      this.logger.error(
+        { action: 'page_autosnapshot', pageId: job.data.pageId, err: error },
+        'auto snapshot failed',
+      );
       throw error;
     }
   }

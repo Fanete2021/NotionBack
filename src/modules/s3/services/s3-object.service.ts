@@ -5,18 +5,19 @@ import {
   PutObjectTaggingCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { S3_CLIENT, S3_CONFIG } from '../constants';
 import type { S3Config, StoredObjectInfo } from '../types';
 import { isNotFoundError } from '../utils';
 
 @Injectable()
 export class S3ObjectService {
-  private readonly logger = new Logger(S3ObjectService.name);
-
   constructor(
     @Inject(S3_CLIENT) private readonly client: S3Client,
     @Inject(S3_CONFIG) private readonly config: S3Config,
+    @InjectPinoLogger(S3ObjectService.name)
+    private readonly logger: PinoLogger,
   ) {}
 
   async getObjectInfo(key: string): Promise<StoredObjectInfo | null> {
@@ -34,12 +35,15 @@ export class S3ObjectService {
         etag: response.ETag,
         lastModified: response.LastModified,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       if (isNotFoundError(error)) {
         return null;
       }
 
-      this.logger.error(`Failed to get object info for ${key}`, error);
+      this.logger.error(
+        { action: 'object_info_get', key, err: error },
+        'failed to get object info',
+      );
       throw error;
     }
   }
@@ -52,8 +56,11 @@ export class S3ObjectService {
           Key: key,
         }),
       );
-    } catch (error) {
-      this.logger.error(`Failed to delete object ${key}`, error);
+    } catch (error: unknown) {
+      this.logger.error(
+        { action: 'object_delete', key, err: error },
+        'failed to delete object',
+      );
       throw error;
     }
   }
@@ -80,8 +87,11 @@ export class S3ObjectService {
       });
 
       return tags;
-    } catch (error) {
-      this.logger.error(`Failed to get tags for ${key}`, error);
+    } catch (error: unknown) {
+      this.logger.error(
+        { action: 'object_tags_get', key, err: error },
+        'failed to get object tags',
+      );
       throw error;
     }
   }
