@@ -7,6 +7,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { UsersRepository } from '@modules/users/users.repository';
+import { UsersMapper } from '@modules/users/users.mapper';
 import { UserEntity } from '@modules/users/user.entity';
 import * as bcrypt from 'bcrypt';
 import {
@@ -28,6 +29,7 @@ import { CreateUserData } from '@modules/users/types';
 export class AuthService {
   constructor(
     private readonly usersRepository: UsersRepository,
+    private readonly usersMapper: UsersMapper,
     private readonly tokenService: TokenService,
     private readonly configService: ConfigService,
     @InjectPinoLogger(AuthService.name)
@@ -118,7 +120,7 @@ export class AuthService {
       throw new UnauthorizedException('User not found');
     }
 
-    return user;
+    return this.usersMapper.toEntity(user);
   }
 
   async refresh(data: RefreshData): Promise<TokenPair> {

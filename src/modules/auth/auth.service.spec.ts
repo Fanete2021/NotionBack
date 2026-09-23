@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuthService } from '@modules/auth/auth.service';
 import { UsersRepository } from '@modules/users/users.repository';
+import { UsersMapper } from '@modules/users/users.mapper';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { ConflictException, UnauthorizedException } from '@nestjs/common';
@@ -18,6 +19,10 @@ describe('AuthService', () => {
     findByEmail: jest.fn(),
     create: jest.fn(),
     findById: jest.fn(),
+  };
+
+  const mockUsersMapper = {
+    toEntity: jest.fn(),
   };
 
   const mockJwtService = {
@@ -43,6 +48,7 @@ describe('AuthService', () => {
       providers: [
         AuthService,
         { provide: UsersRepository, useValue: mockUsersRepository },
+        { provide: UsersMapper, useValue: mockUsersMapper },
         { provide: JwtService, useValue: mockJwtService },
         { provide: ConfigService, useValue: mockConfigService },
         { provide: TokenService, useValue: mockTokenService },
@@ -283,10 +289,13 @@ describe('AuthService', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
       };
+      const fakeEntity = { ...fakeUser };
       mockUsersRepository.findById.mockResolvedValue(fakeUser);
+      mockUsersMapper.toEntity.mockReturnValue(fakeEntity);
 
-      await expect(authService.getProfile('123')).resolves.toBe(fakeUser);
+      await expect(authService.getProfile('123')).resolves.toBe(fakeEntity);
       expect(mockUsersRepository.findById).toHaveBeenCalledWith('123');
+      expect(mockUsersMapper.toEntity).toHaveBeenCalledWith(fakeUser);
     });
 
     it('бросает UnauthorizedException, если пользователь не найден', async () => {

@@ -5,4 +5,10 @@ type CreateUserData = {
   avatarUrl?: string;
 };
 
-export type { CreateUserData };
+type UpdateUserData = {
+  email?: string;
+  name?: string;
+  avatarUrl?: string;
+};
+
+export type { CreateUserData, UpdateUserData };

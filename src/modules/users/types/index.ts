@@ -1,1 +1,1 @@
-export type { CreateUserData } from './users.types';
+export type { CreateUserData, UpdateUserData } from './users.types';
