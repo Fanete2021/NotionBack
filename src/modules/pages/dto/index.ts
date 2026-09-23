@@ -1,5 +1,3 @@
-import { CreatePageDto } from './create-page.dto';
-import { UpdatePageDto } from './update-page.dto';
-import { ReorderPagesDto } from './reorder-pages.dto';
-
-export { CreatePageDto, UpdatePageDto, ReorderPagesDto };
+export { CreatePageDto } from './create-page.dto';
+export { UpdatePageDto } from './update-page.dto';
+export { ReorderPagesDto } from './reorder-pages.dto';

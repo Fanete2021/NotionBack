@@ -1,3 +1,4 @@
+import { CurrentUser } from '@common/decorators';
 import {
   Body,
   Controller,
@@ -8,26 +9,21 @@ import {
   Param,
   Patch,
   Post,
-  Put,
   Query,
 } from '@nestjs/common';
-import { PagesService } from './pages.service';
-import { CreatePageDto, UpdatePageDto, ReorderPagesDto } from './dto';
-import { PageEntity, PageContentEntity } from './entities';
-import { PAGE_CONTENT_ROUTE } from './constants';
+import { WorkspacesService } from '../workspaces/workspaces.service';
 import {
   PagesControllerResponse,
   PagesCreateResponse,
   PagesDeleteResponse,
   PagesFindAllByWorkspaceIdResponse,
   PagesFindByIdResponse,
-  PagesGetContentResponse,
   PagesReorderResponse,
-  PagesUpdateContentResponse,
   PagesUpdateResponse,
 } from './decorators';
-import { WorkspacesService } from '@modules/workspaces/workspaces.service';
-import { CurrentUser } from '@common/decorators';
+import { CreatePageDto, ReorderPagesDto, UpdatePageDto } from './dto';
+import { PageEntity } from './entities';
+import { PagesService } from './pages.service';
 
 @PagesControllerResponse()
 @Controller()
@@ -82,31 +78,8 @@ export class PagesController {
     await this.pagesService.delete(page);
   }
 
-  @PagesGetContentResponse()
-  @Get(PAGE_CONTENT_ROUTE)
-  async getContent(
-    @CurrentUser('id') userId: string,
-    @Param('id') id: string,
-  ): Promise<PageContentEntity> {
-    const page = await this.pagesService.findById(id);
-    await this.workspacesService.assertMemberOf(page.workspaceId, userId);
-    return this.pagesService.getContent(page);
-  }
-
-  @PagesUpdateContentResponse()
-  @Put(PAGE_CONTENT_ROUTE)
-  async updateContent(
-    @CurrentUser('id') userId: string,
-    @Param('id') id: string,
-    @Body() body: Record<string, unknown>,
-  ): Promise<PageContentEntity> {
-    const page = await this.pagesService.findById(id);
-    await this.workspacesService.assertMemberOf(page.workspaceId, userId);
-    return this.pagesService.updateContent(page, body);
-  }
-
-  @PagesFindAllByWorkspaceIdResponse()
   @Get('workspaces/:workspaceId/pages')
+  @PagesFindAllByWorkspaceIdResponse()
   async findAllByWorkspaceId(
     @CurrentUser('id') userId: string,
     @Param('workspaceId') workspaceId: string,
