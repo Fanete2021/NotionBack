@@ -1,6 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { UsersController } from './users.controller';
 import { UsersService } from './users.service';
+import { JwtAuthGuard } from '@common/guards';
+import { provideMockPinoLogger } from '@common/testing';
 
 describe('UsersController', () => {
   let controller: UsersController;
@@ -13,7 +15,10 @@ describe('UsersController', () => {
     jest.clearAllMocks();
     const module: TestingModule = await Test.createTestingModule({
       controllers: [UsersController],
-      providers: [{ provide: UsersService, useValue: mockUsersService }],
+      providers: [
+        { provide: UsersService, useValue: mockUsersService },
+        provideMockPinoLogger(JwtAuthGuard.name),
+      ],
     }).compile();
 
     controller = module.get(UsersController);
