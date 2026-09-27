@@ -11,8 +11,13 @@ describe('PagesController', () => {
     create: jest.fn(),
     findAllByWorkspaceId: jest.fn(),
     findById: jest.fn(),
+    findDeletableById: jest.fn(),
+    findTrash: jest.fn(),
+    emptyTrash: jest.fn(),
     update: jest.fn(),
     delete: jest.fn(),
+    restore: jest.fn(),
+    hardDelete: jest.fn(),
     getContent: jest.fn(),
     updateContent: jest.fn(),
   };
@@ -132,7 +137,84 @@ describe('PagesController', () => {
         'ws-1',
         'user-1',
       );
-      expect(mockPagesService.delete).toHaveBeenCalledWith(page);
+      expect(mockPagesService.delete).toHaveBeenCalledWith(page, 'user-1');
+    });
+  });
+
+  describe('findTrash', () => {
+    it('проверяет членство и возвращает корзину воркспейса', async () => {
+      mockPagesService.findTrash.mockResolvedValue([{ id: 'p1' }]);
+
+      const result = await controller.findTrash('user-1', 'ws-1');
+
+      expect(mockWorkspacesService.assertMemberOf).toHaveBeenCalledWith(
+        'ws-1',
+        'user-1',
+      );
+      expect(mockPagesService.findTrash).toHaveBeenCalledWith(
+        'ws-1',
+        undefined,
+      );
+      expect(result).toHaveLength(1);
+    });
+
+    it('передаёт строку поиска в сервис', async () => {
+      mockPagesService.findTrash.mockResolvedValue([]);
+
+      await controller.findTrash('user-1', 'ws-1', 'отчёт');
+
+      expect(mockPagesService.findTrash).toHaveBeenCalledWith('ws-1', 'отчёт');
+    });
+  });
+
+  describe('emptyTrash', () => {
+    it('проверяет членство и очищает корзину воркспейса', async () => {
+      mockPagesService.emptyTrash.mockResolvedValue(3);
+
+      const result = await controller.emptyTrash('user-1', 'ws-1');
+
+      expect(mockWorkspacesService.assertMemberOf).toHaveBeenCalledWith(
+        'ws-1',
+        'user-1',
+      );
+      expect(mockPagesService.emptyTrash).toHaveBeenCalledWith('ws-1');
+      expect(result).toEqual({ deleted: 3 });
+    });
+  });
+
+  describe('restore', () => {
+    it('проверяет членство по удалённой странице и восстанавливает', async () => {
+      const page = { id: 'p1', workspaceId: 'ws-1' };
+      mockPagesService.findDeletableById.mockResolvedValue(page);
+      mockPagesService.restore.mockResolvedValue({ id: 'p1' });
+
+      const result = await controller.restore('user-1', 'p1');
+
+      expect(mockPagesService.findDeletableById).toHaveBeenCalledWith('p1');
+      expect(mockWorkspacesService.assertMemberOf).toHaveBeenCalledWith(
+        'ws-1',
+        'user-1',
+      );
+      expect(mockPagesService.restore).toHaveBeenCalledWith(page);
+      expect(result).toEqual({ id: 'p1' });
+    });
+  });
+
+  describe('hardDelete', () => {
+    it('проверяет членство и жёстко удаляет страницу', async () => {
+      const page = { id: 'p1', workspaceId: 'ws-1' };
+      mockPagesService.findDeletableById.mockResolvedValue(page);
+      mockPagesService.hardDelete.mockResolvedValue(undefined);
+
+      await expect(
+        controller.hardDelete('user-1', 'p1'),
+      ).resolves.toBeUndefined();
+      expect(mockPagesService.findDeletableById).toHaveBeenCalledWith('p1');
+      expect(mockWorkspacesService.assertMemberOf).toHaveBeenCalledWith(
+        'ws-1',
+        'user-1',
+      );
+      expect(mockPagesService.hardDelete).toHaveBeenCalledWith(page);
     });
   });
 

@@ -33,6 +33,7 @@ model User {
   ownedWorkspaces      Workspace[]       @relation("WorkspaceOwner")
   memberships          WorkspaceMember[]
   authoredPages        Page[]
+  deletedPages         Page[]            @relation("PageDeletedBy")
   createdInvites       WorkspaceInvite[] @relation("InviteCreator")
   uploadedAttachments  Attachment[]      @relation("AttachmentUploader")
   pageVersions         PageVersion[]

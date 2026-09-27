@@ -22,10 +22,14 @@ describe('PagesRepository', () => {
       findMany: jest.fn(),
       findUnique: jest.fn(),
       update: jest.fn(),
+      delete: jest.fn(),
     },
     pageContent: {
       findUnique: jest.fn(),
       upsert: jest.fn(),
+    },
+    attachment: {
+      findMany: jest.fn(),
     },
     $transaction: jest.fn(),
   };
@@ -253,19 +257,155 @@ describe('PagesRepository', () => {
     it('возвращает false, если страница не найдена (P2025)', async () => {
       mockPrisma.page.update.mockRejectedValue(p2025());
 
-      await expect(repository.softDelete('ghost')).resolves.toBe(false);
+      await expect(repository.softDelete('ghost', 'user-2')).resolves.toBe(
+        false,
+      );
     });
 
-    it('проставляет deletedAt и возвращает true', async () => {
+    it('проставляет deletedAt/deletedBy и возвращает true', async () => {
       mockPrisma.page.update.mockResolvedValue(pageFixture('p1', 0));
 
-      const result = await repository.softDelete('p1');
+      const result = await repository.softDelete('p1', 'user-2');
 
       expect(mockPrisma.page.update).toHaveBeenCalledWith({
         where: { id: 'p1', deletedAt: null },
-        data: { deletedAt: expect.any(Date) as Date },
+        data: { deletedAt: expect.any(Date) as Date, deletedBy: 'user-2' },
       });
       expect(result).toBe(true);
+    });
+  });
+
+  describe('restore', () => {
+    it('сбрасывает deletedAt/deletedBy у удалённой страницы', async () => {
+      const restored = pageFixture('p1', 0);
+      mockPrisma.page.update.mockResolvedValue(restored);
+
+      const result = await repository.restore('p1');
+
+      expect(mockPrisma.page.update).toHaveBeenCalledWith({
+        where: { id: 'p1', deletedAt: { not: null } },
+        data: { deletedAt: null, deletedBy: null },
+      });
+      expect(result).toEqual(restored);
+    });
+
+    it('возвращает null, если страницы нет в корзине (P2025)', async () => {
+      mockPrisma.page.update.mockRejectedValue(p2025());
+
+      await expect(repository.restore('ghost')).resolves.toBeNull();
+    });
+  });
+
+  describe('hardDelete', () => {
+    it('удаляет страницу и возвращает true', async () => {
+      mockPrisma.page.delete.mockResolvedValue(pageFixture('p1', 0));
+
+      const result = await repository.hardDelete('p1');
+
+      expect(mockPrisma.page.delete).toHaveBeenCalledWith({
+        where: { id: 'p1' },
+      });
+      expect(result).toBe(true);
+    });
+
+    it('возвращает false, если страницы нет (P2025)', async () => {
+      mockPrisma.page.delete.mockRejectedValue(p2025());
+
+      await expect(repository.hardDelete('ghost')).resolves.toBe(false);
+    });
+  });
+
+  describe('findTrashedByWorkspaceId', () => {
+    it('запрашивает только удалённые страницы с авторами', async () => {
+      mockPrisma.page.findMany.mockResolvedValue([]);
+
+      await repository.findTrashedByWorkspaceId('ws-1');
+
+      expect(mockPrisma.page.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { workspaceId: 'ws-1', deletedAt: { not: null } },
+          orderBy: { deletedAt: 'desc' },
+        }),
+      );
+    });
+
+    it('добавляет текстовый поиск по названию, разделу и удалившему', async () => {
+      mockPrisma.page.findMany.mockResolvedValue([]);
+
+      await repository.findTrashedByWorkspaceId('ws-1', 'отчёт');
+
+      const [[arg]] = mockPrisma.page.findMany.mock.calls as Array<
+        [{ where: { OR?: unknown[] } }]
+      >;
+      expect(arg.where.OR).toEqual([
+        { title: { contains: 'отчёт', mode: 'insensitive' } },
+        {
+          project: { is: { name: { contains: 'отчёт', mode: 'insensitive' } } },
+        },
+        {
+          deletedByUser: {
+            is: { name: { contains: 'отчёт', mode: 'insensitive' } },
+          },
+        },
+        {
+          deletedByUser: {
+            is: { email: { contains: 'отчёт', mode: 'insensitive' } },
+          },
+        },
+      ]);
+    });
+
+    it('не добавляет OR для пустого поиска', async () => {
+      mockPrisma.page.findMany.mockResolvedValue([]);
+
+      await repository.findTrashedByWorkspaceId('ws-1', '   ');
+
+      const [[arg]] = mockPrisma.page.findMany.mock.calls as Array<
+        [{ where: { OR?: unknown[] } }]
+      >;
+      expect(arg.where.OR).toBeUndefined();
+    });
+  });
+
+  describe('findTrashedForPurge', () => {
+    it('возвращает все удалённые страницы воркспейса', async () => {
+      mockPrisma.page.findMany.mockResolvedValue([]);
+
+      await repository.findTrashedForPurge('ws-1');
+
+      expect(mockPrisma.page.findMany).toHaveBeenCalledWith({
+        where: { workspaceId: 'ws-1', deletedAt: { not: null } },
+      });
+    });
+  });
+
+  describe('findExpiredTrashed', () => {
+    it('фильтрует по порогу deletedAt', async () => {
+      const before = new Date('2026-08-01T00:00:00.000Z');
+      mockPrisma.page.findMany.mockResolvedValue([]);
+
+      await repository.findExpiredTrashed(before);
+
+      expect(mockPrisma.page.findMany).toHaveBeenCalledWith({
+        where: { deletedAt: { not: null, lt: before } },
+      });
+    });
+  });
+
+  describe('findAttachmentKeys', () => {
+    it('возвращает ключи вложений страницы', async () => {
+      mockPrisma.attachment.findMany.mockResolvedValue([
+        { key: 'a.png' },
+        { key: 'b.png' },
+      ]);
+
+      const result = await repository.findAttachmentKeys('p1');
+
+      expect(mockPrisma.attachment.findMany).toHaveBeenCalledWith({
+        where: { pageId: 'p1' },
+        select: { key: true },
+      });
+      expect(result).toEqual(['a.png', 'b.png']);
     });
   });
 });

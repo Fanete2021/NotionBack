@@ -21,6 +21,7 @@ import { PageCommentsModule } from '@modules/page-comments/page-comments.module'
 import {
   PagesContentModule,
   PagesModule,
+  PagesTrashModule,
   PagesVersionModule,
 } from '@modules/pages';
 import { ProjectsModule } from '@modules/projects/projects.module';
@@ -62,6 +63,7 @@ import { PrismaModule } from './prisma';
     PagesModule,
     PagesContentModule,
     PagesVersionModule,
+    PagesTrashModule,
     PageCommentsModule,
   ],
   controllers: [HealthController],

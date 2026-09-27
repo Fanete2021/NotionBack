@@ -4,7 +4,7 @@ import { Page, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma';
 import { EMPTY_DOCUMENT } from './constants';
 import { PageEntity } from './entities';
-import { CreatePageData } from './types';
+import { CreatePageData, TrashedPageRow, USER_REF_SELECT } from './types';
 
 @Injectable()
 export class PagesRepository {
@@ -108,7 +108,7 @@ export class PagesRepository {
         orderBy: { position: 'asc' },
       });
 
-      return pages.map((page) => this.mapToEntity(page));
+      return pages.map((page) => PageEntity.fromModel(page));
     });
   }
 
@@ -142,6 +142,86 @@ export class PagesRepository {
     return page as Prisma.PageGetPayload<{ include: T }>;
   }
 
+  async findByIdIncludingDeleted(id: string): Promise<Page | null> {
+    return this.prisma.page.findUnique({ where: { id } });
+  }
+
+  async findTrashedByWorkspaceId(
+    workspaceId: string,
+    search?: string,
+  ): Promise<TrashedPageRow[]> {
+    const where: Prisma.PageWhereInput = {
+      workspaceId,
+      deletedAt: { not: null },
+    };
+
+    const filter = this.buildTrashSearchFilter(search);
+    if (filter) {
+      where.OR = filter;
+    }
+
+    return this.prisma.page.findMany({
+      where,
+      include: {
+        author: { select: USER_REF_SELECT },
+        deletedByUser: { select: USER_REF_SELECT },
+      },
+      orderBy: { deletedAt: 'desc' },
+    });
+  }
+
+  async findExpiredTrashed(before: Date): Promise<Page[]> {
+    return this.prisma.page.findMany({
+      where: {
+        deletedAt: { not: null, lt: before },
+      },
+    });
+  }
+
+  async findTrashedForPurge(workspaceId: string): Promise<Page[]> {
+    return this.prisma.page.findMany({
+      where: {
+        workspaceId,
+        deletedAt: { not: null },
+      },
+    });
+  }
+
+  async findAttachmentKeys(pageId: string): Promise<string[]> {
+    const attachments = await this.prisma.attachment.findMany({
+      where: { pageId },
+      select: { key: true },
+    });
+
+    return attachments.map((attachment) => attachment.key);
+  }
+
+  async restore(id: string): Promise<PageEntity | null> {
+    try {
+      return await this.prisma.page.update({
+        where: { id, deletedAt: { not: null } },
+        data: { deletedAt: null, deletedBy: null },
+      });
+    } catch (error) {
+      if (isNotFoundError(error)) {
+        return null;
+      }
+      throw error;
+    }
+  }
+
+  async hardDelete(id: string): Promise<boolean> {
+    try {
+      await this.prisma.page.delete({ where: { id } });
+      return true;
+    } catch (error) {
+      if (isNotFoundError(error)) {
+        return false;
+      }
+      throw error;
+    }
+  }
+
   async update(
     id: string,
     data: Prisma.PageUncheckedUpdateInput,
@@ -161,11 +241,11 @@ export class PagesRepository {
     return page;
   }
 
-  async softDelete(id: string): Promise<boolean> {
+  async softDelete(id: string, deletedBy: string): Promise<boolean> {
     try {
       await this.prisma.page.update({
         where: { id, deletedAt: null },
-        data: { deletedAt: new Date() },
+        data: { deletedAt: new Date(), deletedBy },
       });
       return true;
     } catch (error) {
@@ -201,19 +281,24 @@ export class PagesRepository {
     `;
   }
 
-  private mapToEntity(page: Page): PageEntity {
-    return new PageEntity(
-      page.id,
-      page.workspaceId,
-      page.projectId,
-      page.parentPageId,
-      page.title,
-      page.icon,
-      page.type,
-      page.authorId,
-      page.position,
-      page.createdAt,
-      page.updatedAt,
-    );
+  private buildTrashSearchFilter(
+    search?: string,
+  ): Prisma.PageWhereInput[] | null {
+    const query = search?.trim();
+    if (!query) {
+      return null;
+    }
+
+    const contains: Prisma.StringFilter = {
+      contains: query,
+      mode: 'insensitive',
+    };
+
+    return [
+      { title: contains },
+      { project: { is: { name: contains } } },
+      { deletedByUser: { is: { name: contains } } },
+      { deletedByUser: { is: { email: contains } } },
+    ];
   }
 }
