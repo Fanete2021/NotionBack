@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common';
 import { ProjectsModule } from '../../projects/projects.module';
 import { WorkspacesModule } from '../../workspaces/workspaces.module';
 import { PagesModule } from '../pages.module';
+import { PagesVersionController } from './pages-version.controller';
 import { PagesVersionProcessor } from './pages-version.processor';
 import { PagesVersionRepository } from './pages-version.repository';
 import { PagesVersionService } from './pages-version.service';
@@ -25,6 +26,7 @@ import { PagesVersionService } from './pages-version.service';
     WorkspacesModule,
     ProjectsModule,
   ],
+  controllers: [PagesVersionController],
   providers: [
     PagesVersionService,
     PagesVersionRepository,
