@@ -117,7 +117,11 @@ function canonicalize(value: Prisma.JsonValue): Prisma.JsonValue {
   if (value !== null && typeof value === 'object') {
     const sorted: { [key: string]: Prisma.JsonValue } = {};
     for (const key of Object.keys(value).sort()) {
-      sorted[key] = canonicalize(value[key]);
+      const child = value[key];
+      if (child === undefined) {
+        continue;
+      }
+      sorted[key] = canonicalize(child);
     }
     return sorted;
   }
