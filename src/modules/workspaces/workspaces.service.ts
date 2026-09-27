@@ -10,6 +10,7 @@ import { PrismaService } from '../../prisma';
 import { WorkspacesRepository } from '@modules/workspaces/workspaces.repository';
 import { WorkspaceMembersRepository } from '@modules/workspace-members/workspace-members.repository';
 import { WorkspaceEntity } from '@modules/workspaces/entities';
+import { WorkspacesMapper } from '@modules/workspaces/workspaces.mapper';
 import { WorkspaceMemberEntity } from '@modules/workspace-members/entities';
 import { UpdateWorkspaceDto } from '@modules/workspaces/dto';
 
@@ -19,6 +20,7 @@ export class WorkspacesService {
     private readonly prisma: PrismaService,
     private readonly workspacesRepository: WorkspacesRepository,
     private readonly workspaceMembersRepository: WorkspaceMembersRepository,
+    private readonly workspacesMapper: WorkspacesMapper,
     private readonly configService: ConfigService,
     @InjectPinoLogger(WorkspacesService.name)
     private readonly logger: PinoLogger,
@@ -65,7 +67,7 @@ export class WorkspacesService {
       'workspace created',
     );
 
-    return workspace;
+    return this.workspacesMapper.toEntity(workspace, Role.OWNER);
   }
 
   async findById(id: string, userId: string): Promise<WorkspaceEntity> {
@@ -82,11 +84,15 @@ export class WorkspacesService {
     if (!membership) {
       throw new ForbiddenException('You are not a member of this workspace');
     }
-    return workspace;
+    return this.workspacesMapper.toEntity(workspace, membership.role);
   }
 
   async findAllByUserId(userId: string): Promise<WorkspaceEntity[]> {
-    return this.workspacesRepository.findAllByUserId(userId);
+    const memberships = await this.workspacesRepository.findAllByUserId(userId);
+
+    return memberships.map((membership) =>
+      this.workspacesMapper.toEntity(membership.workspace, membership.role),
+    );
   }
 
   async update(
@@ -94,7 +100,7 @@ export class WorkspacesService {
     userId: string,
     dto: UpdateWorkspaceDto,
   ): Promise<WorkspaceEntity> {
-    await this.assertIsOwner(id, userId);
+    const membership = await this.assertIsOwner(id, userId);
 
     const payload = {
       ...(dto.name !== undefined && { name: dto.name }),
@@ -110,7 +116,7 @@ export class WorkspacesService {
       'workspace updated',
     );
 
-    return workspace;
+    return this.workspacesMapper.toEntity(workspace, membership.role);
   }
 
   async delete(id: string, userId: string): Promise<void> {

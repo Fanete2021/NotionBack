@@ -3,6 +3,7 @@ import { WorkspaceMembersService } from '@modules/workspace-members/workspace-me
 import { WorkspacesService } from '@modules/workspaces/workspaces.service';
 import { WorkspaceMembersRepository } from '@modules/workspace-members/workspace-members.repository';
 import { WorkspacesRepository } from '@modules/workspaces/workspaces.repository';
+import { WorkspacesMapper } from '@modules/workspaces/workspaces.mapper';
 import { UsersRepository } from '@modules/users/users.repository';
 import { PrismaService } from '../../prisma';
 import { ConfigService } from '@nestjs/config';
@@ -52,6 +53,7 @@ describe('WorkspaceMembersService', () => {
       providers: [
         WorkspaceMembersService,
         WorkspacesService,
+        WorkspacesMapper,
         { provide: WorkspacesRepository, useValue: mockWorkspacesRepository },
         {
           provide: WorkspaceMembersRepository,

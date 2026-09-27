@@ -1,8 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { Prisma } from '@prisma/client';
+import { Prisma, Role } from '@prisma/client';
 import { WorkspacesRepository } from '@modules/workspaces/workspaces.repository';
 import { PrismaService } from '../../prisma';
-import { WorkspaceEntity } from '@modules/workspaces/entities';
 
 describe('WorkspacesRepository', () => {
   let repository: WorkspacesRepository;
@@ -56,8 +55,7 @@ describe('WorkspacesRepository', () => {
       expect(mockPrisma.workspace.create).toHaveBeenCalledWith({
         data: { name: 'My space', ownerId: 'user-1' },
       });
-      expect(result).toBeInstanceOf(WorkspaceEntity);
-      expect(result.id).toBe('ws-1');
+      expect(result).toEqual(workspaceFixture);
     });
 
     it('использует переданную транзакцию', async () => {
@@ -81,7 +79,7 @@ describe('WorkspacesRepository', () => {
       expect(mockPrisma.workspace.findUnique).toHaveBeenCalledWith({
         where: { id: 'ws-1' },
       });
-      expect(result).toBeInstanceOf(WorkspaceEntity);
+      expect(result).toEqual(workspaceFixture);
     });
 
     it('возвращает null, если воркспейс не найден', async () => {
@@ -115,17 +113,19 @@ describe('WorkspacesRepository', () => {
   });
 
   describe('findAllByUserId', () => {
-    it('возвращает воркспейсы пользователя в порядке членства', async () => {
-      mockPrisma.workspaceMember.findMany.mockResolvedValue([
-        { workspace: workspaceFixture },
+    it('возвращает членства пользователя с воркспейсом и ролью в порядке членства', async () => {
+      const memberships = [
+        { role: Role.OWNER, workspace: workspaceFixture },
         {
+          role: Role.EDITOR,
           workspace: {
             ...workspaceFixture,
             id: 'ws-2',
             name: 'Second',
           },
         },
-      ]);
+      ];
+      mockPrisma.workspaceMember.findMany.mockResolvedValue(memberships);
 
       const result = await repository.findAllByUserId('user-1');
 
@@ -134,9 +134,11 @@ describe('WorkspacesRepository', () => {
         include: { workspace: true },
         orderBy: { createdAt: 'asc' },
       });
-      expect(result).toHaveLength(2);
-      expect(result[0]?.id).toBe('ws-1');
-      expect(result[1]?.id).toBe('ws-2');
+      expect(result).toEqual(memberships);
+      expect(result[0]?.workspace.id).toBe('ws-1');
+      expect(result[0]?.role).toBe(Role.OWNER);
+      expect(result[1]?.workspace.id).toBe('ws-2');
+      expect(result[1]?.role).toBe(Role.EDITOR);
     });
   });
 
@@ -164,7 +166,6 @@ describe('WorkspacesRepository', () => {
         where: { id: 'ws-1' },
         data: { name: 'New name' },
       });
-      expect(result).toBeInstanceOf(WorkspaceEntity);
       expect(result?.name).toBe('New name');
     });
 
