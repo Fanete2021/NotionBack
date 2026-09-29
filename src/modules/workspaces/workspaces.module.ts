@@ -2,13 +2,14 @@ import { Module, forwardRef } from '@nestjs/common';
 import { WorkspacesController } from '@modules/workspaces/workspaces.controller';
 import { WorkspacesService } from '@modules/workspaces/workspaces.service';
 import { WorkspacesRepository } from '@modules/workspaces/workspaces.repository';
+import { WorkspacesMapper } from '@modules/workspaces/workspaces.mapper';
 import { WorkspaceMembersModule } from '@modules/workspace-members/workspace-members.module';
 import { PrismaModule } from '../../prisma';
 
 @Module({
   imports: [PrismaModule, forwardRef(() => WorkspaceMembersModule)],
   controllers: [WorkspacesController],
-  providers: [WorkspacesService, WorkspacesRepository],
+  providers: [WorkspacesService, WorkspacesRepository, WorkspacesMapper],
   exports: [WorkspacesService, forwardRef(() => WorkspaceMembersModule)],
 })
 export class WorkspacesModule {}

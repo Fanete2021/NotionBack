@@ -32,10 +32,13 @@ function WorkspacesCreateWorkspaceResponse() {
 
 function WorkspacesFindAllByUserIdResponse() {
   return applyDecorators(
-    ApiOperation({ summary: 'Получить все воркспейсы текущего пользователя' }),
+    ApiOperation({
+      summary:
+        'Получить все воркспейсы текущего пользователя (с его ролью в каждом)',
+    }),
     ApiResponse({
       status: 200,
-      description: 'Список воркспейсов успешно получен',
+      description: 'Список воркспейсов с ролью пользователя успешно получен',
       type: [WorkspaceEntity],
     }),
   );

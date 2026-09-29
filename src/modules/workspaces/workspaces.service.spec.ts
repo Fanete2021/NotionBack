@@ -1,7 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { WorkspacesService } from '@modules/workspaces/workspaces.service';
 import { WorkspacesRepository } from '@modules/workspaces/workspaces.repository';
+import { WorkspacesMapper } from '@modules/workspaces/workspaces.mapper';
 import { WorkspaceMembersRepository } from '@modules/workspace-members/workspace-members.repository';
+import { WorkspaceEntity } from '@modules/workspaces/entities';
 import { PrismaService } from '../../prisma';
 import { ConfigService } from '@nestjs/config';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
@@ -42,6 +44,14 @@ describe('WorkspacesService', () => {
     role,
   });
 
+  const workspaceFixture = {
+    id: 'ws-1',
+    name: 'My space',
+    ownerId: 'user-1',
+    isPublic: false,
+    createdAt: new Date('2026-01-01T00:00:00.000Z'),
+  };
+
   beforeEach(async () => {
     jest.resetAllMocks();
     mockPrisma.$transaction.mockImplementation(
@@ -51,6 +61,7 @@ describe('WorkspacesService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         WorkspacesService,
+        WorkspacesMapper,
         { provide: WorkspacesRepository, useValue: mockWorkspacesRepository },
         {
           provide: WorkspaceMembersRepository,
@@ -69,7 +80,7 @@ describe('WorkspacesService', () => {
     it('создаёт воркспейс и OWNER-членство в транзакции', async () => {
       mockConfigService.get.mockReturnValue(3);
       mockWorkspacesRepository.countOwnedBy.mockResolvedValue(1);
-      mockWorkspacesRepository.create.mockResolvedValue({ id: 'ws-2' });
+      mockWorkspacesRepository.create.mockResolvedValue(workspaceFixture);
       mockWorkspaceMembersRepository.addMember.mockResolvedValue({});
 
       const result = await service.create('user-1', 'My space');
@@ -81,12 +92,13 @@ describe('WorkspacesService', () => {
         {},
       );
       expect(mockWorkspaceMembersRepository.addMember).toHaveBeenCalledWith(
-        'ws-2',
+        'ws-1',
         'user-1',
         Role.OWNER,
         {},
       );
-      expect(result).toEqual({ id: 'ws-2' });
+      expect(result).toBeInstanceOf(WorkspaceEntity);
+      expect(result).toMatchObject({ id: 'ws-1', name: 'My space' });
     });
 
     it('бросает 403, если лимит воркспейсов (по числу OWNED) превышен', async () => {
@@ -102,13 +114,15 @@ describe('WorkspacesService', () => {
 
   describe('findById', () => {
     it('возвращает воркспейс, если пользователь — участник', async () => {
-      const workspace = { id: 'ws-1' };
-      mockWorkspacesRepository.findById.mockResolvedValue(workspace);
+      mockWorkspacesRepository.findById.mockResolvedValue(workspaceFixture);
       mockWorkspaceMembersRepository.findMembership.mockResolvedValue(
         membership(Role.EDITOR),
       );
 
-      await expect(service.findById('ws-1', 'user-1')).resolves.toBe(workspace);
+      const result = await service.findById('ws-1', 'user-1');
+
+      expect(result).toBeInstanceOf(WorkspaceEntity);
+      expect(result).toMatchObject({ id: 'ws-1', name: 'My space' });
       expect(
         mockWorkspaceMembersRepository.findMembership,
       ).toHaveBeenCalledWith('ws-1', 'user-1');
@@ -127,17 +141,19 @@ describe('WorkspacesService', () => {
   });
 
   describe('findAllByUserId', () => {
-    it('возвращает список воркспейсов пользователя', async () => {
+    it('возвращает воркспейсы пользователя с его ролью', async () => {
       mockWorkspacesRepository.findAllByUserId.mockResolvedValue([
-        { id: 'ws-1' },
+        { role: Role.OWNER, workspace: workspaceFixture },
       ]);
 
-      await expect(service.findAllByUserId('user-1')).resolves.toEqual([
-        { id: 'ws-1' },
-      ]);
+      const result = await service.findAllByUserId('user-1');
+
       expect(mockWorkspacesRepository.findAllByUserId).toHaveBeenCalledWith(
         'user-1',
       );
+      expect(result).toHaveLength(1);
+      expect(result[0]).toBeInstanceOf(WorkspaceEntity);
+      expect(result[0]).toMatchObject({ id: 'ws-1', role: Role.OWNER });
     });
   });
 
@@ -147,13 +163,16 @@ describe('WorkspacesService', () => {
         membership(Role.OWNER),
       );
       mockWorkspacesRepository.update.mockResolvedValue({
-        id: 'ws-1',
+        ...workspaceFixture,
         name: 'New name',
       });
 
-      await expect(
-        service.update('ws-1', 'user-1', { name: 'New name' }),
-      ).resolves.toEqual({ id: 'ws-1', name: 'New name' });
+      const result = await service.update('ws-1', 'user-1', {
+        name: 'New name',
+      });
+
+      expect(result).toBeInstanceOf(WorkspaceEntity);
+      expect(result).toMatchObject({ id: 'ws-1', name: 'New name' });
     });
 
     it('бросает 403, если обновляет не владелец воркспейса', async () => {
