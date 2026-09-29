@@ -16,13 +16,21 @@ import {
   PagesControllerResponse,
   PagesCreateResponse,
   PagesDeleteResponse,
+  PagesEmptyTrashResponse,
   PagesFindAllByWorkspaceIdResponse,
   PagesFindByIdResponse,
+  PagesHardDeleteResponse,
   PagesReorderResponse,
+  PagesRestoreResponse,
+  PagesTrashResponse,
   PagesUpdateResponse,
 } from './decorators';
 import { CreatePageDto, ReorderPagesDto, UpdatePageDto } from './dto';
-import { PageEntity } from './entities';
+import {
+  EmptyTrashResultEntity,
+  PageEntity,
+  TrashedPageEntity,
+} from './entities';
 import { PagesService } from './pages.service';
 
 @PagesControllerResponse()
@@ -75,7 +83,52 @@ export class PagesController {
   ): Promise<void> {
     const page = await this.pagesService.findById(id);
     await this.workspacesService.assertMemberOf(page.workspaceId, userId);
-    await this.pagesService.delete(page);
+    await this.pagesService.delete(page, userId);
+  }
+
+  @PagesRestoreResponse()
+  @Post('pages/:id/restore')
+  async restore(
+    @CurrentUser('id') userId: string,
+    @Param('id') id: string,
+  ): Promise<PageEntity> {
+    const page = await this.pagesService.findDeletableById(id);
+    await this.workspacesService.assertMemberOf(page.workspaceId, userId);
+    return this.pagesService.restore(page);
+  }
+
+  @PagesHardDeleteResponse()
+  @Delete('pages/:id/hard')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async hardDelete(
+    @CurrentUser('id') userId: string,
+    @Param('id') id: string,
+  ): Promise<void> {
+    const page = await this.pagesService.findDeletableById(id);
+    await this.workspacesService.assertMemberOf(page.workspaceId, userId);
+    await this.pagesService.hardDelete(page);
+  }
+
+  @Get('workspaces/:workspaceId/pages/trash')
+  @PagesTrashResponse()
+  async findTrash(
+    @CurrentUser('id') userId: string,
+    @Param('workspaceId') workspaceId: string,
+    @Query('q') q?: string,
+  ): Promise<TrashedPageEntity[]> {
+    await this.workspacesService.assertMemberOf(workspaceId, userId);
+    return this.pagesService.findTrash(workspaceId, q);
+  }
+
+  @Delete('workspaces/:workspaceId/pages/trash')
+  @PagesEmptyTrashResponse()
+  async emptyTrash(
+    @CurrentUser('id') userId: string,
+    @Param('workspaceId') workspaceId: string,
+  ): Promise<EmptyTrashResultEntity> {
+    await this.workspacesService.assertMemberOf(workspaceId, userId);
+    const deleted = await this.pagesService.emptyTrash(workspaceId);
+    return new EmptyTrashResultEntity(deleted);
   }
 
   @Get('workspaces/:workspaceId/pages')

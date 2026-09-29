@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { PageType } from '@prisma/client';
+import { Page, PageType } from '@prisma/client';
 
 export class PageEntity {
   @ApiProperty({ example: '3fa85f64-5717-4562-b3fc-2c963f66afa6' })
@@ -63,5 +63,21 @@ export class PageEntity {
     this.position = position;
     this.createdAt = createdAt;
     this.updatedAt = updatedAt;
+  }
+
+  static fromModel(page: Page): PageEntity {
+    return new PageEntity(
+      page.id,
+      page.workspaceId,
+      page.projectId,
+      page.parentPageId,
+      page.title,
+      page.icon,
+      page.type,
+      page.authorId,
+      page.position,
+      page.createdAt,
+      page.updatedAt,
+    );
   }
 }

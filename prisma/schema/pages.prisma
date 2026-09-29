@@ -16,12 +16,14 @@ model Page {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   deletedAt    DateTime?
+  deletedBy    String?
 
   workspace    Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   project      Project?      @relation(fields: [projectId, workspaceId], references: [id, workspaceId], onDelete: Cascade)
   parentPage   Page?         @relation("PageHierarchy", fields: [parentPageId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
   childPages   Page[]        @relation("PageHierarchy")
   author       User          @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  deletedByUser User?        @relation("PageDeletedBy", fields: [deletedBy], references: [id], onDelete: SetNull)
   content      PageContent?
   attachments  Attachment[]
   pageVersions PageVersion[]

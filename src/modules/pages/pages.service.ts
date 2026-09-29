@@ -5,9 +5,12 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
-import { Prisma } from '@prisma/client';
+import { Page, Prisma } from '@prisma/client';
+import { S3ObjectService } from '@modules/s3';
+import { DAY_IN_MS } from './constants';
 import { CreatePageDto, UpdatePageDto } from './dto';
-import { PageEntity } from './entities';
+import { PageEntity, TrashedPageEntity } from './entities';
+import { PagesMapper } from './pages.mapper';
 import { PagesRepository } from './pages.repository';
 
 @Injectable()
@@ -15,6 +18,8 @@ export class PagesService {
   constructor(
     private readonly pagesRepository: PagesRepository,
     private readonly projectsRepository: ProjectsRepository,
+    private readonly pagesMapper: PagesMapper,
+    private readonly s3ObjectService: S3ObjectService,
     @InjectPinoLogger(PagesService.name)
     private readonly logger: PinoLogger,
   ) {}
@@ -107,16 +112,163 @@ export class PagesService {
     return updated;
   }
 
-  async delete(page: PageEntity): Promise<void> {
-    const deleted = await this.pagesRepository.softDelete(page.id);
+  async delete(page: PageEntity, userId: string): Promise<void> {
+    const deleted = await this.pagesRepository.softDelete(page.id, userId);
     if (!deleted) {
       throw new NotFoundException('Page not found');
     }
 
     this.logger.info(
-      { pageId: page.id, workspaceId: page.workspaceId, action: 'page_delete' },
-      'page deleted',
+      {
+        pageId: page.id,
+        workspaceId: page.workspaceId,
+        userId,
+        action: 'page_delete',
+      },
+      'page moved to trash',
     );
+  }
+
+  async findTrash(
+    workspaceId: string,
+    search?: string,
+  ): Promise<TrashedPageEntity[]> {
+    const pages = await this.pagesRepository.findTrashedByWorkspaceId(
+      workspaceId,
+      search,
+    );
+
+    return pages.map((page) => this.pagesMapper.toTrashedEntity(page));
+  }
+
+  async findDeletableById(id: string): Promise<PageEntity> {
+    const page = await this.pagesRepository.findByIdIncludingDeleted(id);
+    if (!page) {
+      throw new NotFoundException('Page not found');
+    }
+    return this.pagesMapper.toEntity(page);
+  }
+
+  async restore(page: PageEntity): Promise<PageEntity> {
+    const restored = await this.pagesRepository.restore(page.id);
+    if (!restored) {
+      throw new NotFoundException('Page not found in trash');
+    }
+
+    this.logger.info(
+      {
+        pageId: page.id,
+        workspaceId: page.workspaceId,
+        action: 'page_restore',
+      },
+      'page restored from trash',
+    );
+
+    return restored;
+  }
+
+  async hardDelete(page: PageEntity): Promise<void> {
+    await this.deleteAttachmentObjects(page.id, page.workspaceId);
+
+    const deleted = await this.pagesRepository.hardDelete(page.id);
+    if (!deleted) {
+      throw new NotFoundException('Page not found');
+    }
+
+    this.logger.info(
+      {
+        pageId: page.id,
+        workspaceId: page.workspaceId,
+        action: 'page_hard_delete',
+      },
+      'page permanently deleted',
+    );
+  }
+
+  async emptyTrash(workspaceId: string): Promise<number> {
+    const trashed = await this.pagesRepository.findTrashedForPurge(workspaceId);
+
+    let deletedCount = 0;
+    for (const page of trashed) {
+      if (await this.tryHardDelete(page)) {
+        deletedCount += 1;
+      }
+    }
+
+    this.logger.info(
+      {
+        action: 'page_trash_empty',
+        workspaceId,
+        deletedCount,
+        found: trashed.length,
+      },
+      'workspace trash emptied',
+    );
+
+    return deletedCount;
+  }
+
+  async hardDeleteExpired(retentionDays: number): Promise<number> {
+    const threshold = new Date(Date.now() - retentionDays * DAY_IN_MS);
+    const expired = await this.pagesRepository.findExpiredTrashed(threshold);
+
+    let deletedCount = 0;
+    for (const page of expired) {
+      if (await this.tryHardDelete(page)) {
+        deletedCount += 1;
+      }
+    }
+
+    this.logger.info(
+      { action: 'page_trash_cleanup', deletedCount, found: expired.length },
+      'expired trash cleaned up',
+    );
+
+    return deletedCount;
+  }
+
+  private async tryHardDelete(page: Page): Promise<boolean> {
+    try {
+      await this.deleteAttachmentObjects(page.id, page.workspaceId);
+      await this.pagesRepository.hardDelete(page.id);
+      return true;
+    } catch (error: unknown) {
+      this.logger.error(
+        {
+          pageId: page.id,
+          workspaceId: page.workspaceId,
+          action: 'page_hard_delete',
+          err: error,
+        },
+        'failed to hard-delete page',
+      );
+      return false;
+    }
+  }
+
+  private async deleteAttachmentObjects(
+    pageId: string,
+    workspaceId: string,
+  ): Promise<void> {
+    const keys = await this.pagesRepository.findAttachmentKeys(pageId);
+
+    for (const key of keys) {
+      try {
+        await this.s3ObjectService.deleteObject(key);
+      } catch (error: unknown) {
+        this.logger.error(
+          {
+            pageId,
+            workspaceId,
+            key,
+            action: 'page_attachment_delete',
+            err: error,
+          },
+          'failed to delete page attachment from storage',
+        );
+        throw error;
+      }
+    }
   }
 
   private async assertProjectInWorkspace(

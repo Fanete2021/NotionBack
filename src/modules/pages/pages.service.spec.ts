@@ -1,9 +1,11 @@
 import { provideMockPinoLogger } from '@common/testing';
 import { ProjectsRepository } from '@modules/projects/projects.repository';
+import { S3ObjectService } from '@modules/s3';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { PageEntity } from './entities';
+import { PagesMapper } from './pages.mapper';
 import { PagesRepository } from './pages.repository';
 import { PagesService } from './pages.service';
 
@@ -14,10 +16,17 @@ describe('PagesService', () => {
     create: jest.fn(),
     findAllByWorkspaceId: jest.fn(),
     findById: jest.fn(),
+    findByIdIncludingDeleted: jest.fn(),
+    findTrashedByWorkspaceId: jest.fn(),
+    findTrashedForPurge: jest.fn(),
+    findExpiredTrashed: jest.fn(),
+    findAttachmentKeys: jest.fn(),
     nextPosition: jest.fn(),
     reorder: jest.fn(),
     update: jest.fn(),
     softDelete: jest.fn(),
+    restore: jest.fn(),
+    hardDelete: jest.fn(),
   };
 
   const mockProjectsRepository = {
@@ -26,6 +35,10 @@ describe('PagesService', () => {
 
   const mockConfigService = {
     get: jest.fn(),
+  };
+
+  const mockS3ObjectService = {
+    deleteObject: jest.fn(),
   };
 
   const pageFixture = (overrides: Partial<PageEntity> = {}): PageEntity =>
@@ -50,9 +63,11 @@ describe('PagesService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PagesService,
+        PagesMapper,
         { provide: PagesRepository, useValue: mockPagesRepository },
         { provide: ProjectsRepository, useValue: mockProjectsRepository },
         { provide: ConfigService, useValue: mockConfigService },
+        { provide: S3ObjectService, useValue: mockS3ObjectService },
         provideMockPinoLogger(PagesService.name),
       ],
     }).compile();
@@ -271,19 +286,269 @@ describe('PagesService', () => {
   });
 
   describe('delete', () => {
-    it('мягко удаляет страницу', async () => {
+    it('мягко удаляет страницу и фиксирует автора удаления', async () => {
       mockPagesRepository.softDelete.mockResolvedValue(true);
 
-      await expect(service.delete(pageFixture())).resolves.toBeUndefined();
-      expect(mockPagesRepository.softDelete).toHaveBeenCalledWith('p1');
+      await expect(
+        service.delete(pageFixture(), 'user-2'),
+      ).resolves.toBeUndefined();
+      expect(mockPagesRepository.softDelete).toHaveBeenCalledWith(
+        'p1',
+        'user-2',
+      );
     });
 
     it('бросает 404, если страница не была удалена', async () => {
       mockPagesRepository.softDelete.mockResolvedValue(null);
 
-      await expect(service.delete(pageFixture())).rejects.toThrow(
+      await expect(service.delete(pageFixture(), 'user-2')).rejects.toThrow(
         NotFoundException,
       );
+    });
+  });
+
+  describe('findTrash', () => {
+    it('маппит удалённые страницы в TrashedPageEntity', async () => {
+      const now = new Date();
+      mockPagesRepository.findTrashedByWorkspaceId.mockResolvedValue([
+        {
+          id: 'p1',
+          workspaceId: 'ws-1',
+          projectId: 'prj-1',
+          parentPageId: null,
+          title: 'Отчёт Q4',
+          icon: null,
+          type: 'DOC',
+          authorId: 'user-1',
+          position: 0,
+          createdAt: now,
+          updatedAt: now,
+          deletedAt: now,
+          deletedBy: 'user-2',
+          author: {
+            id: 'user-1',
+            name: 'Автор',
+            email: 'author@example.com',
+            avatarUrl: null,
+          },
+          deletedByUser: {
+            id: 'user-2',
+            name: 'Удаливший',
+            email: 'deleter@example.com',
+            avatarUrl: null,
+          },
+        },
+      ]);
+
+      const result = await service.findTrash('ws-1');
+
+      expect(mockPagesRepository.findTrashedByWorkspaceId).toHaveBeenCalledWith(
+        'ws-1',
+        undefined,
+      );
+      expect(result).toHaveLength(1);
+      expect(result[0]).toMatchObject({
+        id: 'p1',
+        deletedAt: now,
+        author: { id: 'user-1' },
+        deletedBy: { id: 'user-2' },
+      });
+    });
+
+    it('возвращает deletedBy = null, если аккаунт удалён', async () => {
+      const now = new Date();
+      mockPagesRepository.findTrashedByWorkspaceId.mockResolvedValue([
+        {
+          id: 'p1',
+          workspaceId: 'ws-1',
+          projectId: 'prj-1',
+          parentPageId: null,
+          title: 'Отчёт Q4',
+          icon: null,
+          type: 'DOC',
+          authorId: 'user-1',
+          position: 0,
+          createdAt: now,
+          updatedAt: now,
+          deletedAt: now,
+          deletedBy: null,
+          author: {
+            id: 'user-1',
+            name: 'Автор',
+            email: 'author@example.com',
+            avatarUrl: null,
+          },
+          deletedByUser: null,
+        },
+      ]);
+
+      const result = await service.findTrash('ws-1');
+
+      expect(result[0].deletedBy).toBeNull();
+    });
+
+    it('пробрасывает строку поиска в репозиторий', async () => {
+      mockPagesRepository.findTrashedByWorkspaceId.mockResolvedValue([]);
+
+      await service.findTrash('ws-1', 'отчёт');
+
+      expect(mockPagesRepository.findTrashedByWorkspaceId).toHaveBeenCalledWith(
+        'ws-1',
+        'отчёт',
+      );
+    });
+  });
+
+  describe('emptyTrash', () => {
+    it('жёстко удаляет все документы корзины и возвращает количество', async () => {
+      mockPagesRepository.findTrashedForPurge.mockResolvedValue([
+        { id: 'p1', workspaceId: 'ws-1' },
+        { id: 'p2', workspaceId: 'ws-1' },
+      ]);
+      mockPagesRepository.findAttachmentKeys.mockResolvedValue([]);
+      mockPagesRepository.hardDelete.mockResolvedValue(true);
+
+      const deleted = await service.emptyTrash('ws-1');
+
+      expect(mockPagesRepository.findTrashedForPurge).toHaveBeenCalledWith(
+        'ws-1',
+      );
+      expect(deleted).toBe(2);
+      expect(mockPagesRepository.hardDelete).toHaveBeenCalledTimes(2);
+    });
+
+    it('возвращает 0 для пустой корзины', async () => {
+      mockPagesRepository.findTrashedForPurge.mockResolvedValue([]);
+
+      const deleted = await service.emptyTrash('ws-1');
+
+      expect(deleted).toBe(0);
+      expect(mockPagesRepository.hardDelete).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('findDeletableById', () => {
+    it('возвращает удалённую страницу', async () => {
+      mockPagesRepository.findByIdIncludingDeleted.mockResolvedValue({
+        id: 'p1',
+        workspaceId: 'ws-1',
+        projectId: 'prj-1',
+        parentPageId: null,
+        title: 'X',
+        icon: null,
+        type: 'DOC',
+        authorId: 'user-1',
+        position: 0,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      await expect(service.findDeletableById('p1')).resolves.toMatchObject({
+        id: 'p1',
+      });
+    });
+
+    it('бросает 404, если страница не существует', async () => {
+      mockPagesRepository.findByIdIncludingDeleted.mockResolvedValue(null);
+
+      await expect(service.findDeletableById('ghost')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+  });
+
+  describe('restore', () => {
+    it('восстанавливает страницу из корзины', async () => {
+      mockPagesRepository.restore.mockResolvedValue({ id: 'p1' });
+
+      await expect(service.restore(pageFixture())).resolves.toEqual({
+        id: 'p1',
+      });
+      expect(mockPagesRepository.restore).toHaveBeenCalledWith('p1');
+    });
+
+    it('бросает 404, если страницы нет в корзине', async () => {
+      mockPagesRepository.restore.mockResolvedValue(null);
+
+      await expect(service.restore(pageFixture())).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+  });
+
+  describe('hardDelete', () => {
+    it('удаляет вложения из хранилища и страницу из БД', async () => {
+      mockPagesRepository.findAttachmentKeys.mockResolvedValue([
+        'ws/p1/a.png',
+        'ws/p1/b.png',
+      ]);
+      mockS3ObjectService.deleteObject.mockResolvedValue(undefined);
+      mockPagesRepository.hardDelete.mockResolvedValue(true);
+
+      await expect(service.hardDelete(pageFixture())).resolves.toBeUndefined();
+
+      expect(mockS3ObjectService.deleteObject).toHaveBeenCalledTimes(2);
+      expect(mockS3ObjectService.deleteObject).toHaveBeenCalledWith(
+        'ws/p1/a.png',
+      );
+      expect(mockPagesRepository.hardDelete).toHaveBeenCalledWith('p1');
+    });
+
+    it('не удаляет страницу из БД, если чистка хранилища упала', async () => {
+      mockPagesRepository.findAttachmentKeys.mockResolvedValue(['ws/p1/a.png']);
+      mockS3ObjectService.deleteObject.mockRejectedValue(new Error('s3 down'));
+
+      await expect(service.hardDelete(pageFixture())).rejects.toThrow(
+        's3 down',
+      );
+      expect(mockPagesRepository.hardDelete).not.toHaveBeenCalled();
+    });
+
+    it('бросает 404, если страница не найдена', async () => {
+      mockPagesRepository.findAttachmentKeys.mockResolvedValue([]);
+      mockPagesRepository.hardDelete.mockResolvedValue(false);
+
+      await expect(service.hardDelete(pageFixture())).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+  });
+
+  describe('hardDeleteExpired', () => {
+    it('жёстко удаляет просроченные страницы и возвращает их количество', async () => {
+      mockPagesRepository.findExpiredTrashed.mockResolvedValue([
+        { id: 'p1', workspaceId: 'ws-1' },
+        { id: 'p2', workspaceId: 'ws-1' },
+      ]);
+      mockPagesRepository.findAttachmentKeys.mockResolvedValue([]);
+      mockPagesRepository.hardDelete.mockResolvedValue(true);
+
+      const purged = await service.hardDeleteExpired(30);
+
+      expect(purged).toBe(2);
+      expect(mockPagesRepository.hardDelete).toHaveBeenCalledTimes(2);
+      expect(mockPagesRepository.findExpiredTrashed).toHaveBeenCalledWith(
+        expect.any(Date),
+      );
+      const [threshold] = mockPagesRepository.findExpiredTrashed.mock
+        .calls[0] as [Date];
+      expect(threshold.getTime()).toBeLessThan(Date.now());
+    });
+
+    it('продолжает обработку, если одна страница упала', async () => {
+      mockPagesRepository.findExpiredTrashed.mockResolvedValue([
+        { id: 'p1', workspaceId: 'ws-1' },
+        { id: 'p2', workspaceId: 'ws-1' },
+      ]);
+      mockPagesRepository.findAttachmentKeys
+        .mockRejectedValueOnce(new Error('boom'))
+        .mockResolvedValueOnce([]);
+      mockPagesRepository.hardDelete.mockResolvedValue(true);
+
+      const purged = await service.hardDeleteExpired(30);
+
+      expect(purged).toBe(1);
+      expect(mockPagesRepository.hardDelete).toHaveBeenCalledTimes(1);
     });
   });
 });
