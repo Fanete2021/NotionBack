@@ -1,4 +1,5 @@
 import { Page, PageType, Prisma } from '@prisma/client';
+import { Socket } from 'socket.io';
 
 type CreatePageData = {
   projectId: string;
@@ -21,5 +22,28 @@ type TrashedPageRow = Page & {
   deletedByUser: UserRef | null;
 };
 
+interface PresenceUser {
+  id: string;
+  name: string;
+  avatar: string | null;
+}
+
+interface SocketData {
+  user?: PresenceUser;
+}
+
+type AuthedSocket = Socket<
+  Record<string, never>,
+  Record<string, never>,
+  Record<string, never>,
+  SocketData
+>;
+
 export { USER_REF_SELECT };
-export type { CreatePageData, TrashedPageRow, UserRef };
+export type {
+  AuthedSocket,
+  CreatePageData,
+  PresenceUser,
+  TrashedPageRow,
+  UserRef,
+};
