@@ -52,10 +52,11 @@ model Workspace {
 
   owner       User              @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   members     WorkspaceMember[]
-  invites     WorkspaceInvite[]
-  attachments Attachment[]
-  projects    Project[]
-  pages       Page[]
+  invites        WorkspaceInvite[]
+  attachments    Attachment[]
+  projects       Project[]
+  pages          Page[]
+  calendarEvents CalendarEvent[]
 
   @@map("workspaces")
 }
@@ -101,9 +102,10 @@ model Project {
   updatedAt       DateTime @updatedAt
 
   workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  parentProject Project?  @relation("ProjectHierarchy", fields: [parentProjectId, workspaceId], references: [id, workspaceId], onDelete: Cascade)
-  childProjects Project[] @relation("ProjectHierarchy")
-  pages         Page[]
+  parentProject  Project?        @relation("ProjectHierarchy", fields: [parentProjectId, workspaceId], references: [id, workspaceId], onDelete: Cascade)
+  childProjects  Project[]       @relation("ProjectHierarchy")
+  pages          Page[]
+  calendarEvents CalendarEvent[]
 
   @@unique([id, workspaceId])
   @@unique([workspaceId, parentProjectId, position])

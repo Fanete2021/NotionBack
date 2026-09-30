@@ -17,6 +17,7 @@ import { validationSchema } from './validation';
 import { HealthController } from './health/health.controller';
 import { AttachmentsModule } from '@modules/attachments/attachments.module';
 import { AuthModule } from '@modules/auth/auth.module';
+import { CalendarModule } from '@modules/calendar';
 import { PageCommentsModule } from '@modules/page-comments/page-comments.module';
 import {
   PagesContentModule,
@@ -65,6 +66,7 @@ import { PrismaModule } from './prisma';
     PagesVersionModule,
     PagesTrashModule,
     PageCommentsModule,
+    CalendarModule,
   ],
   controllers: [HealthController],
   providers: [
