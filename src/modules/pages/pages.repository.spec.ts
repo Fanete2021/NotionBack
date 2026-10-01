@@ -1,7 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { PageType, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma';
-import { PagesRepository } from './pages.repository';
+import { PageSearchType } from './dto';
+import { escapeLikePattern, PagesRepository } from './pages.repository';
 
 describe('PagesRepository', () => {
   let repository: PagesRepository;
@@ -31,6 +32,7 @@ describe('PagesRepository', () => {
     attachment: {
       findMany: jest.fn(),
     },
+    $queryRaw: jest.fn(),
     $transaction: jest.fn(),
   };
 
@@ -82,6 +84,47 @@ describe('PagesRepository', () => {
     mockPrisma.$transaction.mockImplementation(
       (callback: (tx: unknown) => unknown) => callback(mockTx),
     );
+  });
+
+  describe('escapeLikePattern', () => {
+    it('экранирует спецсимволы LIKE', () => {
+      expect(escapeLikePattern('50%_a\\b')).toBe('50\\%\\_a\\\\b');
+    });
+  });
+
+  describe('search', () => {
+    it('выполняет параметризованный запрос с экранированным шаблоном и лимитом', async () => {
+      mockPrisma.$queryRaw.mockResolvedValue([]);
+
+      await repository.search('ws-1', {
+        q: '50%',
+        type: PageSearchType.ALL,
+        projectId: 'prj-1',
+        limit: 10,
+      });
+
+      const [strings, ...values] = mockPrisma.$queryRaw.mock
+        .calls[0] as unknown as [unknown, ...unknown[]];
+      expect(strings).toBeDefined();
+      expect(values).toContain('ws-1');
+      expect(values).toContain(10);
+      expect(
+        values.some(
+          (v) =>
+            typeof v === 'object' &&
+            v !== null &&
+            (v as { values?: unknown[] }).values?.includes('prj-1'),
+        ),
+      ).toBe(true);
+      expect(
+        values.some(
+          (v) =>
+            typeof v === 'object' &&
+            v !== null &&
+            (v as { values?: unknown[] }).values?.includes('%50\\%%'),
+        ),
+      ).toBe(true);
+    });
   });
 
   describe('create', () => {

@@ -25,6 +25,7 @@ export class PagesContentService {
         pageId: page.id,
         json: EMPTY_DOCUMENT as Prisma.JsonValue,
         yjsState: null,
+        searchText: '',
         updatedAt: new Date(),
       };
     }
