@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
+import { extractPlainText } from './utils';
 
 @Injectable()
 export class PagesContentRepository {
@@ -11,10 +12,11 @@ export class PagesContentRepository {
   }
 
   async upsertContent(pageId: string, json: Prisma.InputJsonValue) {
+    const searchText = extractPlainText(json);
     return this.prisma.pageContent.upsert({
       where: { pageId },
-      create: { pageId, json },
-      update: { json },
+      create: { pageId, json, searchText },
+      update: { json, searchText },
     });
   }
 }

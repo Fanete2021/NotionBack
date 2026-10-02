@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PageVersion, Prisma } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { EMPTY_DOCUMENT } from '../constants';
+import { extractPlainText } from '../pages-content/utils';
 import {
   ListPageVersionsOptions,
   PageVersionListItem,
@@ -91,9 +92,11 @@ export class PagesVersionRepository {
         create: {
           pageId: input.pageId,
           json: input.nextJson,
+          searchText: extractPlainText(input.nextJson),
         },
         update: {
           json: input.nextJson,
+          searchText: extractPlainText(input.nextJson),
         },
         select: { pageId: true, json: true, updatedAt: true },
       });

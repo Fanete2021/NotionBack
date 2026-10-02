@@ -3,8 +3,29 @@ import { Injectable } from '@nestjs/common';
 import { Page, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma';
 import { EMPTY_DOCUMENT } from './constants';
+import { PageSearchType } from './dto/search-pages-query.dto';
 import { PageEntity } from './entities';
 import { CreatePageData, TrashedPageRow, USER_REF_SELECT } from './types';
+
+const SNIPPET_RADIUS = 80;
+
+export interface PageSearchRow {
+  id: string;
+  workspaceId: string;
+  projectId: string | null;
+  parentPageId: string | null;
+  title: string;
+  icon: string | null;
+  type: string;
+  updatedAt: Date;
+  titleMatch: boolean;
+  pos: number;
+  snippet: string | null;
+}
+
+export function escapeLikePattern(value: string): string {
+  return value.replace(/[\\%_]/g, (char) => `\\${char}`);
+}
 
 @Injectable()
 export class PagesRepository {
@@ -254,6 +275,57 @@ export class PagesRepository {
       }
       throw error;
     }
+  }
+
+  async search(
+    workspaceId: string,
+    params: {
+      q: string;
+      type: PageSearchType;
+      projectId?: string;
+      limit: number;
+    },
+  ): Promise<PageSearchRow[]> {
+    const { q, type, projectId, limit } = params;
+    const pattern = `%${escapeLikePattern(q)}%`;
+
+    const titleCond = Prisma.sql`p.title ILIKE ${pattern} ESCAPE '\\'`;
+    const contentCond = Prisma.sql`pc."searchText" ILIKE ${pattern} ESCAPE '\\'`;
+    const matchCond =
+      type === PageSearchType.DOCUMENTS
+        ? titleCond
+        : type === PageSearchType.CONTENT
+          ? contentCond
+          : Prisma.sql`(${titleCond} OR ${contentCond})`;
+    const projectCond = projectId
+      ? Prisma.sql`AND p."projectId" = ${projectId}`
+      : Prisma.empty;
+
+    return this.prisma.$queryRaw<PageSearchRow[]>`
+      SELECT
+        id, "workspaceId", "projectId", "parentPageId", title, icon, type,
+        "updatedAt", "titleMatch", pos,
+        CASE WHEN pos > 0
+          THEN substr("searchText", GREATEST(pos - ${SNIPPET_RADIUS}, 1), ${SNIPPET_RADIUS * 2 + q.length})
+          ELSE NULL
+        END AS snippet
+      FROM (
+        SELECT
+          p.id, p."workspaceId", p."projectId", p."parentPageId", p.title,
+          p.icon, p.type::text AS type, p."updatedAt",
+          (${titleCond}) AS "titleMatch",
+          position(lower(${q}) in lower(COALESCE(pc."searchText", ''))) AS pos,
+          COALESCE(pc."searchText", '') AS "searchText"
+        FROM pages p
+        LEFT JOIN page_contents pc ON pc."pageId" = p.id
+        WHERE p."workspaceId" = ${workspaceId}
+          AND p."deletedAt" IS NULL
+          ${projectCond}
+          AND ${matchCond}
+      ) r
+      ORDER BY "titleMatch" DESC, "updatedAt" DESC
+      LIMIT ${limit}
+    `;
   }
 
   private isExactPermutation(
