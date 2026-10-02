@@ -1,0 +1,18 @@
+model CalendarEvent {
+  id          String   @id @default(uuid())
+  workspaceId String
+  projectId   String?
+  title       String
+  startAt     DateTime
+  endAt       DateTime
+  allDay      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project   Project?  @relation(fields: [projectId, workspaceId], references: [id, workspaceId], onDelete: Cascade)
+
+  @@index([workspaceId, startAt])
+  @@index([workspaceId, projectId])
+  @@map("calendar_events")
+}
