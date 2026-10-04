@@ -103,6 +103,7 @@ export class WorkspaceMembersRepository {
 
     return new WorkspaceMemberEntity(
       member.id,
+      member.workspaceId,
       member.role,
       member.createdAt,
       withUser.user

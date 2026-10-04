@@ -77,6 +77,7 @@ describe('WorkspaceMembersRepository', () => {
         },
       });
       expect(result).toBeInstanceOf(WorkspaceMemberEntity);
+      expect(result.workspaceId).toBe('ws-1');
       expect(result.role).toBe(Role.EDITOR);
       expect(result.userInfo).toEqual({
         id: 'user-2',
@@ -180,6 +181,7 @@ describe('WorkspaceMembersRepository', () => {
       const result = await repository.findMembership('ws-1', 'user-1');
 
       expect(result).toBeInstanceOf(WorkspaceMemberEntity);
+      expect(result?.workspaceId).toBe('ws-1');
     });
 
     it('возвращает null, если членство не найдено', async () => {
