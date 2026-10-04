@@ -12,13 +12,15 @@ import {
   WebSocketServer,
   WsException,
 } from '@nestjs/websockets';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { Server } from 'socket.io';
+import { getCorsOrigins } from '../../config/cors';
 import { PagePresenceDto } from './dto';
 import type { AuthedSocket, PresenceUser } from './types';
 
 @WebSocketGateway({
   namespace: 'pages',
-  cors: { origin: true, credentials: true },
+  cors: { origin: getCorsOrigins(), credentials: true },
 })
 @UsePipes(
   new ValidationPipe({
@@ -38,6 +40,8 @@ export class PagesGateway implements OnGatewayInit, OnGatewayDisconnect {
   constructor(
     private readonly jwtService: JwtService,
     private readonly usersService: UsersService,
+    @InjectPinoLogger(PagesGateway.name)
+    private readonly logger: PinoLogger,
   ) {}
 
   afterInit(server: Server): void {
@@ -48,11 +52,9 @@ export class PagesGateway implements OnGatewayInit, OnGatewayDisconnect {
           const headerToken: unknown = client.handshake.headers.authorization;
 
           const rawToken: string =
-            typeof authToken === 'string' && authToken.length > 0
-              ? authToken
-              : typeof headerToken === 'string' && headerToken.length > 0
-                ? headerToken
-                : '';
+            (typeof authToken === 'string' && authToken) ||
+            (typeof headerToken === 'string' && headerToken) ||
+            '';
 
           const token = rawToken.replace(/^Bearer\s+/i, '').trim();
 
@@ -77,8 +79,14 @@ export class PagesGateway implements OnGatewayInit, OnGatewayDisconnect {
           } satisfies PresenceUser;
 
           next();
-        } catch (e) {
-          console.error('[PagesGateway] auth error:', e);
+        } catch (error) {
+          this.logger.warn(
+            {
+              action: 'page_presence_auth',
+              reason: error instanceof Error ? error.message : 'invalid_token',
+            },
+            'access denied',
+          );
           next(new Error('Unauthorized'));
         }
       })();

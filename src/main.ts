@@ -10,6 +10,7 @@ import { NestFactory, Reflector } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, OpenAPIObject, SwaggerModule } from '@nestjs/swagger';
 import * as express from 'express';
+import { getCorsOrigins } from './config/cors';
 import { AppModule } from './app.module';
 import { HttpExceptionsFilter, PrismaExceptionFilter } from './filters';
 import './sentry.preload';
@@ -26,12 +27,8 @@ async function bootstrap(): Promise<void> {
 
   const configService = app.get(ConfigService);
 
-  const corsOrigins = configService
-    .get<string>('CORS_ORIGINS', 'http://localhost:3000')
-    .split(',');
-
   app.enableCors({
-    origin: corsOrigins,
+    origin: getCorsOrigins(),
     credentials: true,
   });
 
