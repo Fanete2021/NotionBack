@@ -40,6 +40,7 @@ model PageContent {
   pageId    String   @id
   json      Json
   yjsState  Bytes?
+  searchText String  @default("")
   updatedAt DateTime @updatedAt
 
   page Page @relation(fields: [pageId], references: [id], onDelete: Cascade)

@@ -22,13 +22,20 @@ import {
   PagesHardDeleteResponse,
   PagesReorderResponse,
   PagesRestoreResponse,
+  PagesSearchResponse,
   PagesTrashResponse,
   PagesUpdateResponse,
 } from './decorators';
-import { CreatePageDto, ReorderPagesDto, UpdatePageDto } from './dto';
+import {
+  CreatePageDto,
+  ReorderPagesDto,
+  SearchPagesQueryDto,
+  UpdatePageDto,
+} from './dto';
 import {
   EmptyTrashResultEntity,
   PageEntity,
+  PageSearchResultEntity,
   TrashedPageEntity,
 } from './entities';
 import { PagesService } from './pages.service';
@@ -129,6 +136,17 @@ export class PagesController {
     await this.workspacesService.assertMemberOf(workspaceId, userId);
     const deleted = await this.pagesService.emptyTrash(workspaceId);
     return new EmptyTrashResultEntity(deleted);
+  }
+
+  @Get('workspaces/:workspaceId/pages/search')
+  @PagesSearchResponse()
+  async search(
+    @CurrentUser('id') userId: string,
+    @Param('workspaceId') workspaceId: string,
+    @Query() query: SearchPagesQueryDto,
+  ): Promise<PageSearchResultEntity[]> {
+    await this.workspacesService.assertMemberOf(workspaceId, userId);
+    return this.pagesService.search(workspaceId, query);
   }
 
   @Get('workspaces/:workspaceId/pages')
