@@ -7,6 +7,7 @@ import { PageCommentsModule } from '@modules/page-comments/page-comments.module'
 import {
   PagesContentModule,
   PagesModule,
+  PagesRealtimeModule,
   PagesTrashModule,
   PagesVersionModule,
 } from '@modules/pages';
@@ -77,6 +78,7 @@ import { validationSchema } from './validation';
     PagesContentModule,
     PagesVersionModule,
     PagesTrashModule,
+    PagesRealtimeModule,
     PageCommentsModule,
     CalendarModule,
   ],

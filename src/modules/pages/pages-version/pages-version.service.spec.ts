@@ -139,5 +139,50 @@ describe('PagesVersionService', () => {
       expect(mockRepository.restore).toHaveBeenCalledTimes(1);
       expect(result).toEqual(restored);
     });
+
+    it('сохраняет живые правки до восстановления и заменяет документ в realtime-сессии после', async () => {
+      const targetJson = { type: 'doc', content: [] };
+      const calls: string[] = [];
+      const liveSync = {
+        flush: jest.fn(() => {
+          calls.push('flush');
+          return Promise.resolve();
+        }),
+        replace: jest.fn(() => {
+          calls.push('replace');
+          return Promise.resolve();
+        }),
+      };
+      mockRepository.restore.mockImplementation(() => {
+        calls.push('restore');
+        return Promise.resolve({
+          content: { pageId: 'page-1', json: targetJson, updatedAt },
+          changed: true,
+        });
+      });
+      service.registerLiveSync(liveSync);
+
+      await service.restore(versionFixture(targetJson), 'user-1');
+
+      expect(calls).toEqual(['flush', 'restore', 'replace']);
+      expect(liveSync.replace).toHaveBeenCalledWith('page-1', targetJson);
+    });
+
+    it('не трогает realtime-сессию, если документ не изменился', async () => {
+      const targetJson = { type: 'doc', content: [] };
+      const liveSync = {
+        flush: jest.fn().mockResolvedValue(undefined),
+        replace: jest.fn().mockResolvedValue(undefined),
+      };
+      mockRepository.restore.mockResolvedValue({
+        content: { pageId: 'page-1', json: targetJson, updatedAt },
+        changed: false,
+      });
+      service.registerLiveSync(liveSync);
+
+      await service.restore(versionFixture(targetJson), 'user-1');
+
+      expect(liveSync.replace).not.toHaveBeenCalled();
+    });
   });
 });
