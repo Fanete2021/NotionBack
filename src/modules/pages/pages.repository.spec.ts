@@ -29,6 +29,9 @@ describe('PagesRepository', () => {
       findUnique: jest.fn(),
       upsert: jest.fn(),
     },
+    project: {
+      findMany: jest.fn(),
+    },
     attachment: {
       findMany: jest.fn(),
     },
@@ -93,8 +96,39 @@ describe('PagesRepository', () => {
   });
 
   describe('search', () => {
+    const flattenSql = (strings: TemplateStringsArray, values: unknown[]) => {
+      let sql = '';
+      for (let index = 0; index < strings.length; index += 1) {
+        sql += strings[index];
+        if (index >= values.length) {
+          continue;
+        }
+        const value = values[index];
+        if (
+          value &&
+          typeof value === 'object' &&
+          'strings' in value &&
+          'values' in value
+        ) {
+          const nested = value as {
+            strings: TemplateStringsArray;
+            values: unknown[];
+          };
+          sql += flattenSql(nested.strings, nested.values);
+        }
+      }
+      return sql;
+    };
+
+    const getSqlParts = (callIndex = 0) => {
+      const [strings, ...values] = mockPrisma.$queryRaw.mock.calls[
+        callIndex
+      ] as unknown as [TemplateStringsArray, ...unknown[]];
+      return { sql: flattenSql(strings, values), values };
+    };
+
     it('выполняет параметризованный запрос с экранированным шаблоном и лимитом', async () => {
-      mockPrisma.$queryRaw.mockResolvedValue([]);
+      mockPrisma.$queryRaw.mockResolvedValueOnce([]);
 
       await repository.search('ws-1', {
         q: '50%',
@@ -103,9 +137,8 @@ describe('PagesRepository', () => {
         limit: 10,
       });
 
-      const [strings, ...values] = mockPrisma.$queryRaw.mock
-        .calls[0] as unknown as [unknown, ...unknown[]];
-      expect(strings).toBeDefined();
+      const { sql, values } = getSqlParts(0);
+      expect(sql).toContain('ORDER BY "titleMatch" DESC, "updatedAt" DESC');
       expect(values).toContain('ws-1');
       expect(values).toContain(10);
       expect(
@@ -124,6 +157,94 @@ describe('PagesRepository', () => {
             (v as { values?: unknown[] }).values?.includes('%50\\%%'),
         ),
       ).toBe(true);
+    });
+
+    it('для type=content сортирует только по updatedAt и учитывает диапазон дат', async () => {
+      const from = new Date('2026-01-01T00:00:00.000Z');
+      const to = new Date('2026-02-01T00:00:00.000Z');
+      mockPrisma.$queryRaw.mockResolvedValueOnce([]);
+
+      await repository.search('ws-1', {
+        q: 'отчёт',
+        type: PageSearchType.CONTENT,
+        from,
+        to,
+        limit: 5,
+      });
+
+      const { sql, values } = getSqlParts(0);
+      expect(sql).toContain('ORDER BY "updatedAt" DESC');
+      expect(sql).not.toContain('ORDER BY "titleMatch" DESC');
+      expect(
+        values.some(
+          (value) =>
+            value &&
+            typeof value === 'object' &&
+            'values' in value &&
+            (value as { values: unknown[] }).values.includes(from),
+        ),
+      ).toBe(true);
+      expect(
+        values.some(
+          (value) =>
+            value &&
+            typeof value === 'object' &&
+            'values' in value &&
+            (value as { values: unknown[] }).values.includes(to),
+        ),
+      ).toBe(true);
+    });
+
+    it('собирает path от проекта к документу', async () => {
+      mockPrisma.$queryRaw
+        .mockResolvedValueOnce([
+          {
+            id: 'page-child',
+            workspaceId: 'ws-1',
+            projectId: 'prj-1',
+            parentPageId: 'page-parent',
+            title: 'Компоненты',
+            icon: null,
+            type: 'DOC',
+            updatedAt: new Date('2026-03-01T00:00:00.000Z'),
+            titleMatch: false,
+            pos: 1,
+            snippet: 'компоненты',
+          },
+        ])
+        .mockResolvedValueOnce([
+          {
+            leafId: 'page-child',
+            id: 'page-parent',
+            parentPageId: null,
+            projectId: 'prj-1',
+            title: 'Дизайн-система',
+            depth: 1,
+          },
+          {
+            leafId: 'page-child',
+            id: 'page-child',
+            parentPageId: 'page-parent',
+            projectId: 'prj-1',
+            title: 'Компоненты',
+            depth: 0,
+          },
+        ]);
+      mockPrisma.project.findMany.mockResolvedValue([
+        { id: 'prj-1', name: 'Документы' },
+      ]);
+
+      const [result] = await repository.search('ws-1', {
+        q: 'компоненты',
+        type: PageSearchType.ALL,
+        limit: 10,
+      });
+
+      expect(result.path).toEqual([
+        { type: 'project', id: 'prj-1', name: 'Документы' },
+        { type: 'page', id: 'page-parent', name: 'Дизайн-система' },
+        { type: 'page', id: 'page-child', name: 'Компоненты' },
+      ]);
     });
   });
 
@@ -158,7 +279,9 @@ describe('PagesRepository', () => {
       expect(mockTx.pageContent.create).toHaveBeenCalledWith({
         data: {
           pageId: 'p3',
+          workspaceId: 'ws-1',
           json: { type: 'doc', content: [] },
+          searchText: '',
         },
       });
       expect(result).toEqual(pageFixture('p3', 3));

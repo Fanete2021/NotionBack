@@ -11,12 +11,27 @@ export class PagesContentRepository {
     return this.prisma.pageContent.findUnique({ where: { pageId } });
   }
 
-  async upsertContent(pageId: string, json: Prisma.InputJsonValue) {
+  async upsertContent(
+    pageId: string,
+    workspaceId: string,
+    json: Prisma.InputJsonValue,
+  ) {
     const searchText = extractPlainText(json);
-    return this.prisma.pageContent.upsert({
-      where: { pageId },
-      create: { pageId, json, searchText },
-      update: { json, searchText },
+    const now = new Date();
+
+    return this.prisma.$transaction(async (tx) => {
+      const content = await tx.pageContent.upsert({
+        where: { pageId },
+        create: { pageId, workspaceId, json, searchText },
+        update: { json, searchText, workspaceId },
+      });
+
+      await tx.page.update({
+        where: { id: pageId },
+        data: { updatedAt: now },
+      });
+
+      return content;
     });
   }
 }

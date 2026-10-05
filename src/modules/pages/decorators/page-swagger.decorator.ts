@@ -1,4 +1,5 @@
 import { ApiWorkspaceForbidden } from '@common/decorators';
+import { ApiValidationErrorResponse } from '@common/decorators/swagger';
 import { applyDecorators } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -158,7 +159,7 @@ function PagesSearchResponse() {
       description: 'Id воркспейса',
     }),
     ApiResponse({ status: 200, type: [PageSearchResultEntity] }),
-    ApiResponse({ status: 400, description: 'Некорректные параметры поиска' }),
+    ApiValidationErrorResponse('Некорректные параметры поиска'),
     ApiWorkspaceForbidden(),
     ApiResponse({ status: 404, description: 'Проект не найден' }),
   );

@@ -71,12 +71,19 @@ export class PagesService {
       await this.assertProjectInWorkspace(workspaceId, query.projectId);
     }
 
+    if (query.from && query.to && query.from > query.to) {
+      throw new BadRequestException('"from" must be before or equal to "to"');
+    }
+
     const type = query.type ?? PageSearchType.ALL;
+    const limit = query.limit ?? SEARCH_DEFAULT_LIMIT;
     const rows = await this.pagesRepository.search(workspaceId, {
       q: query.q,
       type,
       projectId: query.projectId,
-      limit: query.limit ?? SEARCH_DEFAULT_LIMIT,
+      from: query.from,
+      to: query.to,
+      limit,
     });
 
     return rows.map((row) => {
@@ -96,6 +103,7 @@ export class PagesService {
         matchedIn: matchedInTitle ? 'title' : 'content',
         snippet: hasContentMatch ? row.snippet : null,
         matchOffset: hasContentMatch ? row.pos - 1 : null,
+        path: row.path,
         updatedAt: row.updatedAt,
       });
     });

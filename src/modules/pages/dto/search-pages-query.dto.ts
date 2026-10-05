@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
 import {
+  IsDate,
   IsEnum,
   IsInt,
   IsOptional,
@@ -17,7 +18,7 @@ export enum PageSearchType {
   CONTENT = 'content',
 }
 
-export const SEARCH_MIN_QUERY_LENGTH = 2;
+export const SEARCH_MIN_QUERY_LENGTH = 3;
 export const SEARCH_MAX_QUERY_LENGTH = 200;
 export const SEARCH_DEFAULT_LIMIT = 20;
 export const SEARCH_MAX_LIMIT = 50;
@@ -45,6 +46,22 @@ export class SearchPagesQueryDto {
   @IsOptional()
   @IsString()
   projectId?: string;
+
+  @ApiPropertyOptional({
+    description: 'Искать документы, обновлённые не раньше этой даты',
+  })
+  @IsOptional()
+  @Type(() => Date)
+  @IsDate()
+  from?: Date;
+
+  @ApiPropertyOptional({
+    description: 'Искать документы, обновлённые не позже этой даты',
+  })
+  @IsOptional()
+  @Type(() => Date)
+  @IsDate()
+  to?: Date;
 
   @ApiPropertyOptional({
     default: SEARCH_DEFAULT_LIMIT,

@@ -288,6 +288,10 @@ describe('PagesService', () => {
   });
 
   describe('search', () => {
+    const path = [
+      { type: 'project' as const, id: 'prj-1', name: 'Документы' },
+      { type: 'page' as const, id: 'p1', name: 'Отчёт' },
+    ];
     const row = {
       id: 'p1',
       workspaceId: 'ws-1',
@@ -300,6 +304,7 @@ describe('PagesService', () => {
       titleMatch: false,
       pos: 6,
       snippet: '...отчёт...',
+      path,
     };
 
     it('применяет значения по умолчанию и маппит совпадение в контенте', async () => {
@@ -311,6 +316,8 @@ describe('PagesService', () => {
         q: 'отчёт',
         type: 'all',
         projectId: undefined,
+        from: undefined,
+        to: undefined,
         limit: 20,
       });
       expect(result[0]).toMatchObject({
@@ -318,6 +325,7 @@ describe('PagesService', () => {
         matchedIn: 'content',
         snippet: '...отчёт...',
         matchOffset: 5,
+        path,
       });
     });
 
@@ -362,11 +370,22 @@ describe('PagesService', () => {
       expect(result.matchOffset).toBeNull();
     });
 
+    it('бросает 400, если from позже to', async () => {
+      await expect(
+        service.search('ws-1', {
+          q: 'отчёт',
+          from: new Date('2026-02-01T00:00:00.000Z'),
+          to: new Date('2026-01-01T00:00:00.000Z'),
+        }),
+      ).rejects.toThrow(BadRequestException);
+      expect(mockPagesRepository.search).not.toHaveBeenCalled();
+    });
+
     it('бросает 404, если проект не найден', async () => {
       mockProjectsRepository.findById.mockResolvedValue(null);
 
       await expect(
-        service.search('ws-1', { q: 'ab', projectId: 'missing' }),
+        service.search('ws-1', { q: 'abc', projectId: 'missing' }),
       ).rejects.toThrow(NotFoundException);
       expect(mockPagesRepository.search).not.toHaveBeenCalled();
     });

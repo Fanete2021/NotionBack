@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { PageType } from '@prisma/client';
+import { PageSearchPathItemEntity } from './page-search-path-item.entity';
 
 export type PageSearchMatchedIn = 'title' | 'content';
 
@@ -40,6 +41,12 @@ export class PageSearchResultEntity {
   })
   readonly matchOffset: number | null;
 
+  @ApiProperty({
+    type: [PageSearchPathItemEntity],
+    description: 'Цепочка от проекта к документу',
+  })
+  readonly path: PageSearchPathItemEntity[];
+
   @ApiProperty({ example: '2026-08-03T00:00:00.000Z' })
   readonly updatedAt: Date;
 
@@ -54,6 +61,7 @@ export class PageSearchResultEntity {
     matchedIn: PageSearchMatchedIn;
     snippet: string | null;
     matchOffset: number | null;
+    path: PageSearchPathItemEntity[];
     updatedAt: Date;
   }) {
     this.pageId = props.pageId;
@@ -66,6 +74,7 @@ export class PageSearchResultEntity {
     this.matchedIn = props.matchedIn;
     this.snippet = props.snippet;
     this.matchOffset = props.matchOffset;
+    this.path = props.path;
     this.updatedAt = props.updatedAt;
   }
 }

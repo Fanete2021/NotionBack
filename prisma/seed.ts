@@ -112,6 +112,7 @@ async function main() {
         authorId: demoUser.id,
         content: {
           create: {
+            workspaceId: workspace.id,
             json: {
               type: 'doc',
               content: [
@@ -156,6 +157,7 @@ async function main() {
         authorId: demoUser.id,
         content: {
           create: {
+            workspaceId: workspace.id,
             json: {
               type: 'doc',
               content: [

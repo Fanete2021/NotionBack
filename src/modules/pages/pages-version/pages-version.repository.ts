@@ -87,18 +87,32 @@ export class PagesVersionRepository {
         },
       });
 
+      const page = await tx.page.findUniqueOrThrow({
+        where: { id: input.pageId },
+        select: { workspaceId: true },
+      });
+      const searchText = extractPlainText(input.nextJson);
+      const now = new Date();
+
       const updated = await tx.pageContent.upsert({
         where: { pageId: input.pageId },
         create: {
           pageId: input.pageId,
+          workspaceId: page.workspaceId,
           json: input.nextJson,
-          searchText: extractPlainText(input.nextJson),
+          searchText,
         },
         update: {
           json: input.nextJson,
-          searchText: extractPlainText(input.nextJson),
+          searchText,
+          workspaceId: page.workspaceId,
         },
         select: { pageId: true, json: true, updatedAt: true },
+      });
+
+      await tx.page.update({
+        where: { id: input.pageId },
+        data: { updatedAt: now },
       });
 
       return { changed: true, content: updated };
