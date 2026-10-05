@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   PayloadTooLargeException,
 } from '@nestjs/common';
@@ -9,6 +10,7 @@ import { EMPTY_DOCUMENT } from '../constants';
 import { PageEntity } from '../entities/page.entity';
 import { PagesVersionService } from '../pages-version';
 import { PagesContentRepository } from './pages-content.repository';
+import { YjsDocService } from './yjs';
 
 @Injectable()
 export class PagesContentService {
@@ -16,9 +18,22 @@ export class PagesContentService {
     private readonly pagesContentRepository: PagesContentRepository,
     private readonly configService: ConfigService,
     private readonly pagesVersionService: PagesVersionService,
+    private readonly yjsDocService: YjsDocService,
   ) {}
 
   async getContent(page: PageEntity) {
+    // Пока страницу правят через Yjs, актуальный документ живёт в памяти,
+    // а в БД он отстаёт на время дебаунса.
+    const liveJson = this.yjsDocService.getLiveJson(page.id);
+    if (liveJson) {
+      return {
+        pageId: page.id,
+        json: liveJson as Prisma.JsonValue,
+        yjsState: null,
+        updatedAt: new Date(),
+      };
+    }
+
     const content = await this.pagesContentRepository.findContent(page.id);
     if (!content) {
       return {
@@ -38,6 +53,14 @@ export class PagesContentService {
 
     if (typeof json !== 'object' || Array.isArray(json)) {
       throw new BadRequestException('Page content must be a JSON object');
+    }
+
+    // Запись целиком затёрла бы чужие realtime-правки: во время Yjs-сессии
+    // документ меняется только через сокет.
+    if (this.yjsDocService.isActive(page.id)) {
+      throw new ConflictException(
+        'Page is being edited in real time, use the websocket channel',
+      );
     }
 
     this.assertSizeWithinLimit(json);

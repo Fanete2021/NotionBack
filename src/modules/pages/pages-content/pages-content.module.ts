@@ -6,10 +6,17 @@ import { PagesContentMapper } from './page-content.mapper';
 import { PagesContentController } from './pages-content.controller';
 import { PagesContentRepository } from './pages-content.repository';
 import { PagesContentService } from './pages-content.service';
+import { YjsDocService } from './yjs';
 
 @Module({
   imports: [PagesModule, PagesVersionModule, WorkspacesModule],
   controllers: [PagesContentController],
-  providers: [PagesContentService, PagesContentRepository, PagesContentMapper],
+  providers: [
+    PagesContentService,
+    PagesContentRepository,
+    PagesContentMapper,
+    YjsDocService,
+  ],
+  exports: [YjsDocService],
 })
 export class PagesContentModule {}

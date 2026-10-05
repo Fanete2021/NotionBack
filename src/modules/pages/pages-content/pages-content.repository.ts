@@ -14,7 +14,21 @@ export class PagesContentRepository {
     return this.prisma.pageContent.upsert({
       where: { pageId },
       create: { pageId, json },
-      update: { json },
+      // REST-запись заменяет документ целиком, старое Yjs-состояние
+      // устарело: при следующей Yjs-сессии оно пересоздастся из json.
+      update: { json, yjsState: null },
+    });
+  }
+
+  async saveYjsState(
+    pageId: string,
+    yjsState: Uint8Array<ArrayBuffer>,
+    json: Prisma.InputJsonValue,
+  ) {
+    return this.prisma.pageContent.upsert({
+      where: { pageId },
+      create: { pageId, json, yjsState },
+      update: { json, yjsState },
     });
   }
 }

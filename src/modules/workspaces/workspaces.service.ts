@@ -149,6 +149,18 @@ export class WorkspacesService {
     }
   }
 
+  /** Роль пользователя в воркспейсе или null, если он не участник. */
+  async findMemberRole(
+    workspaceId: string,
+    userId: string,
+  ): Promise<Role | null> {
+    const membership = await this.workspaceMembersRepository.findMembership(
+      workspaceId,
+      userId,
+    );
+    return membership?.role ?? null;
+  }
+
   async assertOwner(workspaceId: string, userId: string): Promise<void> {
     await this.assertIsOwner(workspaceId, userId);
   }
