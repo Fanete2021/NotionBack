@@ -4,6 +4,7 @@ import {
   OnModuleDestroy,
   OnModuleInit,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
 import { Subject } from 'rxjs';
 import {
@@ -16,8 +17,10 @@ import * as Y from 'yjs';
 import { PagesVersionService } from '../../pages-version';
 import { PagesContentRepository } from '../pages-content.repository';
 import { YJS_FRAGMENT_NAME, YJS_SAVE_DEBOUNCE_MS } from './yjs.constants';
+import { YjsDocumentTooLargeError } from './yjs-document-too-large.error';
 import { fragmentToJson, jsonToFragment } from './yjs-json';
 
+/** Живая сессия документа. У Yjs такого типа нет: счётчик, таймер и курсоры — учёт сервера. */
 interface DocEntry {
   doc: Y.Doc;
   awareness: Awareness;
@@ -25,6 +28,8 @@ interface DocEntry {
   refs: number;
   dirty: boolean;
   lastEditorId: string | null;
+  /** Точный размер ProseMirror JSON в байтах. */
+  jsonBytes: number;
   timer: NodeJS.Timeout | null;
   saving: Promise<void>;
 }
@@ -45,7 +50,19 @@ export class YjsDocService implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly pagesContentRepository: PagesContentRepository,
     private readonly pagesVersionService: PagesVersionService,
+    private readonly configService: ConfigService,
   ) {}
+
+  onModuleInit(): void {
+    this.pagesVersionService.registerLiveSync({
+      flush: (pageId) => this.flush(pageId),
+      replace: (pageId, json) => this.replaceContent(pageId, json),
+    });
+  }
+
+  async onModuleDestroy(): Promise<void> {
+    await Promise.all([...this.loaded.keys()].map((id) => this.flush(id)));
+  }
 
   /** Берёт документ в работу (счётчик ссылок +1) и возвращает его полное состояние. */
   async acquire(pageId: string): Promise<Uint8Array> {
@@ -54,21 +71,14 @@ export class YjsDocService implements OnModuleInit, OnModuleDestroy {
     return Y.encodeStateAsUpdate(entry.doc);
   }
 
-  onModuleInit(): void {
-    this.pagesVersionService.registerLiveSync({
-      flush: (pageId) => this.flush(pageId),
-      replace: (pageId, json) => {
-        this.replaceContent(pageId, json);
-        return Promise.resolve();
-      },
-    });
-  }
-
   /**
    * Полностью заменяет содержимое живого документа (восстановление версии).
-   * Изменение уходит всем участникам сессии через `serverUpdates$`.
+   * Новое yjs-состояние сразу пишется в БД, затем уходит участникам через `serverUpdates$`.
    */
-  replaceContent(pageId: string, json: Prisma.InputJsonValue): void {
+  async replaceContent(
+    pageId: string,
+    json: Prisma.InputJsonValue,
+  ): Promise<void> {
     const entry = this.loaded.get(pageId);
     if (!entry) return;
 
@@ -89,9 +99,15 @@ export class YjsDocService implements OnModuleInit, OnModuleDestroy {
     }
 
     // Снимок версии при восстановлении уже создан, второй не нужен.
+    // Сохраняем сразу: restore обнуляет yjsState, и пауза дебаунса оставила бы
+    // документ, который после рестарта соберётся из json с другими id.
     entry.dirty = true;
     entry.lastEditorId = null;
-    this.scheduleSave(pageId, entry);
+    entry.jsonBytes = this.measure(entry.doc);
+    await this.flush(pageId);
+    if (entry.dirty && this.loaded.get(pageId) === entry) {
+      this.scheduleSave(pageId, entry);
+    }
 
     if (captured) this.serverUpdates$.next({ pageId, update: captured });
   }
@@ -148,14 +164,7 @@ export class YjsDocService implements OnModuleInit, OnModuleDestroy {
     if (entry.refs > 0) return;
 
     await this.flush(pageId);
-
-    // За время сохранения мог появиться новый подписчик.
-    if (entry.refs === 0 && this.loaded.get(pageId) === entry) {
-      entry.awareness.destroy();
-      entry.doc.destroy();
-      this.loaded.delete(pageId);
-      this.entries.delete(pageId);
-    }
+    this.unloadIfIdle(pageId, entry);
   }
 
   applyUpdate(pageId: string, update: Uint8Array, editorId: string): void {
@@ -164,8 +173,12 @@ export class YjsDocService implements OnModuleInit, OnModuleDestroy {
       throw new Error(`Yjs document for page ${pageId} is not loaded`);
     }
 
+    const nextBytes = this.projectedJsonBytes(entry, update);
+    if (nextBytes === null) throw new YjsDocumentTooLargeError();
+
     Y.applyUpdate(entry.doc, update);
 
+    entry.jsonBytes = nextBytes;
     entry.dirty = true;
     entry.lastEditorId = editorId;
     this.scheduleSave(pageId, entry);
@@ -197,10 +210,6 @@ export class YjsDocService implements OnModuleInit, OnModuleDestroy {
     // Сохранения выполняются строго по очереди.
     entry.saving = entry.saving.then(() => this.persist(pageId, entry));
     await entry.saving;
-  }
-
-  async onModuleDestroy(): Promise<void> {
-    await Promise.all([...this.loaded.keys()].map((id) => this.flush(id)));
   }
 
   private getEntry(pageId: string): Promise<DocEntry> {
@@ -255,6 +264,7 @@ export class YjsDocService implements OnModuleInit, OnModuleDestroy {
       // и клиенты, уже получившие старое состояние, продублируют содержимое.
       dirty: seededFromJson,
       lastEditorId: null,
+      jsonBytes: this.measure(doc),
       timer: null,
       saving: Promise.resolve(),
     };
@@ -270,8 +280,39 @@ export class YjsDocService implements OnModuleInit, OnModuleDestroy {
 
     entry.timer = setTimeout(() => {
       entry.timer = null;
-      void this.flush(pageId);
+      void this.persistAndUnload(pageId);
     }, YJS_SAVE_DEBOUNCE_MS);
+  }
+
+  private async persistAndUnload(pageId: string): Promise<void> {
+    const entry = this.loaded.get(pageId);
+    if (!entry) return;
+
+    await this.flush(pageId);
+    this.unloadIfIdle(pageId, entry);
+  }
+
+  /**
+   * Выгружает документ только когда правок больше нет и никто его не держит.
+   * Если запись в БД не удалась, документ остаётся в памяти и сохранение повторяется.
+   */
+  private unloadIfIdle(pageId: string, entry: DocEntry): void {
+    if (this.loaded.get(pageId) !== entry) return;
+
+    if (entry.dirty) {
+      if (!entry.timer) this.scheduleSave(pageId, entry);
+      return;
+    }
+    if (entry.refs > 0) return;
+
+    if (entry.timer) {
+      clearTimeout(entry.timer);
+      entry.timer = null;
+    }
+    entry.awareness.destroy();
+    entry.doc.destroy();
+    this.loaded.delete(pageId);
+    this.entries.delete(pageId);
   }
 
   private async persist(pageId: string, entry: DocEntry): Promise<void> {
@@ -291,10 +332,7 @@ export class YjsDocService implements OnModuleInit, OnModuleDestroy {
         new Uint8Array(state),
         json,
       );
-
-      if (editorId) {
-        await this.pagesVersionService.scheduleAutoSnapshot(pageId, editorId);
-      }
+      entry.jsonBytes = Buffer.byteLength(JSON.stringify(json), 'utf8');
     } catch (error) {
       // Не теряем правки: при следующем flush попробуем снова.
       entry.dirty = true;
@@ -302,6 +340,52 @@ export class YjsDocService implements OnModuleInit, OnModuleDestroy {
         `Failed to persist Yjs state for page ${pageId}`,
         error instanceof Error ? error.stack : String(error),
       );
+      return;
+    }
+
+    if (!editorId) return;
+
+    try {
+      await this.pagesVersionService.scheduleAutoSnapshot(pageId, editorId);
+    } catch (error) {
+      // Документ уже в БД. Ошибка очереди снимков не должна помечать его грязным
+      // и перезаписывать одно и то же каждые 3 секунды.
+      this.logger.error(
+        `Failed to schedule auto snapshot for page ${pageId}`,
+        error instanceof Error ? error.stack : String(error),
+      );
+    }
+  }
+
+  private maxContentBytes(): number {
+    return this.configService.get<number>('MAX_PAGE_CONTENT_BYTES', 1048576);
+  }
+
+  private measure(doc: Y.Doc): number {
+    const json = fragmentToJson(doc.getXmlFragment(YJS_FRAGMENT_NAME));
+    return Buffer.byteLength(JSON.stringify(json), 'utf8');
+  }
+
+  /**
+   * Точный размер JSON после обновления.
+   * `null` — правка растит документ сверх лимита и её нельзя применять.
+   * Считаем по копии: бинарный апдейт бывает меньше, чем прирост JSON.
+   */
+  private projectedJsonBytes(
+    entry: DocEntry,
+    update: Uint8Array,
+  ): number | null {
+    const limit = this.maxContentBytes();
+    const pending = new Y.Doc();
+    try {
+      Y.applyUpdate(pending, Y.encodeStateAsUpdate(entry.doc));
+      const before = this.measure(pending);
+      Y.applyUpdate(pending, update);
+      const after = this.measure(pending);
+      if (after > limit && after > before) return null;
+      return after;
+    } finally {
+      pending.destroy();
     }
   }
 }

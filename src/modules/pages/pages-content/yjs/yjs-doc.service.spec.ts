@@ -4,6 +4,7 @@ import { Awareness, encodeAwarenessUpdate } from 'y-protocols/awareness';
 import * as Y from 'yjs';
 import { YJS_SAVE_DEBOUNCE_MS } from './yjs.constants';
 import { YjsDocService } from './yjs-doc.service';
+import { YjsDocumentTooLargeError } from './yjs-document-too-large.error';
 import { fragmentToJson } from './yjs-json';
 
 const PAGE_ID = 'page-1';
@@ -31,13 +32,21 @@ describe('YjsDocService', () => {
     saveYjsState: jest.fn(),
   };
   const versions = { scheduleAutoSnapshot: jest.fn() };
+  const config = {
+    get: jest.fn((_key: string, fallback: number) => fallback),
+  };
 
   beforeEach(() => {
     jest.useFakeTimers();
     jest.clearAllMocks();
     repository.saveYjsState.mockResolvedValue(undefined);
     versions.scheduleAutoSnapshot.mockResolvedValue(undefined);
-    service = new YjsDocService(repository as never, versions as never);
+    config.get.mockImplementation((_key: string, fallback: number) => fallback);
+    service = new YjsDocService(
+      repository as never,
+      versions as never,
+      config as never,
+    );
   });
 
   afterEach(() => {
@@ -154,6 +163,71 @@ describe('YjsDocService', () => {
     expect(repository.saveYjsState).toHaveBeenCalledTimes(2);
   });
 
+  it('keeps unsaved edits when the last client leaves during a failed save', async () => {
+    repository.findContent.mockResolvedValue(null);
+    const initial = await service.acquire(PAGE_ID);
+    const client = new Y.Doc();
+    Y.applyUpdate(client, initial);
+    service.applyUpdate(
+      PAGE_ID,
+      makeParagraphUpdate(client, 'keep me'),
+      'user-a',
+    );
+
+    repository.saveYjsState.mockRejectedValueOnce(new Error('db down'));
+    await service.release(PAGE_ID);
+
+    expect(service.isActive(PAGE_ID)).toBe(true);
+    expect(JSON.stringify(service.getLiveJson(PAGE_ID))).toContain('keep me');
+
+    await jest.advanceTimersByTimeAsync(YJS_SAVE_DEBOUNCE_MS);
+
+    expect(service.isActive(PAGE_ID)).toBe(false);
+    expect(repository.saveYjsState).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not mark the doc dirty again when only the snapshot queue fails', async () => {
+    repository.findContent.mockResolvedValue(null);
+    const initial = await service.acquire(PAGE_ID);
+    const client = new Y.Doc();
+    Y.applyUpdate(client, initial);
+    service.applyUpdate(PAGE_ID, makeParagraphUpdate(client, 'x'), 'user-a');
+
+    versions.scheduleAutoSnapshot.mockRejectedValueOnce(new Error('queue'));
+    await service.flush(PAGE_ID);
+    await service.flush(PAGE_ID);
+
+    expect(repository.saveYjsState).toHaveBeenCalledTimes(1);
+    expect(versions.scheduleAutoSnapshot).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects an update that grows the document past the size limit', async () => {
+    config.get.mockReturnValue(40);
+    repository.findContent.mockResolvedValue(null);
+    const initial = await service.acquire(PAGE_ID);
+    const client = new Y.Doc();
+    Y.applyUpdate(client, initial);
+
+    expect(() =>
+      service.applyUpdate(
+        PAGE_ID,
+        makeParagraphUpdate(client, 'this paragraph is far too long'),
+        'user-a',
+      ),
+    ).toThrow(YjsDocumentTooLargeError);
+    expect(service.getLiveJson(PAGE_ID)).toEqual({ type: 'doc', content: [] });
+  });
+
+  it('persists a restored document immediately', async () => {
+    repository.findContent.mockResolvedValue(null);
+    await service.acquire(PAGE_ID);
+
+    await service.replaceContent(PAGE_ID, SEED);
+
+    expect(repository.saveYjsState).toHaveBeenCalledTimes(1);
+    expect(versions.scheduleAutoSnapshot).not.toHaveBeenCalled();
+  });
+
   describe('replaceContent (version restore)', () => {
     it('replaces the live doc and publishes one update for all clients', async () => {
       repository.findContent.mockResolvedValue(null);
@@ -165,8 +239,9 @@ describe('YjsDocService', () => {
       const published: Uint8Array[] = [];
       service.serverUpdates$.subscribe(({ update }) => published.push(update));
 
-      service.replaceContent(PAGE_ID, SEED);
+      await service.replaceContent(PAGE_ID, SEED);
 
+      expect(repository.saveYjsState).toHaveBeenCalled();
       expect(service.getLiveJson(PAGE_ID)).toEqual(SEED);
       expect(published).toHaveLength(1);
 
@@ -175,11 +250,11 @@ describe('YjsDocService', () => {
       expect(fragmentToJson(client.getXmlFragment('default'))).toEqual(SEED);
     });
 
-    it('does nothing for a page without a live session', () => {
+    it('does nothing for a page without a live session', async () => {
       const published = jest.fn();
       service.serverUpdates$.subscribe(published);
 
-      service.replaceContent(PAGE_ID, SEED);
+      await service.replaceContent(PAGE_ID, SEED);
 
       expect(published).not.toHaveBeenCalled();
     });
@@ -192,6 +267,7 @@ describe('YjsDocService', () => {
           ...versions,
           registerLiveSync,
         } as never,
+        config as never,
       );
 
       bridged.onModuleInit();

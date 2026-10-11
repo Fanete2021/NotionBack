@@ -131,6 +131,7 @@ export class WorkspaceMembersService {
       { workspaceId, userId, actorId, role, action: 'member_role_change' },
       'workspace member role changed',
     );
+    await this.workspacesService.applyPageMembership(workspaceId, userId, role);
 
     return updated;
   }
@@ -169,6 +170,7 @@ export class WorkspaceMembersService {
       { workspaceId, userId, actorId, action: 'member_remove' },
       'workspace member removed',
     );
+    await this.workspacesService.applyPageMembership(workspaceId, userId, null);
   }
 
   private assertCanChangeRole(

@@ -2,14 +2,21 @@ jest.mock('./pages-version', () => ({ PagesVersionService: class {} }));
 
 import { Role } from '@prisma/client';
 import { Subject } from 'rxjs';
+import { YjsDocumentTooLargeError } from './pages-content/yjs';
 import { PagesGateway } from './pages.gateway';
+import { PagesYjsService } from './pages-yjs.service';
 
 const PAGE_ID = 'page-1';
 
-type Emitter = { except: jest.Mock; emit: jest.Mock };
+type Emitter = {
+  except: jest.Mock;
+  emit: jest.Mock;
+  socketsLeave: jest.Mock;
+};
 
 describe('PagesGateway', () => {
   let gateway: PagesGateway;
+  let pagesYjsService: PagesYjsService;
 
   const pagesService = { findById: jest.fn() };
   const workspacesService = { findMemberRole: jest.fn() };
@@ -25,7 +32,11 @@ describe('PagesGateway', () => {
   };
   const logger = { warn: jest.fn(), error: jest.fn() };
 
-  const roomEmitter: Emitter = { except: jest.fn(), emit: jest.fn() };
+  const roomEmitter: Emitter = {
+    except: jest.fn(),
+    emit: jest.fn(),
+    socketsLeave: jest.fn(),
+  };
   const directEmit = jest.fn();
   const server = {
     in: jest.fn(),
@@ -34,6 +45,7 @@ describe('PagesGateway', () => {
 
   const makeClient = (id = 'socket-1') => ({
     id,
+    connected: true as boolean,
     data: { user: { id: 'user-1', name: 'User', avatar: null } },
     join: jest.fn().mockResolvedValue(undefined),
     leave: jest.fn().mockResolvedValue(undefined),
@@ -57,20 +69,24 @@ describe('PagesGateway', () => {
     server.in.mockReturnValue(roomEmitter);
     server.to.mockReturnValue({ emit: directEmit });
 
+    pagesYjsService = new PagesYjsService(
+      yjsDocService as never,
+      logger as never,
+    );
     gateway = new PagesGateway(
       {} as never,
       {} as never,
       logger as never,
       pagesService as never,
       workspacesService as never,
-      yjsDocService as never,
+      pagesYjsService,
     );
     (gateway as unknown as { server: unknown }).server = server;
     gateway.afterInit({ use: jest.fn() } as never);
   });
 
   afterEach(() => {
-    gateway.onModuleDestroy();
+    pagesYjsService.onModuleDestroy();
   });
 
   describe('page:join', () => {
@@ -121,6 +137,85 @@ describe('PagesGateway', () => {
       expect(yjsDocService.acquire).toHaveBeenCalledTimes(1);
       expect(yjsDocService.getState).toHaveBeenCalledTimes(1);
     });
+
+    it('acquires the doc once when two joins overlap', async () => {
+      let releaseAcquire: (state: Uint8Array) => void = () => undefined;
+      const started = new Promise<void>((resolve) => {
+        yjsDocService.acquire.mockImplementation(
+          () =>
+            new Promise<Uint8Array>((done) => {
+              releaseAcquire = done;
+              resolve();
+            }),
+        );
+      });
+      const client = makeClient();
+
+      const first = gateway.handleJoin(client as never, { pageId: PAGE_ID });
+      const second = gateway.handleJoin(client as never, { pageId: PAGE_ID });
+      await started;
+      releaseAcquire(new Uint8Array([1, 2]));
+      await first;
+      await second;
+
+      expect(yjsDocService.acquire).toHaveBeenCalledTimes(1);
+      expect(yjsDocService.getState).toHaveBeenCalledTimes(1);
+    });
+
+    it('drops the doc reference when the socket dies during join', async () => {
+      let releaseAcquire: (state: Uint8Array) => void = () => undefined;
+      const started = new Promise<void>((resolve) => {
+        yjsDocService.acquire.mockImplementation(
+          () =>
+            new Promise<Uint8Array>((done) => {
+              releaseAcquire = done;
+              resolve();
+            }),
+        );
+      });
+      const client = makeClient();
+
+      const joining = gateway.handleJoin(client as never, { pageId: PAGE_ID });
+      await started;
+      client.connected = false;
+      const dropped = gateway.handleDisconnect(client as never);
+      releaseAcquire(new Uint8Array([1, 2]));
+
+      await expect(joining).resolves.toEqual({ ok: false });
+      await dropped;
+      expect(yjsDocService.release).toHaveBeenCalledTimes(1);
+      expect(roomEmitter.emit).not.toHaveBeenCalled();
+    });
+
+    it('releases the doc when loading fails after acquire', async () => {
+      yjsDocService.getAwarenessState.mockImplementation(() => {
+        throw new Error('boom');
+      });
+
+      const result = await gateway.handleJoin(makeClient() as never, {
+        pageId: PAGE_ID,
+      });
+
+      expect(result).toEqual({
+        ok: false,
+        error: 'Failed to load document',
+      });
+      expect(yjsDocService.release).toHaveBeenCalledWith(PAGE_ID);
+    });
+
+    it('drops an existing session when join is no longer allowed', async () => {
+      const client = makeClient();
+      await gateway.handleJoin(client as never, { pageId: PAGE_ID });
+      workspacesService.findMemberRole.mockResolvedValue(null);
+
+      const result = await gateway.handleJoin(client as never, {
+        pageId: PAGE_ID,
+      });
+
+      expect(result).toEqual({ ok: false, error: 'Forbidden' });
+      expect(yjsDocService.release).toHaveBeenCalledWith(PAGE_ID);
+      expect(client.leave).toHaveBeenCalled();
+    });
   });
 
   describe('yjs:update', () => {
@@ -130,7 +225,7 @@ describe('PagesGateway', () => {
       const client = makeClient();
       await gateway.handleJoin(client as never, { pageId: PAGE_ID });
 
-      const result = gateway.handleYjsUpdate(client as never, {
+      const result = await gateway.handleYjsUpdate(client as never, {
         pageId: PAGE_ID,
         update,
       });
@@ -148,8 +243,8 @@ describe('PagesGateway', () => {
       );
     });
 
-    it('rejects updates from a client that has not joined', () => {
-      const result = gateway.handleYjsUpdate(makeClient() as never, {
+    it('rejects updates from a client that has not joined', async () => {
+      const result = await gateway.handleYjsUpdate(makeClient() as never, {
         pageId: PAGE_ID,
         update,
       });
@@ -165,7 +260,7 @@ describe('PagesGateway', () => {
         pageId: PAGE_ID,
       });
 
-      const result = gateway.handleYjsUpdate(client as never, {
+      const result = await gateway.handleYjsUpdate(client as never, {
         pageId: PAGE_ID,
         update,
       });
@@ -179,7 +274,7 @@ describe('PagesGateway', () => {
       const client = makeClient();
       await gateway.handleJoin(client as never, { pageId: PAGE_ID });
 
-      const result = gateway.handleYjsUpdate(client as never, {
+      const result = await gateway.handleYjsUpdate(client as never, {
         pageId: PAGE_ID,
         update: 'not binary',
       });
@@ -194,13 +289,75 @@ describe('PagesGateway', () => {
       const client = makeClient();
       await gateway.handleJoin(client as never, { pageId: PAGE_ID });
 
-      const result = gateway.handleYjsUpdate(client as never, {
+      const result = await gateway.handleYjsUpdate(client as never, {
         pageId: PAGE_ID,
         update,
       });
 
       expect(result).toEqual({ ok: false, error: 'Invalid update' });
       expect(roomEmitter.emit).not.toHaveBeenCalled();
+    });
+
+    it('rejects an update that would exceed the document size limit', async () => {
+      yjsDocService.applyUpdate.mockImplementation(() => {
+        throw new YjsDocumentTooLargeError();
+      });
+      const client = makeClient();
+      await gateway.handleJoin(client as never, { pageId: PAGE_ID });
+
+      const result = await gateway.handleYjsUpdate(client as never, {
+        pageId: PAGE_ID,
+        update,
+      });
+
+      expect(result).toEqual({ ok: false, error: 'Document is too large' });
+      expect(roomEmitter.emit).not.toHaveBeenCalled();
+    });
+
+    it('rejects a write after the member is demoted to viewer', async () => {
+      const client = makeClient();
+      await gateway.handleJoin(client as never, { pageId: PAGE_ID });
+      workspacesService.findMemberRole.mockResolvedValue(Role.VIEWER);
+
+      const result = await gateway.handleYjsUpdate(client as never, {
+        pageId: PAGE_ID,
+        update,
+      });
+
+      expect(result).toEqual({ ok: false, error: 'Read-only access' });
+      expect(yjsDocService.applyUpdate).not.toHaveBeenCalled();
+      expect(yjsDocService.release).not.toHaveBeenCalled();
+    });
+
+    it('removes a member who lost workspace access', async () => {
+      const client = makeClient();
+      await gateway.handleJoin(client as never, { pageId: PAGE_ID });
+      workspacesService.findMemberRole.mockResolvedValue(null);
+
+      const result = await gateway.handleYjsUpdate(client as never, {
+        pageId: PAGE_ID,
+        update,
+      });
+
+      expect(result).toEqual({ ok: false, error: 'Forbidden' });
+      expect(yjsDocService.release).toHaveBeenCalledWith(PAGE_ID);
+      expect(yjsDocService.applyUpdate).not.toHaveBeenCalled();
+    });
+
+    it('drops a revoked member from the page without waiting for another event', async () => {
+      const client = makeClient();
+      await gateway.handleJoin(client as never, { pageId: PAGE_ID });
+
+      await gateway.applyMembership('ws-1', 'user-1', null);
+
+      expect(roomEmitter.socketsLeave).toHaveBeenCalledWith(`page:${PAGE_ID}`);
+      expect(yjsDocService.release).toHaveBeenCalledWith(PAGE_ID);
+
+      const result = await gateway.handleYjsUpdate(client as never, {
+        pageId: PAGE_ID,
+        update,
+      });
+      expect(result).toEqual({ ok: false, error: 'Join the page first' });
     });
   });
 
@@ -212,7 +369,7 @@ describe('PagesGateway', () => {
       const client = makeClient();
       await gateway.handleJoin(client as never, { pageId: PAGE_ID });
 
-      const result = gateway.handleYjsAwareness(client as never, {
+      const result = await gateway.handleYjsAwareness(client as never, {
         pageId: PAGE_ID,
         update,
       });
@@ -230,8 +387,8 @@ describe('PagesGateway', () => {
       );
     });
 
-    it('rejects awareness from a client that has not joined', () => {
-      const result = gateway.handleYjsAwareness(makeClient() as never, {
+    it('rejects awareness from a client that has not joined', async () => {
+      const result = await gateway.handleYjsAwareness(makeClient() as never, {
         pageId: PAGE_ID,
         update,
       });
