@@ -3,7 +3,7 @@ import { Transform } from 'class-transformer';
 import { IsNotEmpty, IsOptional, IsString, IsUUID } from 'class-validator';
 
 export class CreateProjectDto {
-  @ApiProperty({ example: 'Work', description: 'Название проекта' })
+  @ApiProperty({ example: 'Работа', description: 'Название проекта' })
   @Transform(({ value }: { value: string }) =>
     typeof value === 'string' ? value.trim() : value,
   )

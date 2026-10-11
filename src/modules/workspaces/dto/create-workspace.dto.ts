@@ -3,7 +3,7 @@ import { Transform } from 'class-transformer';
 import { IsNotEmpty, IsString } from 'class-validator';
 
 export class CreateWorkspaceDto {
-  @ApiProperty({ example: 'My workspace', description: 'Название воркспейса' })
+  @ApiProperty({ example: 'Мой воркспейс', description: 'Название воркспейса' })
   @Transform(({ value }: { value: string }) =>
     typeof value === 'string' ? value.trim() : value,
   )

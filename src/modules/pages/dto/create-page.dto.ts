@@ -10,7 +10,7 @@ import {
 } from 'class-validator';
 
 export class CreatePageDto {
-  @ApiProperty({ example: 'Введение', description: 'Page title' })
+  @ApiProperty({ example: 'Введение', description: 'Заголовок документа' })
   @Transform(({ value }: { value: string }) =>
     typeof value === 'string' ? value.trim() : value,
   )
@@ -18,21 +18,21 @@ export class CreatePageDto {
   @IsNotEmpty({ message: 'Page title is required' })
   title!: string;
 
-  @ApiPropertyOptional({ example: '📄', description: 'Page icon' })
+  @ApiPropertyOptional({ example: '📄', description: 'Иконка документа' })
   @IsOptional()
   @IsString()
   icon?: string;
 
   @ApiProperty({
     example: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
-    description: 'Workspace id the page belongs to',
+    description: 'Id воркспейса, к которому относится документ',
   })
   @IsUUID('4', { message: 'Workspace id must be a valid UUID' })
   workspaceId!: string;
 
   @ApiProperty({
     example: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
-    description: 'Project id the page is placed in',
+    description: 'Id проекта, в котором находится документ',
   })
   @IsUUID('4', { message: 'Project id must be a valid UUID' })
   projectId!: string;
@@ -40,7 +40,7 @@ export class CreatePageDto {
   @ApiPropertyOptional({
     enum: PageType,
     default: PageType.DOC,
-    description: 'Page type',
+    description: 'Тип документа',
   })
   @IsOptional()
   @IsEnum(PageType, { message: 'Page type must be DOC or ARTICLE' })

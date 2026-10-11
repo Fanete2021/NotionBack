@@ -15,7 +15,7 @@ import {
 } from '../entities';
 
 function PagesControllerResponse() {
-  return applyDecorators(ApiBearerAuth(), ApiTags('Pages'));
+  return applyDecorators(ApiBearerAuth(), ApiTags('Документы'));
 }
 
 function PagesCreateResponse() {
@@ -149,7 +149,7 @@ function PagesFindAllByWorkspaceIdResponse() {
 function PagesReorderResponse() {
   return applyDecorators(
     ApiOperation({
-      summary: 'Переупорядочивание документов внутри проекта (drag and drop)',
+      summary: 'Переупорядочивание документов внутри проекта (перетаскивание)',
     }),
     ApiParam({
       name: 'workspaceId',

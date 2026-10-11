@@ -10,7 +10,7 @@ import {
 export class PresignAttachmentDto {
   @ApiProperty({
     example: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
-    description: 'Page the attachment belongs to',
+    description: 'Документ, к которому относится вложение',
   })
   @IsUUID('4', { message: 'Page id must be a valid UUID' })
   pageId!: string;
@@ -24,7 +24,7 @@ export class PresignAttachmentDto {
   @ApiProperty({
     example: 'image/png',
     description:
-      'MIME type. Allowed: image/jpeg, image/png, image/webp, image/gif, video/mp4, video/webm, video/quicktime',
+      'MIME-тип. Допустимые: image/jpeg, image/png, image/webp, image/gif, video/mp4, video/webm, video/quicktime',
   })
   @IsString()
   @IsNotEmpty({ message: 'Content type is required' })

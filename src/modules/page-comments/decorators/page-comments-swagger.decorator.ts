@@ -83,7 +83,7 @@ function PageCommentsUpdateResponse() {
 function PageCommentsSetResolvedResponse() {
   return applyDecorators(
     ApiOperation({
-      summary: 'Закрыть комментарий (resolved) или снова открыть',
+      summary: 'Закрыть комментарий или снова открыть',
     }),
     ApiParam({ name: 'pageId', type: String, description: 'ID страницы' }),
     ApiParam({

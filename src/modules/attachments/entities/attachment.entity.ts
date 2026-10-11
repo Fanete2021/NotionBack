@@ -25,7 +25,8 @@ export class AttachmentEntity {
 
   @ApiProperty({
     example: 'http://localhost:9000/notion-attachments/workspaces/...',
-    description: 'Public file URL. Only meaningful once status is CONFIRMED',
+    description:
+      'Публичный URL файла. Имеет смысл только после статуса CONFIRMED',
   })
   readonly publicUrl: string;
 
