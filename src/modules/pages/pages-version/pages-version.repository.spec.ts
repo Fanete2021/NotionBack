@@ -126,6 +126,7 @@ describe('PagesVersionRepository', () => {
           json: nextJson,
           searchText: '',
           workspaceId: 'ws-1',
+          yjsState: null,
         },
         select: { pageId: true, json: true, updatedAt: true },
       });

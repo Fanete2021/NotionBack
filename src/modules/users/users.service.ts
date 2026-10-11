@@ -1,8 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { UsersRepository } from './users.repository';
-import { UsersMapper } from './users.mapper';
-import { UserEntity } from './user.entity';
 import { UpdateProfileDto } from './dto';
+import { UserEntity } from './user.entity';
+import { UsersMapper } from './users.mapper';
+import { UsersRepository } from './users.repository';
 
 @Injectable()
 export class UsersService {
@@ -10,6 +10,10 @@ export class UsersService {
     private readonly usersRepository: UsersRepository,
     private readonly usersMapper: UsersMapper,
   ) {}
+
+  async findOne(userId: string) {
+    return this.usersRepository.findById(userId);
+  }
 
   async updateProfile(
     userId: string,

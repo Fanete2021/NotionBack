@@ -38,6 +38,7 @@ describe('WorkspaceInviteRedeemService', () => {
 
   const member = new WorkspaceMemberEntity(
     'member-1',
+    'ws-1',
     Role.EDITOR,
     new Date(),
     new WorkspaceMemberUserEntity({
@@ -100,6 +101,7 @@ describe('WorkspaceInviteRedeemService', () => {
     );
     expect(mockRedis.set).not.toHaveBeenCalled();
     expect(result.id).toBe('member-1');
+    expect(result.workspaceId).toBe('ws-1');
     expect(result.role).toBe(Role.EDITOR);
     expect(result.userInfo?.id).toBe('user-2');
   });
@@ -137,6 +139,7 @@ describe('WorkspaceInviteRedeemService', () => {
     mockWorkspaceMembersService.addMemberViaInvite.mockResolvedValue(
       new WorkspaceMemberEntity(
         'member-1',
+        'ws-1',
         Role.VIEWER,
         member.createdAt,
         member.userInfo,
@@ -146,6 +149,7 @@ describe('WorkspaceInviteRedeemService', () => {
     const result = await service.redeem('user-2', token);
 
     expect(mockInvitesRepository.findByToken).toHaveBeenCalledWith(token);
+    expect(result.workspaceId).toBe('ws-1');
     expect(result.role).toBe(Role.VIEWER);
     expect(mockRedis.set).not.toHaveBeenCalled();
   });
@@ -280,6 +284,7 @@ describe('WorkspaceInviteRedeemService', () => {
     mockWorkspaceMembersService.addMemberViaInvite.mockResolvedValue(
       new WorkspaceMemberEntity(
         'member-1',
+        'ws-1',
         Role.VIEWER,
         member.createdAt,
         member.userInfo,
@@ -288,6 +293,7 @@ describe('WorkspaceInviteRedeemService', () => {
 
     const result = await service.redeem('user-2', token);
 
+    expect(result.workspaceId).toBe('ws-1');
     expect(result.role).toBe(Role.VIEWER);
   });
 });

@@ -17,6 +17,9 @@ import { Prisma, Role } from '@prisma/client';
 
 describe('WorkspaceMembersService', () => {
   let service: WorkspaceMembersService;
+  let applyPageMembership: jest.SpiedFunction<
+    WorkspacesService['applyPageMembership']
+  >;
 
   const mockWorkspaceMembersRepository = {
     addMember: jest.fn(),
@@ -75,6 +78,9 @@ describe('WorkspaceMembersService', () => {
     }).compile();
 
     service = module.get<WorkspaceMembersService>(WorkspaceMembersService);
+    applyPageMembership = jest
+      .spyOn(module.get(WorkspacesService), 'applyPageMembership')
+      .mockResolvedValue(undefined);
   });
 
   describe('listMembers', () => {
@@ -221,6 +227,11 @@ describe('WorkspaceMembersService', () => {
         'user-2',
         Role.VIEWER,
       );
+      expect(applyPageMembership).toHaveBeenCalledWith(
+        'ws-1',
+        'user-2',
+        Role.VIEWER,
+      );
       expect(result.role).toBe(Role.VIEWER);
     });
 
@@ -338,6 +349,7 @@ describe('WorkspaceMembersService', () => {
         'ws-1',
         'user-2',
       );
+      expect(applyPageMembership).toHaveBeenCalledWith('ws-1', 'user-2', null);
     });
 
     it('admin удаляет обычного участника', async () => {

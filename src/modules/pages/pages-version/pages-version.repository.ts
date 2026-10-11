@@ -106,6 +106,8 @@ export class PagesVersionRepository {
           json: input.nextJson,
           searchText,
           workspaceId: page.workspaceId,
+          // Старое Yjs-состояние больше не соответствует документу.
+          yjsState: null,
         },
         select: { pageId: true, json: true, updatedAt: true },
       });

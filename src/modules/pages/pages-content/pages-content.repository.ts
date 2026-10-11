@@ -23,7 +23,44 @@ export class PagesContentRepository {
       const content = await tx.pageContent.upsert({
         where: { pageId },
         create: { pageId, workspaceId, json, searchText },
-        update: { json, searchText, workspaceId },
+        // REST-запись заменяет документ целиком, старое Yjs-состояние
+        // устарело: при следующей Yjs-сессии оно пересоздастся из json.
+        update: { json, searchText, workspaceId, yjsState: null },
+      });
+
+      await tx.page.update({
+        where: { id: pageId },
+        data: { updatedAt: now },
+      });
+
+      return content;
+    });
+  }
+
+  async saveYjsState(
+    pageId: string,
+    yjsState: Uint8Array<ArrayBuffer>,
+    json: Prisma.InputJsonValue,
+  ) {
+    const searchText = extractPlainText(json);
+    const now = new Date();
+
+    return this.prisma.$transaction(async (tx) => {
+      const page = await tx.page.findUniqueOrThrow({
+        where: { id: pageId },
+        select: { workspaceId: true },
+      });
+
+      const content = await tx.pageContent.upsert({
+        where: { pageId },
+        create: {
+          pageId,
+          workspaceId: page.workspaceId,
+          json,
+          yjsState,
+          searchText,
+        },
+        update: { json, yjsState, searchText, workspaceId: page.workspaceId },
       });
 
       await tx.page.update({
