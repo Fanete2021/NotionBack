@@ -6,13 +6,12 @@ import { S3Module } from '@modules/s3';
 import { UsersModule } from '@modules/users/users.module';
 import { WorkspacesModule } from '@modules/workspaces/workspaces.module';
 import { Module } from '@nestjs/common';
-import { PagesGateway } from './pages.gateway';
 import { PagesMapper } from './pages.mapper';
 
 @Module({
   imports: [UsersModule, WorkspacesModule, ProjectsModule, S3Module],
   controllers: [PagesController],
-  providers: [PagesService, PagesRepository, PagesMapper, PagesGateway],
+  providers: [PagesService, PagesRepository, PagesMapper],
   exports: [PagesService, PagesRepository],
 })
 export class PagesModule {}

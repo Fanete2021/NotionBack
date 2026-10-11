@@ -111,7 +111,7 @@ describe('PagesVersionRepository', () => {
       expect(mockTx.pageContent.upsert).toHaveBeenCalledWith({
         where: { pageId: 'page-1' },
         create: { pageId: 'page-1', json: nextJson },
-        update: { json: nextJson },
+        update: { json: nextJson, yjsState: null },
         select: { pageId: true, json: true, updatedAt: true },
       });
       expect(result).toEqual({ changed: true, content: restored });
