@@ -6,9 +6,13 @@ import {
 import { Prisma, PublicationStatus } from '@prisma/client';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { PageEntity } from '../entities';
-import { SLUG_ATTEMPTS } from './consts';
-import { PublishPageDto } from './dto';
+import { PUBLIC_ARTICLES_DEFAULT_LIMIT, SLUG_ATTEMPTS } from './consts';
+import { ListPublicArticlesQueryDto, PublishPageDto } from './dto';
 import { PagesPublicationRepository } from './pages-publication.repository';
+import {
+  PublicArticleDetailRow,
+  PublicArticlePage,
+} from './pages-publication.types';
 import { slugifyTitle, suffixSlug } from './slug';
 
 @Injectable()
@@ -56,6 +60,30 @@ export class PagesPublicationService {
     }
 
     throw new ConflictException('Slug is already taken');
+  }
+
+  async list(query: ListPublicArticlesQueryDto): Promise<PublicArticlePage> {
+    const limit = query.limit ?? PUBLIC_ARTICLES_DEFAULT_LIMIT;
+    const rows = await this.pagesPublicationRepository.findPublished({
+      cursor: query.cursor,
+      take: limit + 1,
+    });
+    const hasMore = rows.length > limit;
+    const items = hasMore ? rows.slice(0, limit) : rows;
+
+    return {
+      items,
+      nextCursor: hasMore ? items[items.length - 1].id : null,
+    };
+  }
+
+  async findBySlug(slug: string): Promise<PublicArticleDetailRow> {
+    const article =
+      await this.pagesPublicationRepository.findPublishedBySlug(slug);
+    if (!article) {
+      throw new NotFoundException('Article not found');
+    }
+    return article;
   }
 }
 

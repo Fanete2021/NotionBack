@@ -12,6 +12,8 @@ describe('PagesPublicationService', () => {
 
   const mockRepository = {
     updatePublication: jest.fn(),
+    findPublished: jest.fn(),
+    findPublishedBySlug: jest.fn(),
   };
 
   const pageFixture = (overrides: Partial<PageEntity> = {}): PageEntity =>
@@ -190,6 +192,51 @@ describe('PagesPublicationService', () => {
           status: PublicationStatus.DRAFT,
         }),
       ).rejects.toThrow('db down');
+    });
+  });
+
+  describe('list', () => {
+    it('просит на одну запись больше и отдаёт курсор', async () => {
+      const rows = [{ id: 'p1' }, { id: 'p2' }, { id: 'p3' }];
+      mockRepository.findPublished.mockResolvedValue(rows);
+
+      const result = await service.list({ limit: 2, cursor: 'p0' });
+
+      expect(mockRepository.findPublished).toHaveBeenCalledWith({
+        cursor: 'p0',
+        take: 3,
+      });
+      expect(result.items).toEqual(rows.slice(0, 2));
+      expect(result.nextCursor).toBe('p2');
+    });
+
+    it('без limit берёт страницу по умолчанию и не ставит курсор на последней странице', async () => {
+      mockRepository.findPublished.mockResolvedValue([{ id: 'p1' }]);
+
+      const result = await service.list({});
+
+      expect(mockRepository.findPublished).toHaveBeenCalledWith({
+        cursor: undefined,
+        take: 21,
+      });
+      expect(result.nextCursor).toBeNull();
+    });
+  });
+
+  describe('findBySlug', () => {
+    it('возвращает 404, если опубликованной статьи нет', async () => {
+      mockRepository.findPublishedBySlug.mockResolvedValue(null);
+
+      await expect(service.findBySlug('missing')).rejects.toThrow(
+        new NotFoundException('Article not found'),
+      );
+    });
+
+    it('возвращает найденную статью', async () => {
+      const article = { slug: 'vvedenie' };
+      mockRepository.findPublishedBySlug.mockResolvedValue(article);
+
+      await expect(service.findBySlug('vvedenie')).resolves.toBe(article);
     });
   });
 });
