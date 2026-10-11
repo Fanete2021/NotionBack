@@ -22,6 +22,12 @@ export class EventEntity {
   @ApiProperty({ example: false })
   readonly allDay: boolean;
 
+  @ApiProperty({
+    example: false,
+    description: 'Отмечено ли событие выполненным',
+  })
+  readonly isCompleted: boolean;
+
   @ApiProperty({ example: '2026-09-01T00:00:00.000Z' })
   readonly createdAt: Date;
 
@@ -36,6 +42,7 @@ export class EventEntity {
     startAt: Date;
     endAt: Date;
     allDay: boolean;
+    isCompleted: boolean;
     createdAt: Date;
     updatedAt: Date;
   }) {
@@ -46,6 +53,7 @@ export class EventEntity {
     this.startAt = props.startAt;
     this.endAt = props.endAt;
     this.allDay = props.allDay;
+    this.isCompleted = props.isCompleted;
     this.createdAt = props.createdAt;
     this.updatedAt = props.updatedAt;
   }

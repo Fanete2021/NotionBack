@@ -11,12 +11,13 @@ import {
 } from '@nestjs/common';
 import { WorkspaceEventGuard } from './guards';
 import { EventsService } from './events.service';
-import { UpdateEventDto } from './dto';
+import { SetEventCompletedDto, UpdateEventDto } from './dto';
 import { EventEntity } from './entities';
 import type { AuthenticatedRequest } from './types';
 import {
   EventsControllerResponse,
   EventsUpdateResponse,
+  EventsSetCompletedResponse,
   EventsDeleteResponse,
 } from './decorators';
 
@@ -34,6 +35,16 @@ export class EventsController {
     @Req() req: AuthenticatedRequest,
   ): Promise<EventEntity> {
     return this.eventsService.update(id, dto, req.event);
+  }
+
+  @EventsSetCompletedResponse()
+  @Patch(':id/completion')
+  setCompleted(
+    @Param('id') id: string,
+    @Body() dto: SetEventCompletedDto,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<EventEntity> {
+    return this.eventsService.setCompleted(id, dto.isCompleted, req.event);
   }
 
   @EventsDeleteResponse()

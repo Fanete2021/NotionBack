@@ -6,7 +6,9 @@ type CreateEventData = {
   projectId: string | null;
 };
 
-type UpdateEventData = Partial<CreateEventData>;
+type UpdateEventData = Partial<CreateEventData> & {
+  isCompleted?: boolean;
+};
 
 type ListEventsFilter = {
   from?: Date;

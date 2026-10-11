@@ -37,6 +37,20 @@ function EventsUpdateResponse() {
   );
 }
 
+function EventsSetCompletedResponse() {
+  return applyDecorators(
+    ApiOperation({
+      summary: 'Отметить событие выполненным или снять отметку',
+    }),
+    ApiParam({ name: 'id', type: String, description: 'ID события' }),
+    ApiResponse({
+      status: 200,
+      description: 'Статус выполнения обновлён',
+      type: EventEntity,
+    }),
+  );
+}
+
 function EventsDeleteResponse() {
   return applyDecorators(
     ApiOperation({ summary: 'Удалить событие' }),
@@ -45,4 +59,9 @@ function EventsDeleteResponse() {
   );
 }
 
-export { EventsControllerResponse, EventsUpdateResponse, EventsDeleteResponse };
+export {
+  EventsControllerResponse,
+  EventsUpdateResponse,
+  EventsSetCompletedResponse,
+  EventsDeleteResponse,
+};
