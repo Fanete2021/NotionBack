@@ -46,4 +46,17 @@ describe('extractPlainText', () => {
     };
     expect(extractPlainText(doc)).toBe('a');
   });
+
+  it('folds unicode spaces the same way as the search backfill', () => {
+    const doc = {
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          content: [{ type: 'text', text: '\u00A0hello\u00A0world\u00A0' }],
+        },
+      ],
+    };
+    expect(extractPlainText(doc)).toBe('hello world');
+  });
 });

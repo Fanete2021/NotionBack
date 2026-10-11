@@ -48,8 +48,18 @@ BEGIN
 END;
 $$;
 
+-- PostgreSQL \s is ASCII. JavaScript \s / trim also folds these Unicode spaces.
 UPDATE "page_contents" pc
-SET "searchText" = btrim(regexp_replace(extract_plain_text(pc."json", 0), '\s+', ' ', 'g'));
+SET "searchText" = btrim(regexp_replace(
+  extract_plain_text(pc."json", 0),
+  '[' || chr(9) || chr(10) || chr(11) || chr(12) || chr(13) || chr(32)
+    || chr(160) || chr(5760)
+    || chr(8192) || '-' || chr(8202)
+    || chr(8232) || chr(8233) || chr(8239) || chr(8287)
+    || chr(12288) || chr(65279) || ']+',
+  ' ',
+  'g'
+));
 
 DROP FUNCTION extract_plain_text(jsonb, integer);
 

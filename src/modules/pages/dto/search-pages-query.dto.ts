@@ -56,7 +56,8 @@ export class SearchPagesQueryDto {
   from?: Date;
 
   @ApiPropertyOptional({
-    description: 'Искать документы, обновлённые не позже этой даты',
+    description:
+      'Искать документы, обновлённые не позже этой даты. Дата без времени включает весь день по UTC',
   })
   @IsOptional()
   @Type(() => Date)

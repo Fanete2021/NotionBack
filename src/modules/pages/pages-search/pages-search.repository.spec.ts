@@ -110,8 +110,10 @@ describe('PagesSearchRepository', () => {
       });
 
       const { sql, values } = getSqlParts(0);
+      const inclusiveTo = new Date('2026-02-02T00:00:00.000Z');
       expect(sql).toContain('ORDER BY "updatedAt" DESC');
       expect(sql).not.toContain('ORDER BY "titleMatch" DESC');
+      expect(sql).toContain('p."updatedAt" <');
       expect(
         values.some(
           (value) =>
@@ -127,7 +129,37 @@ describe('PagesSearchRepository', () => {
             value &&
             typeof value === 'object' &&
             'values' in value &&
-            (value as { values: unknown[] }).values.includes(to),
+            (value as { values: unknown[] }).values.some(
+              (item) =>
+                item instanceof Date &&
+                item.getTime() === inclusiveTo.getTime(),
+            ),
+        ),
+      ).toBe(true);
+    });
+
+    it('оставляет точную верхнюю границу, если у to есть время', async () => {
+      const to = new Date('2026-02-01T15:30:00.000Z');
+      mockPrisma.$queryRaw.mockResolvedValueOnce([]);
+
+      await repository.search('ws-1', {
+        q: 'отчёт',
+        type: PageSearchType.CONTENT,
+        to,
+        limit: 5,
+      });
+
+      const { sql, values } = getSqlParts(0);
+      expect(sql).toContain('p."updatedAt" <=');
+      expect(
+        values.some(
+          (value) =>
+            value &&
+            typeof value === 'object' &&
+            'values' in value &&
+            (value as { values: unknown[] }).values.some(
+              (item) => item instanceof Date && item.getTime() === to.getTime(),
+            ),
         ),
       ).toBe(true);
     });

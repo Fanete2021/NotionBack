@@ -14,6 +14,22 @@ import {
 const SNIPPET_RADIUS = 80;
 const PATH_MAX_DEPTH = 32;
 
+/** Дата без времени приходит как полночь UTC. Такой `to` включает весь день. */
+function updatedBefore(to: Date): Prisma.Sql {
+  const isUtcMidnight =
+    to.getUTCHours() === 0 &&
+    to.getUTCMinutes() === 0 &&
+    to.getUTCSeconds() === 0 &&
+    to.getUTCMilliseconds() === 0;
+  if (!isUtcMidnight) {
+    return Prisma.sql`AND p."updatedAt" <= ${to}`;
+  }
+
+  const nextDay = new Date(to.getTime());
+  nextDay.setUTCDate(nextDay.getUTCDate() + 1);
+  return Prisma.sql`AND p."updatedAt" < ${nextDay}`;
+}
+
 export function escapeLikePattern(value: string): string {
   return value.replace(/[\\%_]/g, (char) => `\\${char}`);
 }
@@ -43,7 +59,7 @@ export class PagesSearchRepository {
     const fromCond = from
       ? Prisma.sql`AND p."updatedAt" >= ${from}`
       : Prisma.empty;
-    const toCond = to ? Prisma.sql`AND p."updatedAt" <= ${to}` : Prisma.empty;
+    const toCond = to ? updatedBefore(to) : Prisma.empty;
     const orderBy =
       type === PageSearchType.CONTENT
         ? Prisma.sql`ORDER BY "updatedAt" DESC`
