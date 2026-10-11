@@ -8,6 +8,7 @@ import { PageSearchType } from './dto';
 import { PageEntity } from './entities';
 import { PagesMapper } from './pages.mapper';
 import { PagesRepository } from './pages.repository';
+import { PagesSearchRepository } from './pages-search';
 import { PagesService } from './pages.service';
 
 describe('PagesService', () => {
@@ -24,11 +25,14 @@ describe('PagesService', () => {
     findAttachmentKeys: jest.fn(),
     nextPosition: jest.fn(),
     reorder: jest.fn(),
-    search: jest.fn(),
     update: jest.fn(),
     softDelete: jest.fn(),
     restore: jest.fn(),
     hardDelete: jest.fn(),
+  };
+
+  const mockPagesSearchRepository = {
+    search: jest.fn(),
   };
 
   const mockProjectsRepository = {
@@ -67,6 +71,7 @@ describe('PagesService', () => {
         PagesService,
         PagesMapper,
         { provide: PagesRepository, useValue: mockPagesRepository },
+        { provide: PagesSearchRepository, useValue: mockPagesSearchRepository },
         { provide: ProjectsRepository, useValue: mockProjectsRepository },
         { provide: ConfigService, useValue: mockConfigService },
         { provide: S3ObjectService, useValue: mockS3ObjectService },
@@ -308,11 +313,11 @@ describe('PagesService', () => {
     };
 
     it('применяет значения по умолчанию и маппит совпадение в контенте', async () => {
-      mockPagesRepository.search.mockResolvedValue([row]);
+      mockPagesSearchRepository.search.mockResolvedValue([row]);
 
       const result = await service.search('ws-1', { q: 'отчёт' });
 
-      expect(mockPagesRepository.search).toHaveBeenCalledWith('ws-1', {
+      expect(mockPagesSearchRepository.search).toHaveBeenCalledWith('ws-1', {
         q: 'отчёт',
         type: 'all',
         projectId: undefined,
@@ -330,7 +335,7 @@ describe('PagesService', () => {
     });
 
     it('помечает совпадение в заголовке', async () => {
-      mockPagesRepository.search.mockResolvedValue([
+      mockPagesSearchRepository.search.mockResolvedValue([
         { ...row, titleMatch: true, pos: 0, snippet: null },
       ]);
 
@@ -342,7 +347,7 @@ describe('PagesService', () => {
     });
 
     it('для type=content не помечает совпадение как title', async () => {
-      mockPagesRepository.search.mockResolvedValue([
+      mockPagesSearchRepository.search.mockResolvedValue([
         { ...row, titleMatch: true },
       ]);
 
@@ -356,7 +361,7 @@ describe('PagesService', () => {
     });
 
     it('для type=documents и совпадения в заголовке не отдаёт сниппет', async () => {
-      mockPagesRepository.search.mockResolvedValue([
+      mockPagesSearchRepository.search.mockResolvedValue([
         { ...row, titleMatch: true },
       ]);
 
@@ -378,7 +383,7 @@ describe('PagesService', () => {
           to: new Date('2026-01-01T00:00:00.000Z'),
         }),
       ).rejects.toThrow(BadRequestException);
-      expect(mockPagesRepository.search).not.toHaveBeenCalled();
+      expect(mockPagesSearchRepository.search).not.toHaveBeenCalled();
     });
 
     it('бросает 404, если проект не найден', async () => {
@@ -387,7 +392,7 @@ describe('PagesService', () => {
       await expect(
         service.search('ws-1', { q: 'abc', projectId: 'missing' }),
       ).rejects.toThrow(NotFoundException);
-      expect(mockPagesRepository.search).not.toHaveBeenCalled();
+      expect(mockPagesSearchRepository.search).not.toHaveBeenCalled();
     });
   });
 

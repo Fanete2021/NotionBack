@@ -43,7 +43,8 @@ export class PageSearchResultEntity {
 
   @ApiProperty({
     type: [PageSearchPathItemEntity],
-    description: 'Цепочка от проекта к документу',
+    description:
+      'Цепочка от корневого проекта через вложенные разделы и родительские документы',
   })
   readonly path: PageSearchPathItemEntity[];
 

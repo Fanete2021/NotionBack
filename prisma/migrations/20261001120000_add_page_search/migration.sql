@@ -14,16 +14,44 @@ WHERE p."id" = pc."pageId";
 
 ALTER TABLE "page_contents" ALTER COLUMN "workspaceId" SET NOT NULL;
 
--- Backfill plain text from ProseMirror JSON
+-- Mirrors src/modules/pages/pages-content/utils/extract-plain-text.ts
+CREATE OR REPLACE FUNCTION extract_plain_text(node jsonb, depth integer)
+RETURNS text
+LANGUAGE plpgsql
+IMMUTABLE
+AS $$
+DECLARE
+  item jsonb;
+  result text := '';
+BEGIN
+  IF depth > 100 OR node IS NULL OR jsonb_typeof(node) NOT IN ('object', 'array') THEN
+    RETURN '';
+  END IF;
+
+  IF jsonb_typeof(node) = 'array' THEN
+    FOR item IN SELECT value FROM jsonb_array_elements(node)
+    LOOP
+      result := result || extract_plain_text(item, depth + 1);
+    END LOOP;
+    RETURN result;
+  END IF;
+
+  IF jsonb_typeof(node -> 'text') = 'string' THEN
+    result := result || (node ->> 'text');
+  END IF;
+
+  IF jsonb_typeof(node -> 'content') = 'array' THEN
+    result := result || extract_plain_text(node -> 'content', depth + 1) || ' ';
+  END IF;
+
+  RETURN result;
+END;
+$$;
+
 UPDATE "page_contents" pc
-SET "searchText" = COALESCE(
-  (
-    SELECT string_agg(t #>> '{}', ' ')
-    FROM jsonb_path_query(pc."json", 'strict $.**.text') AS t
-    WHERE jsonb_typeof(t) = 'string'
-  ),
-  ''
-);
+SET "searchText" = btrim(regexp_replace(extract_plain_text(pc."json", 0), '\s+', ' ', 'g'));
+
+DROP FUNCTION extract_plain_text(jsonb, integer);
 
 -- Keep page freshness in sync with content for existing rows
 UPDATE "pages" p

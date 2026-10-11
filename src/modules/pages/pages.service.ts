@@ -22,11 +22,13 @@ import {
 } from './entities';
 import { PagesMapper } from './pages.mapper';
 import { PagesRepository } from './pages.repository';
+import { PagesSearchRepository } from './pages-search';
 
 @Injectable()
 export class PagesService {
   constructor(
     private readonly pagesRepository: PagesRepository,
+    private readonly pagesSearchRepository: PagesSearchRepository,
     private readonly projectsRepository: ProjectsRepository,
     private readonly pagesMapper: PagesMapper,
     private readonly s3ObjectService: S3ObjectService,
@@ -77,7 +79,7 @@ export class PagesService {
 
     const type = query.type ?? PageSearchType.ALL;
     const limit = query.limit ?? SEARCH_DEFAULT_LIMIT;
-    const rows = await this.pagesRepository.search(workspaceId, {
+    const rows = await this.pagesSearchRepository.search(workspaceId, {
       q: query.q,
       type,
       projectId: query.projectId,
