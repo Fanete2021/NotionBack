@@ -14,6 +14,14 @@ import { WorkspacesMapper } from '@modules/workspaces/workspaces.mapper';
 import { WorkspaceMemberEntity } from '@modules/workspace-members/entities';
 import { UpdateWorkspaceDto } from '@modules/workspaces/dto';
 
+interface PageSessionAccess {
+  applyMembership(
+    workspaceId: string,
+    userId: string,
+    role: Role | null,
+  ): Promise<void>;
+}
+
 @Injectable()
 export class WorkspacesService {
   constructor(
@@ -147,6 +155,34 @@ export class WorkspacesService {
     if (!membership) {
       throw new ForbiddenException('You are not a member of this workspace');
     }
+  }
+
+  private pageSessionAccess: PageSessionAccess | null = null;
+
+  /** Живые сессии страниц подписываются сюда, чтобы не тянуть сокеты в модуль участников. */
+  registerPageSessionAccess(access: PageSessionAccess): void {
+    this.pageSessionAccess = access;
+  }
+
+  /** Сообщает открытым страницам новую роль. `null` — участника убрали из воркспейса. */
+  async applyPageMembership(
+    workspaceId: string,
+    userId: string,
+    role: Role | null,
+  ): Promise<void> {
+    await this.pageSessionAccess?.applyMembership(workspaceId, userId, role);
+  }
+
+  /** Роль пользователя в воркспейсе или null, если он не участник. */
+  async findMemberRole(
+    workspaceId: string,
+    userId: string,
+  ): Promise<Role | null> {
+    const membership = await this.workspaceMembersRepository.findMembership(
+      workspaceId,
+      userId,
+    );
+    return membership?.role ?? null;
   }
 
   async assertOwner(workspaceId: string, userId: string): Promise<void> {

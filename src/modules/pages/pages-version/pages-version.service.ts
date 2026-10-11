@@ -12,8 +12,20 @@ import { ListPageVersionsQueryDto } from './dto';
 import { PagesVersionRepository } from './pages-version.repository';
 import { PageContentHead, PageVersionPage } from './types';
 
+/** Мост к живым Yjs-сессиям (регистрируется из pages-content, чтобы не было цикла модулей). */
+export interface PageLiveSync {
+  flush(pageId: string): Promise<void>;
+  replace(pageId: string, json: Prisma.InputJsonValue): Promise<void>;
+}
+
 @Injectable()
 export class PagesVersionService {
+  private liveSync: PageLiveSync | null = null;
+
+  registerLiveSync(liveSync: PageLiveSync): void {
+    this.liveSync = liveSync;
+  }
+
   constructor(
     @InjectQueue('page-versions') private readonly queue: Queue,
     private readonly pagesVersionRepository: PagesVersionRepository,
@@ -71,6 +83,10 @@ export class PagesVersionService {
     authorId: string,
   ): Promise<PageContentHead> {
     const nextJson = toInputJson(version.snapshot);
+
+    // Несохранённые realtime-правки должны попасть в БД до снимка и замены.
+    await this.liveSync?.flush(version.pageId);
+
     const restored = await this.pagesVersionRepository.restore({
       pageId: version.pageId,
       authorId,
@@ -79,6 +95,10 @@ export class PagesVersionService {
     });
 
     if (restored.changed) {
+      // Восстановление — полная замена текста: участники realtime-сессии
+      // сразу получают новый документ.
+      await this.liveSync?.replace(version.pageId, nextJson);
+
       this.logger.info(
         {
           action: 'page_version_restore',

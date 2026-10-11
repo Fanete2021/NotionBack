@@ -8,6 +8,7 @@ export {
   PagesHardDeleteResponse,
   PagesReorderResponse,
   PagesRestoreResponse,
+  PagesSearchResponse,
   PagesTrashResponse,
   PagesUpdateResponse,
 } from './page-swagger.decorator';

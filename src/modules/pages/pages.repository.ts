@@ -40,7 +40,12 @@ export class PagesRepository {
       });
 
       await tx.pageContent.create({
-        data: { pageId: created.id, json: EMPTY_DOCUMENT },
+        data: {
+          pageId: created.id,
+          workspaceId,
+          json: EMPTY_DOCUMENT,
+          searchText: '',
+        },
       });
 
       return created;

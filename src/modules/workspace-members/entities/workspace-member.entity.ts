@@ -6,6 +6,9 @@ export class WorkspaceMemberEntity {
   @ApiProperty({ example: '3fa85f64-5717-4562-b3fc-2c963f66afa6' })
   readonly id: string;
 
+  @ApiProperty({ example: '3fa85f64-5717-4562-b3fc-2c963f66afa6' })
+  readonly workspaceId: string;
+
   @ApiProperty({ enum: Role })
   readonly role: Role;
 
@@ -17,11 +20,13 @@ export class WorkspaceMemberEntity {
 
   constructor(
     id: string,
+    workspaceId: string,
     role: Role,
     createdAt: Date,
     userInfo?: WorkspaceMemberUserEntity,
   ) {
     this.id = id;
+    this.workspaceId = workspaceId;
     this.role = role;
     this.createdAt = createdAt;
     this.userInfo = userInfo;

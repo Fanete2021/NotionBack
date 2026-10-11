@@ -4,9 +4,11 @@ import { S3ObjectService } from '@modules/s3';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
+import { PageSearchType } from './dto';
 import { PageEntity } from './entities';
 import { PagesMapper } from './pages.mapper';
 import { PagesRepository } from './pages.repository';
+import { PagesSearchRepository } from './pages-search';
 import { PagesService } from './pages.service';
 
 describe('PagesService', () => {
@@ -27,6 +29,10 @@ describe('PagesService', () => {
     softDelete: jest.fn(),
     restore: jest.fn(),
     hardDelete: jest.fn(),
+  };
+
+  const mockPagesSearchRepository = {
+    search: jest.fn(),
   };
 
   const mockProjectsRepository = {
@@ -70,6 +76,7 @@ describe('PagesService', () => {
         PagesService,
         PagesMapper,
         { provide: PagesRepository, useValue: mockPagesRepository },
+        { provide: PagesSearchRepository, useValue: mockPagesSearchRepository },
         { provide: ProjectsRepository, useValue: mockProjectsRepository },
         { provide: ConfigService, useValue: mockConfigService },
         { provide: S3ObjectService, useValue: mockS3ObjectService },
@@ -287,6 +294,110 @@ describe('PagesService', () => {
         NotFoundException,
       );
       expect(mockPagesRepository.reorder).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('search', () => {
+    const path = [
+      { type: 'project' as const, id: 'prj-1', name: 'Документы' },
+      { type: 'page' as const, id: 'p1', name: 'Отчёт' },
+    ];
+    const row = {
+      id: 'p1',
+      workspaceId: 'ws-1',
+      projectId: 'prj-1',
+      parentPageId: null,
+      title: 'Отчёт',
+      icon: null,
+      type: 'DOC',
+      updatedAt: new Date(),
+      titleMatch: false,
+      pos: 6,
+      snippet: '...отчёт...',
+      path,
+    };
+
+    it('применяет значения по умолчанию и маппит совпадение в контенте', async () => {
+      mockPagesSearchRepository.search.mockResolvedValue([row]);
+
+      const result = await service.search('ws-1', { q: 'отчёт' });
+
+      expect(mockPagesSearchRepository.search).toHaveBeenCalledWith('ws-1', {
+        q: 'отчёт',
+        type: 'all',
+        projectId: undefined,
+        from: undefined,
+        to: undefined,
+        limit: 20,
+      });
+      expect(result[0]).toMatchObject({
+        pageId: 'p1',
+        matchedIn: 'content',
+        snippet: '...отчёт...',
+        matchOffset: 5,
+        path,
+      });
+    });
+
+    it('помечает совпадение в заголовке', async () => {
+      mockPagesSearchRepository.search.mockResolvedValue([
+        { ...row, titleMatch: true, pos: 0, snippet: null },
+      ]);
+
+      const [result] = await service.search('ws-1', { q: 'отчёт' });
+
+      expect(result.matchedIn).toBe('title');
+      expect(result.snippet).toBeNull();
+      expect(result.matchOffset).toBeNull();
+    });
+
+    it('для type=content не помечает совпадение как title', async () => {
+      mockPagesSearchRepository.search.mockResolvedValue([
+        { ...row, titleMatch: true },
+      ]);
+
+      const [result] = await service.search('ws-1', {
+        q: 'отчёт',
+        type: PageSearchType.CONTENT,
+      });
+
+      expect(result.matchedIn).toBe('content');
+      expect(result.snippet).toBe('...отчёт...');
+    });
+
+    it('для type=documents и совпадения в заголовке не отдаёт сниппет', async () => {
+      mockPagesSearchRepository.search.mockResolvedValue([
+        { ...row, titleMatch: true },
+      ]);
+
+      const [result] = await service.search('ws-1', {
+        q: 'отчёт',
+        type: PageSearchType.DOCUMENTS,
+      });
+
+      expect(result.matchedIn).toBe('title');
+      expect(result.snippet).toBeNull();
+      expect(result.matchOffset).toBeNull();
+    });
+
+    it('бросает 400, если from позже to', async () => {
+      await expect(
+        service.search('ws-1', {
+          q: 'отчёт',
+          from: new Date('2026-02-01T00:00:00.000Z'),
+          to: new Date('2026-01-01T00:00:00.000Z'),
+        }),
+      ).rejects.toThrow(BadRequestException);
+      expect(mockPagesSearchRepository.search).not.toHaveBeenCalled();
+    });
+
+    it('бросает 404, если проект не найден', async () => {
+      mockProjectsRepository.findById.mockResolvedValue(null);
+
+      await expect(
+        service.search('ws-1', { q: 'abc', projectId: 'missing' }),
+      ).rejects.toThrow(NotFoundException);
+      expect(mockPagesSearchRepository.search).not.toHaveBeenCalled();
     });
   });
 
