@@ -54,6 +54,11 @@ describe('PagesService', () => {
       overrides.position ?? 0,
       overrides.createdAt ?? new Date(),
       overrides.updatedAt ?? new Date(),
+      overrides.slug ?? null,
+      overrides.seoTitle ?? null,
+      overrides.seoDescription ?? null,
+      overrides.publicationStatus ?? null,
+      overrides.publishedAt ?? null,
     );
 
   beforeEach(async () => {
