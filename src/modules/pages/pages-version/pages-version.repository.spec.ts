@@ -8,6 +8,9 @@ describe('PagesVersionRepository', () => {
 
   const mockTx = {
     $queryRaw: jest.fn(),
+    page: {
+      update: jest.fn(),
+    },
     pageVersion: {
       create: jest.fn(),
     },
@@ -77,6 +80,7 @@ describe('PagesVersionRepository', () => {
         pageId: 'page-1',
         json: nextJson,
         updatedAt,
+        updatedById: 'user-1',
       };
       mockTx.pageContent.findUnique.mockResolvedValue({
         pageId: 'page-1',
@@ -85,6 +89,7 @@ describe('PagesVersionRepository', () => {
       });
       mockTx.pageVersion.create.mockResolvedValue({ id: 'saved' });
       mockTx.pageContent.upsert.mockResolvedValue(restored);
+      mockTx.page.update.mockResolvedValue({ id: 'page-1' });
 
       const result = await repository.restore({
         pageId: 'page-1',
@@ -114,6 +119,10 @@ describe('PagesVersionRepository', () => {
         update: { json: nextJson },
         select: { pageId: true, json: true, updatedAt: true },
       });
+      expect(mockTx.page.update).toHaveBeenCalledWith({
+        where: { id: 'page-1' },
+        data: { updatedById: 'user-1' },
+      });
       expect(result).toEqual({ changed: true, content: restored });
     });
 
@@ -124,7 +133,6 @@ describe('PagesVersionRepository', () => {
         json: currentJson,
         updatedAt,
       });
-
       const result = await repository.restore({
         pageId: 'page-1',
         authorId: 'user-1',
@@ -134,6 +142,7 @@ describe('PagesVersionRepository', () => {
 
       expect(mockTx.pageVersion.create).not.toHaveBeenCalled();
       expect(mockTx.pageContent.upsert).not.toHaveBeenCalled();
+      expect(mockTx.page.update).not.toHaveBeenCalled();
       expect(result).toEqual({
         changed: false,
         content: {

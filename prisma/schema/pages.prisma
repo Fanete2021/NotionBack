@@ -12,6 +12,7 @@ model Page {
   icon         String?
   type         PageType  @default(DOC)
   authorId     String
+  updatedById  String
   position     Int       @default(0)
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
@@ -23,6 +24,7 @@ model Page {
   parentPage   Page?         @relation("PageHierarchy", fields: [parentPageId, workspaceId], references: [id, workspaceId], onDelete: Restrict)
   childPages   Page[]        @relation("PageHierarchy")
   author       User          @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  updatedBy    User          @relation("PageUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
   deletedByUser User?        @relation("PageDeletedBy", fields: [deletedBy], references: [id], onDelete: SetNull)
   content      PageContent?
   attachments  Attachment[]

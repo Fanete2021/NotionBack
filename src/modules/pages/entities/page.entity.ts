@@ -27,8 +27,17 @@ export class PageEntity {
   @ApiProperty({ enum: PageType, example: PageType.DOC })
   readonly type: PageType;
 
-  @ApiProperty({ example: '3fa85f64-5717-4562-b3fc-2c963f66afa6' })
+  @ApiProperty({
+    example: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
+    description: 'Создатель страницы',
+  })
   readonly authorId: string;
+
+  @ApiProperty({
+    example: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
+    description: 'Кто последним изменил контент страницы',
+  })
+  readonly updatedById: string;
 
   @ApiProperty({ example: 0 })
   readonly position: number;
@@ -48,6 +57,7 @@ export class PageEntity {
     icon: string | null,
     type: PageType,
     authorId: string,
+    updatedById: string,
     position: number,
     createdAt: Date,
     updatedAt: Date,
@@ -60,6 +70,7 @@ export class PageEntity {
     this.icon = icon;
     this.type = type;
     this.authorId = authorId;
+    this.updatedById = updatedById;
     this.position = position;
     this.createdAt = createdAt;
     this.updatedAt = updatedAt;
@@ -75,6 +86,7 @@ export class PageEntity {
       page.icon,
       page.type,
       page.authorId,
+      page.updatedById,
       page.position,
       page.createdAt,
       page.updatedAt,

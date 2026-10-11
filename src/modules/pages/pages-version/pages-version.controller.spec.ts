@@ -124,6 +124,7 @@ describe('PagesVersionController', () => {
       pageId: 'page-1',
       json: { type: 'doc', content: [] },
       updatedAt,
+      updatedById: 'user-1',
     };
 
     it('проверяет членство страницы версии и возвращает контент', async () => {
@@ -154,7 +155,12 @@ describe('PagesVersionController', () => {
         mockPagesVersionService.restore.mock.invocationCallOrder[0],
       );
       expect(result).toEqual(
-        new PageContentEntity(content.pageId, content.json, content.updatedAt),
+        new PageContentEntity(
+          content.pageId,
+          content.json,
+          content.updatedAt,
+          content.updatedById,
+        ),
       );
     });
 

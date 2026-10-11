@@ -31,6 +31,7 @@ export class PagesRepository {
         data: {
           workspaceId,
           authorId,
+          updatedById: authorId,
           projectId: data.projectId,
           title: data.title,
           icon: data.icon,

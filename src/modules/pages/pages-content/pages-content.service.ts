@@ -1,12 +1,14 @@
 import {
   BadRequestException,
   Injectable,
+  NotFoundException,
   PayloadTooLargeException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
 import { EMPTY_DOCUMENT } from '../constants';
 import { PageEntity } from '../entities/page.entity';
+import { PagesRepository } from '../pages.repository';
 import { PagesVersionService } from '../pages-version';
 import { PagesContentRepository } from './pages-content.repository';
 
@@ -14,6 +16,7 @@ import { PagesContentRepository } from './pages-content.repository';
 export class PagesContentService {
   constructor(
     private readonly pagesContentRepository: PagesContentRepository,
+    private readonly pagesRepository: PagesRepository,
     private readonly configService: ConfigService,
     private readonly pagesVersionService: PagesVersionService,
   ) {}
@@ -26,9 +29,10 @@ export class PagesContentService {
         json: EMPTY_DOCUMENT as Prisma.JsonValue,
         yjsState: null,
         updatedAt: new Date(),
+        updatedById: page.updatedById,
       };
     }
-    return content;
+    return { ...content, updatedById: page.updatedById };
   }
 
   async updateContent(page: PageEntity, json: unknown, editorId: string) {
@@ -47,9 +51,16 @@ export class PagesContentService {
       json,
     );
 
+    const updatedPage = await this.pagesRepository.update(page.id, {
+      updatedById: editorId,
+    });
+    if (!updatedPage) {
+      throw new NotFoundException('Page not found');
+    }
+
     await this.pagesVersionService.scheduleAutoSnapshot(page.id, editorId);
 
-    return updatedContent;
+    return { ...updatedContent, updatedById: editorId };
   }
 
   private assertSizeWithinLimit(json: unknown): void {

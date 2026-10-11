@@ -110,6 +110,7 @@ async function main() {
         title: 'Добро пожаловать',
         position: 0,
         authorId: demoUser.id,
+        updatedById: demoUser.id,
         content: {
           create: {
             json: {
@@ -144,6 +145,7 @@ async function main() {
         title: 'Подзадача',
         position: 1,
         authorId: demoUser.id,
+        updatedById: demoUser.id,
       },
     });
 
@@ -154,6 +156,7 @@ async function main() {
         title: 'Roadmap',
         position: 0,
         authorId: demoUser.id,
+        updatedById: demoUser.id,
         content: {
           create: {
             json: {
@@ -187,6 +190,7 @@ async function main() {
         title: 'Заметки',
         position: 1,
         authorId: memberUser.id,
+        updatedById: memberUser.id,
       },
     });
 

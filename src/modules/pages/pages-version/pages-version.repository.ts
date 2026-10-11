@@ -98,7 +98,15 @@ export class PagesVersionRepository {
         select: { pageId: true, json: true, updatedAt: true },
       });
 
-      return { changed: true, content: updated };
+      await tx.page.update({
+        where: { id: input.pageId },
+        data: { updatedById: input.authorId },
+      });
+
+      return {
+        changed: true,
+        content: { ...updated, updatedById: input.authorId },
+      };
     });
   }
 }
