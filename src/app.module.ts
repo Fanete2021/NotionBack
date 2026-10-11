@@ -22,6 +22,7 @@ import { PageCommentsModule } from '@modules/page-comments/page-comments.module'
 import {
   PagesContentModule,
   PagesModule,
+  PagesPublicationModule,
   PagesTrashModule,
   PagesVersionModule,
 } from '@modules/pages';
@@ -63,6 +64,7 @@ import { PrismaModule } from './prisma';
     AttachmentsModule,
     PagesModule,
     PagesContentModule,
+    PagesPublicationModule,
     PagesVersionModule,
     PagesTrashModule,
     PageCommentsModule,
