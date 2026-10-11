@@ -28,8 +28,10 @@ export class PagesContentService {
     if (liveJson) {
       return {
         pageId: page.id,
+        workspaceId: page.workspaceId,
         json: liveJson as Prisma.JsonValue,
         yjsState: null,
+        searchText: '',
         updatedAt: new Date(),
       };
     }
@@ -38,8 +40,10 @@ export class PagesContentService {
     if (!content) {
       return {
         pageId: page.id,
+        workspaceId: page.workspaceId,
         json: EMPTY_DOCUMENT as Prisma.JsonValue,
         yjsState: null,
+        searchText: '',
         updatedAt: new Date(),
       };
     }
@@ -67,6 +71,7 @@ export class PagesContentService {
 
     const updatedContent = await this.pagesContentRepository.upsertContent(
       page.id,
+      page.workspaceId,
       json,
     );
 

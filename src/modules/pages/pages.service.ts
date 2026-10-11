@@ -5,18 +5,30 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
-import { Page, Prisma } from '@prisma/client';
+import { Page, PageType, Prisma } from '@prisma/client';
 import { S3ObjectService } from '@modules/s3';
 import { DAY_IN_MS } from './constants';
-import { CreatePageDto, UpdatePageDto } from './dto';
-import { PageEntity, TrashedPageEntity } from './entities';
+import {
+  CreatePageDto,
+  PageSearchType,
+  SEARCH_DEFAULT_LIMIT,
+  SearchPagesQueryDto,
+  UpdatePageDto,
+} from './dto';
+import {
+  PageEntity,
+  PageSearchResultEntity,
+  TrashedPageEntity,
+} from './entities';
 import { PagesMapper } from './pages.mapper';
 import { PagesRepository } from './pages.repository';
+import { PagesSearchRepository } from './pages-search';
 
 @Injectable()
 export class PagesService {
   constructor(
     private readonly pagesRepository: PagesRepository,
+    private readonly pagesSearchRepository: PagesSearchRepository,
     private readonly projectsRepository: ProjectsRepository,
     private readonly pagesMapper: PagesMapper,
     private readonly s3ObjectService: S3ObjectService,
@@ -51,6 +63,52 @@ export class PagesService {
     projectId?: string,
   ): Promise<PageEntity[]> {
     return this.pagesRepository.findAllByWorkspaceId(workspaceId, projectId);
+  }
+
+  async search(
+    workspaceId: string,
+    query: SearchPagesQueryDto,
+  ): Promise<PageSearchResultEntity[]> {
+    if (query.projectId) {
+      await this.assertProjectInWorkspace(workspaceId, query.projectId);
+    }
+
+    if (query.from && query.to && query.from > query.to) {
+      throw new BadRequestException('"from" must be before or equal to "to"');
+    }
+
+    const type = query.type ?? PageSearchType.ALL;
+    const limit = query.limit ?? SEARCH_DEFAULT_LIMIT;
+    const rows = await this.pagesSearchRepository.search(workspaceId, {
+      q: query.q,
+      type,
+      projectId: query.projectId,
+      from: query.from,
+      to: query.to,
+      limit,
+    });
+
+    return rows.map((row) => {
+      const matchedInTitle =
+        type === PageSearchType.DOCUMENTS ||
+        (type === PageSearchType.ALL && row.titleMatch);
+      const hasContentMatch = !matchedInTitle && row.pos > 0;
+
+      return new PageSearchResultEntity({
+        pageId: row.id,
+        workspaceId: row.workspaceId,
+        projectId: row.projectId,
+        parentPageId: row.parentPageId,
+        title: row.title,
+        icon: row.icon,
+        type: row.type as PageType,
+        matchedIn: matchedInTitle ? 'title' : 'content',
+        snippet: hasContentMatch ? row.snippet : null,
+        matchOffset: hasContentMatch ? row.pos - 1 : null,
+        path: row.path,
+        updatedAt: row.updatedAt,
+      });
+    });
   }
 
   async reorder(

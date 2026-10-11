@@ -1,4 +1,5 @@
 import { ApiWorkspaceForbidden } from '@common/decorators';
+import { ApiValidationErrorResponse } from '@common/decorators/swagger';
 import { applyDecorators } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -11,6 +12,7 @@ import {
 import {
   EmptyTrashResultEntity,
   PageEntity,
+  PageSearchResultEntity,
   TrashedPageEntity,
 } from '../entities';
 
@@ -146,6 +148,23 @@ function PagesFindAllByWorkspaceIdResponse() {
   );
 }
 
+function PagesSearchResponse() {
+  return applyDecorators(
+    ApiOperation({
+      summary: 'Поиск по документам (заголовки) и содержимому воркспейса',
+    }),
+    ApiParam({
+      name: 'workspaceId',
+      type: String,
+      description: 'Id воркспейса',
+    }),
+    ApiResponse({ status: 200, type: [PageSearchResultEntity] }),
+    ApiValidationErrorResponse('Некорректные параметры поиска'),
+    ApiWorkspaceForbidden(),
+    ApiResponse({ status: 404, description: 'Проект не найден' }),
+  );
+}
+
 function PagesReorderResponse() {
   return applyDecorators(
     ApiOperation({
@@ -175,6 +194,7 @@ export {
   PagesHardDeleteResponse,
   PagesReorderResponse,
   PagesRestoreResponse,
+  PagesSearchResponse,
   PagesTrashResponse,
   PagesUpdateResponse,
 };
