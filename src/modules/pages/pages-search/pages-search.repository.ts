@@ -3,48 +3,16 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../../prisma';
 import { PageSearchType } from '../dto/search-pages-query.dto';
 import { PageSearchPathItemEntity } from '../entities';
+import { groupByLeaf } from './group-by-leaf';
+import {
+  PageSearchPageChainRow,
+  PageSearchParams,
+  PageSearchProjectChainRow,
+  PageSearchRow,
+} from './pages-search.types';
 
 const SNIPPET_RADIUS = 80;
 const PATH_MAX_DEPTH = 32;
-
-export interface PageSearchParams {
-  q: string;
-  type: PageSearchType;
-  projectId?: string;
-  from?: Date;
-  to?: Date;
-  limit: number;
-}
-
-export interface PageSearchRow {
-  id: string;
-  workspaceId: string;
-  projectId: string | null;
-  parentPageId: string | null;
-  title: string;
-  icon: string | null;
-  type: string;
-  updatedAt: Date;
-  titleMatch: boolean;
-  pos: number;
-  snippet: string | null;
-  path: PageSearchPathItemEntity[];
-}
-
-interface PageSearchPageChainRow {
-  leafId: string;
-  id: string;
-  parentPageId: string | null;
-  title: string;
-  depth: number;
-}
-
-interface PageSearchProjectChainRow {
-  leafId: string;
-  id: string;
-  name: string;
-  depth: number;
-}
 
 export function escapeLikePattern(value: string): string {
   return value.replace(/[\\%_]/g, (char) => `\\${char}`);
@@ -192,6 +160,7 @@ export class PagesSearchRepository {
           0 AS depth
         FROM pages p
         WHERE p.id IN (${Prisma.join(leafIds)})
+          AND p."deletedAt" IS NULL
         UNION ALL
         SELECT
           c."leafId",
@@ -202,22 +171,11 @@ export class PagesSearchRepository {
         FROM pages p
         INNER JOIN page_chain c ON p.id = c."parentPageId"
         WHERE c.depth < ${PATH_MAX_DEPTH}
+          AND p."deletedAt" IS NULL
       )
       SELECT "leafId", id, "parentPageId", title, depth
       FROM page_chain
       ORDER BY "leafId", depth DESC
     `;
   }
-}
-
-function groupByLeaf<T extends { leafId: string }>(
-  rows: T[],
-): Map<string, T[]> {
-  const grouped = new Map<string, T[]>();
-  for (const row of rows) {
-    const items = grouped.get(row.leafId) ?? [];
-    items.push(row);
-    grouped.set(row.leafId, items);
-  }
-  return grouped;
 }

@@ -193,8 +193,10 @@ describe('PagesSearchRepository', () => {
       });
 
       const { sql: projectSql } = getSqlParts(1);
+      const { sql: pageSql } = getSqlParts(2);
       expect(projectSql).toContain('parentProjectId');
       expect(projectSql).toContain('WITH RECURSIVE');
+      expect(pageSql).toContain('p."deletedAt" IS NULL');
       expect(result.path).toEqual([
         { type: 'project', id: 'prj-docs', name: 'Документы' },
         { type: 'project', id: 'prj-design', name: 'Дизайн-система' },
