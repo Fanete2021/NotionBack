@@ -7,7 +7,7 @@ export class CreateWorkspaceInviteDto {
   @ApiProperty({
     enum: WorkspaceInviteType,
     description:
-      'TEMPORARY link lives 24 hours in Redis and is single-use, PERMANENT is stored in the database',
+      'TEMPORARY живёт 24 часа в Redis и одноразовая, PERMANENT хранится в базе',
   })
   @IsEnum(WorkspaceInviteType, {
     message: 'Type must be TEMPORARY or PERMANENT',
@@ -18,7 +18,7 @@ export class CreateWorkspaceInviteDto {
     enum: [Role.VIEWER, Role.EDITOR],
     default: Role.VIEWER,
     description:
-      'Role granted to users joining via this link, defaults to the most restricted one',
+      'Роль для пользователей, вступающих по этой ссылке; по умолчанию — самая ограниченная',
   })
   @IsOptional()
   @IsIn([Role.VIEWER, Role.EDITOR], {

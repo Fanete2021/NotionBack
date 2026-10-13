@@ -5,7 +5,7 @@ export class ErrorResponseDto {
   statusCode!: number;
 
   @ApiProperty({
-    example: ['field must be a string', 'field is required'],
+    example: ['поле должно быть строкой', 'поле обязательно'],
     description: 'Сообщение об ошибке (строка или массив строк)',
     oneOf: [{ type: 'string' }, { type: 'array', items: { type: 'string' } }],
   })

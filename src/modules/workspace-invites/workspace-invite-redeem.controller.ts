@@ -11,7 +11,7 @@ import { RedeemWorkspaceInviteDto } from '@modules/workspace-invites/dto';
 import { WorkspaceInviteRedeemService } from '@modules/workspace-invites/workspace-invite-redeem.service';
 
 @ApiBearerAuth()
-@ApiTags('Workspace Invites')
+@ApiTags('Приглашения в воркспейс')
 @Controller('invites')
 export class WorkspaceInviteRedeemController {
   constructor(
@@ -19,14 +19,20 @@ export class WorkspaceInviteRedeemController {
   ) {}
 
   @Post('redeem')
-  @ApiOperation({ summary: 'Join a workspace by an invite token' })
+  @ApiOperation({ summary: 'Вступить в воркспейс по токену приглашения' })
   @ApiResponse({
     status: 201,
-    description: 'Joined the workspace',
+    description: 'Пользователь вступил в воркспейс',
     type: WorkspaceMemberEntity,
   })
-  @ApiResponse({ status: 404, description: 'Invite is invalid or expired' })
-  @ApiResponse({ status: 409, description: 'User is already a member' })
+  @ApiResponse({
+    status: 404,
+    description: 'Приглашение недействительно или истекло',
+  })
+  @ApiResponse({
+    status: 409,
+    description: 'Пользователь уже является участником',
+  })
   async redeem(
     @CurrentUser('id') userId: string,
     @Body() dto: RedeemWorkspaceInviteDto,

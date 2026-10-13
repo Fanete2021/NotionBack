@@ -12,30 +12,30 @@ import {
 } from '@modules/workspace-invites/entities';
 
 function WorkspaceInvitesControllerResponse() {
-  return applyDecorators(ApiBearerAuth(), ApiTags('Workspace Invites'));
+  return applyDecorators(ApiBearerAuth(), ApiTags('Приглашения в воркспейс'));
 }
 
 function WorkspaceInvitesCreateResponse() {
   return applyDecorators(
     ApiOperation({
-      summary: 'Create an invite link for a workspace (owner or admin)',
+      summary: 'Создать ссылку-приглашение в воркспейс (владелец или админ)',
     }),
     ApiParam({
       name: 'workspaceId',
       type: String,
-      description: 'Workspace id',
+      description: 'Id воркспейса',
     }),
     ApiResponse({
       status: 201,
-      description: 'Invite link created',
+      description: 'Ссылка-приглашение создана',
       type: WorkspaceInviteEntity,
     }),
     ApiResponse({
       status: 403,
       description:
-        'Not allowed to manage members, role cannot be granted via invite, or the permanent invite limit is reached',
+        'Нет права управлять участниками, роль нельзя выдать через приглашение, или достигнут лимит постоянных ссылок',
     }),
-    ApiResponse({ status: 404, description: 'Workspace not found' }),
+    ApiResponse({ status: 404, description: 'Воркспейс не найден' }),
   );
 }
 
@@ -48,30 +48,36 @@ function WorkspaceInvitesListResponse() {
     ApiParam({
       name: 'workspaceId',
       type: String,
-      description: 'Workspace id',
+      description: 'Id воркспейса',
     }),
     ApiResponse({ status: 200, type: [WorkspaceInviteSummaryEntity] }),
-    ApiResponse({ status: 403, description: 'Not allowed to manage members' }),
-    ApiResponse({ status: 404, description: 'Workspace not found' }),
+    ApiResponse({
+      status: 403,
+      description: 'Нет права управлять участниками',
+    }),
+    ApiResponse({ status: 404, description: 'Воркспейс не найден' }),
   );
 }
 
 function WorkspaceInvitesRevokeResponse() {
   return applyDecorators(
     ApiOperation({
-      summary: 'Revoke a permanent invite link (owner or admin)',
+      summary: 'Отозвать постоянную ссылку-приглашение (владелец или админ)',
     }),
     ApiParam({
       name: 'workspaceId',
       type: String,
-      description: 'Workspace id',
+      description: 'Id воркспейса',
     }),
-    ApiParam({ name: 'inviteId', type: String, description: 'Invite id' }),
-    ApiResponse({ status: 204, description: 'Invite revoked' }),
-    ApiResponse({ status: 403, description: 'Not allowed to manage members' }),
+    ApiParam({ name: 'inviteId', type: String, description: 'Id приглашения' }),
+    ApiResponse({ status: 204, description: 'Приглашение отозвано' }),
+    ApiResponse({
+      status: 403,
+      description: 'Нет права управлять участниками',
+    }),
     ApiResponse({
       status: 404,
-      description: 'Workspace or invite not found',
+      description: 'Воркспейс или приглашение не найдены',
     }),
   );
 }

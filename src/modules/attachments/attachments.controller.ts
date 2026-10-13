@@ -7,7 +7,7 @@ import { PresignAttachmentDto } from './dto';
 import { AttachmentEntity, PresignAttachmentResultEntity } from './entities';
 
 @ApiBearerAuth()
-@ApiTags('Attachments')
+@ApiTags('Вложения')
 @Controller('attachments')
 export class AttachmentsController {
   constructor(private readonly attachmentsService: AttachmentsService) {}

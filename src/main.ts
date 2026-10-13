@@ -82,7 +82,7 @@ async function bootstrap(): Promise<void> {
   app.setGlobalPrefix(GLOBAL_PREFIX);
 
   const config = new DocumentBuilder()
-    .setTitle('Notion Alternative API')
+    .setTitle('API проекта Notion Alternative')
     .setDescription('Документация REST API для проекта Notion Alternative')
     .setVersion('1.0')
     .addServer('http://localhost:8000', 'Локальный сервер')
@@ -100,8 +100,14 @@ async function bootstrap(): Promise<void> {
     .build();
   const documentFactory = (): OpenAPIObject =>
     SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api/docs', app, documentFactory);
-  SwaggerModule.setup('docs', app, documentFactory, { useGlobalPrefix: true });
+  const swaggerSetupOptions = {
+    customSiteTitle: 'Документация API Notion Alternative',
+  };
+  SwaggerModule.setup('api/docs', app, documentFactory, swaggerSetupOptions);
+  SwaggerModule.setup('docs', app, documentFactory, {
+    ...swaggerSetupOptions,
+    useGlobalPrefix: true,
+  });
 
   const port = configService.get<number>('PORT', 8000);
   await app.listen(port, '0.0.0.0');

@@ -11,16 +11,16 @@ import { PageContentEntity } from '../../pages-content/entities';
 import { PageVersionListEntity } from '../entities';
 
 function PagesVersionControllerResponse(): ReturnType<typeof applyDecorators> {
-  return applyDecorators(ApiBearerAuth(), ApiTags('Pages'));
+  return applyDecorators(ApiBearerAuth(), ApiTags('Документы'));
 }
 
 function PagesVersionListResponse(): ReturnType<typeof applyDecorators> {
   return applyDecorators(
-    ApiOperation({ summary: 'List page versions, newest first' }),
-    ApiParam({ name: 'id', type: String, description: 'Page id' }),
+    ApiOperation({ summary: 'Список версий документа, сначала новые' }),
+    ApiParam({ name: 'id', type: String, description: 'Id документа' }),
     ApiResponse({ status: 200, type: PageVersionListEntity }),
     ApiWorkspaceForbidden(),
-    ApiResponse({ status: 404, description: 'Page not found' }),
+    ApiResponse({ status: 404, description: 'Документ не найден' }),
   );
 }
 
@@ -28,12 +28,15 @@ function PagesVersionRestoreResponse(): ReturnType<typeof applyDecorators> {
   return applyDecorators(
     ApiOperation({
       summary:
-        'Restore a page version after saving the current content as a new version',
+        'Восстановить версию документа, сохранив текущее содержимое как новую версию',
     }),
-    ApiParam({ name: 'id', type: String, description: 'Page version id' }),
+    ApiParam({ name: 'id', type: String, description: 'Id версии документа' }),
     ApiResponse({ status: 200, type: PageContentEntity }),
     ApiWorkspaceForbidden(),
-    ApiResponse({ status: 404, description: 'Page version or page not found' }),
+    ApiResponse({
+      status: 404,
+      description: 'Версия или документ не найдены',
+    }),
   );
 }
 
