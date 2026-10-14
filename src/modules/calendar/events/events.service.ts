@@ -141,7 +141,7 @@ export class EventsService {
         eventId: id,
         workspaceId: event.workspaceId,
         isCompleted,
-        action: 'event_set_completed',
+        action: 'event_update_completion',
       },
       'event completion updated',
     );

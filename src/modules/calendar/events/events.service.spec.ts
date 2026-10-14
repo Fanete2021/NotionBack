@@ -217,6 +217,15 @@ describe('EventsService', () => {
       );
       expect(mockEventsRepository.update).not.toHaveBeenCalled();
     });
+
+    it('бросает 404, если событие удалили между гардом и записью', async () => {
+      const event = buildEvent();
+      mockEventsRepository.update.mockResolvedValue(null);
+
+      await expect(service.setCompleted('e1', true, event)).rejects.toThrow(
+        NotFoundException,
+      );
+    });
   });
 
   describe('delete', () => {
