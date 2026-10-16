@@ -21,7 +21,7 @@ Grafana не встраивается во фронт. Это отдельный
 | `alloy/config/node-exporter.alloy` | CPU, память, диск, сеть → VictoriaMetrics |
 | `nginx/grafana.notiontv.ru.conf` | reverse proxy на `127.0.0.1:13080` |
 
-В Grafana после старта две папки дашбордов: `logs` (Notion logs) и `node` (Node Exporter Lite).
+В Grafana после старта четыре дашборда. `logs` / Notion logs и `node` / Node Exporter Lite — сырые логи и хост. Папка `product`: «Активность» и «API». Они считают события из JSON-логов `notionback-api` (поле `action` и access-лог pino), это не отдельные метрики VictoriaMetrics. Grafana подхватывает новые JSON из `grafana/dashboards` сама, примерно за 30 секунд, контейнер перезапускать не нужно. На сервере эти файлы должны лежать в том же каталоге, откуда поднят стек.
 
 ## 1. DNS
 
