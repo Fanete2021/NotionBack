@@ -1,4 +1,5 @@
 import { TokenPayload } from '@modules/auth/types';
+import { PageCommentsService } from '@modules/page-comments/page-comments.service';
 import { UsersService } from '@modules/users/users.service';
 import { WorkspacesService } from '@modules/workspaces/workspaces.service';
 import { OnModuleInit, UsePipes, ValidationPipe } from '@nestjs/common';
@@ -65,12 +66,16 @@ export class PagesGateway
     private readonly pagesService: PagesService,
     private readonly workspacesService: WorkspacesService,
     private readonly pagesYjsService: PagesYjsService,
+    private readonly pageCommentsService: PageCommentsService,
   ) {}
 
   onModuleInit(): void {
     this.workspacesService.registerPageSessionAccess({
       applyMembership: (workspaceId, userId, role) =>
         this.applyMembership(workspaceId, userId, role),
+    });
+    this.pageCommentsService.registerRealtime((event) => {
+      this.server.to(this.room(event.pageId)).emit('page:comment', event);
     });
   }
 

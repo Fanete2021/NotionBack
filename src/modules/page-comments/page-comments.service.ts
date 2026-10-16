@@ -6,18 +6,36 @@ import {
 } from '@nestjs/common';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { PageCommentsRepository } from './page-comments.repository';
+import { PageCommentMapper } from './page-comment.mapper';
 import { CreatePageCommentDto } from './dto';
 import { UpdatePageCommentDto } from './dto';
 import { ListPageCommentsQueryDto } from './dto';
 import { PageCommentWithAuthor } from './types';
+import type { PageCommentEntity } from './entities';
+
+interface PageCommentRealtimeEvent {
+  pageId: string;
+  action: 'created' | 'updated' | 'deleted';
+  commentId: string;
+  comment?: PageCommentEntity;
+}
 
 @Injectable()
 export class PageCommentsService {
   constructor(
     private readonly pageCommentsRepository: PageCommentsRepository,
+    private readonly pageCommentMapper: PageCommentMapper,
     @InjectPinoLogger(PageCommentsService.name)
     private readonly logger: PinoLogger,
   ) {}
+
+  private publishRealtime: ((event: PageCommentRealtimeEvent) => void) | null =
+    null;
+
+  /** Открытые страницы подписываются сюда, чтобы не тянуть сокеты в модуль комментариев. */
+  registerRealtime(publish: (event: PageCommentRealtimeEvent) => void): void {
+    this.publishRealtime = publish;
+  }
 
   async list(
     pageId: string,
@@ -72,6 +90,13 @@ export class PageCommentsService {
         userId: authorId,
       },
       'page comment created',
+    );
+
+    this.publishComment(
+      'created',
+      pageId,
+      comment.id,
+      this.pageCommentMapper.toEntity(comment),
     );
 
     return comment;
@@ -141,6 +166,13 @@ export class PageCommentsService {
       'page comment updated',
     );
 
+    this.publishComment(
+      'updated',
+      pageId,
+      updated.id,
+      this.pageCommentMapper.toEntity(updated),
+    );
+
     return updated;
   }
 
@@ -181,6 +213,13 @@ export class PageCommentsService {
         resolved,
       },
       'page comment resolve status updated',
+    );
+
+    this.publishComment(
+      'updated',
+      pageId,
+      updated.id,
+      this.pageCommentMapper.toEntity(updated),
     );
 
     return updated;
@@ -229,6 +268,22 @@ export class PageCommentsService {
       },
       'page comment deleted',
     );
+
+    this.publishComment('deleted', pageId, commentId);
+  }
+
+  private publishComment(
+    action: PageCommentRealtimeEvent['action'],
+    pageId: string,
+    commentId: string,
+    comment?: PageCommentEntity,
+  ): void {
+    this.publishRealtime?.({
+      pageId,
+      action,
+      commentId,
+      ...(comment ? { comment } : {}),
+    });
   }
 
   private async assertActivePage(pageId: string): Promise<void> {
