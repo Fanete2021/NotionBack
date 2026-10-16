@@ -1,0 +1,12 @@
+# Публикует приёмники для Alloy с другой машины (обычно сервер фронта).
+# На Loki и VictoriaMetrics нет пароля. Файрвол должен пускать только IP той машины.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.ingest.yml up -d
+services:
+  victoria-metrics:
+    ports:
+      - "8428:8428"
+
+  loki:
+    ports:
+      - "3100:3100"

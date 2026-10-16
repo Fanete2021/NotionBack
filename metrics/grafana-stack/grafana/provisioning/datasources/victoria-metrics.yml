@@ -1,0 +1,12 @@
+# VictoriaMetrics как Prometheus-datasource (uid `prometheus` — на него ссылается дашборд node/).
+apiVersion: 1
+
+datasources:
+  - name: prometheus
+    uid: prometheus
+    type: prometheus
+    access: proxy
+    url: http://victoria-metrics:8428
+    isDefault: true
+    jsonData:
+      timeInterval: 60s

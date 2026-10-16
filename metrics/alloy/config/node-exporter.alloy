@@ -1,0 +1,52 @@
+// Метрики хоста. prometheus.exporter.unix — node_exporter внутри процесса Alloy,
+// без своего HTTP-порта. Каталоги хоста (/proc, /sys, корень) монтирует docker-compose.yml.
+//
+// Файл самодостаточен: приёмник объявлен ниже.
+//
+// Переменные окружения:
+//   METRICS_URL  приёмник VictoriaMetrics в сети notion-obs
+//   PT_HOST      лейбл instance
+//   PT_ENV       лейбл env
+
+prometheus.exporter.unix "host" {
+	rootfs_path = "/rootfs"
+	procfs_path = "/host/proc"
+	sysfs_path  = "/host/sys"
+}
+
+discovery.relabel "host" {
+	targets = prometheus.exporter.unix.host.targets
+
+	// Экспортер ставит job=integrations/unix. Дашборд ищет job=node
+	// через label_values(node_uname_info{job="node"}, instance).
+	rule {
+		target_label = "job"
+		replacement  = "node"
+	}
+
+	rule {
+		target_label = "instance"
+		replacement  = coalesce(sys.env("PT_HOST"), "unknown")
+	}
+
+	rule {
+		target_label = "env"
+		replacement  = coalesce(sys.env("PT_ENV"), "unknown")
+	}
+}
+
+prometheus.scrape "host" {
+	targets    = discovery.relabel.host.output
+	forward_to = [prometheus.remote_write.default.receiver]
+
+	job_name = "node"
+
+	scrape_interval = "60s"
+	scrape_timeout  = "30s"
+}
+
+prometheus.remote_write "default" {
+	endpoint {
+		url = sys.env("METRICS_URL")
+	}
+}

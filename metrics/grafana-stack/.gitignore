@@ -1,0 +1,5 @@
+# Данные сервисов (бинд-маунты) и секреты — только на сервере.
+victoria-metrics/data/
+loki/data/
+grafana/data/
+.env

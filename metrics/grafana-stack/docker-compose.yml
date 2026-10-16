@@ -1,0 +1,84 @@
+# Приём и просмотр: VictoriaMetrics (метрики хоста), Loki (логи), Grafana.
+# Поднимать раньше alloy: этот файл создаёт сеть notion-obs, к ней подключается агент.
+#
+# Grafana на хосте слушает 127.0.0.1:13080. Снаружи её открывает nginx
+# (metrics/nginx) на https://grafana.notiontv.ru.
+# Loki :3100 и VictoriaMetrics :8428 на хост не публикуются.
+# Alloy на этой же машине ходит по именам в сети notion-obs.
+# Если фронт на другом сервере — дополнительно docker-compose.ingest.yml.
+#
+# Секрет — .env рядом (шаблон: .env.example).
+name: notion-obs
+
+services:
+  # Docker создаёт bind-каталоги от root. Loki и Grafana пишут под другими uid.
+  init-dirs:
+    image: busybox:1.36
+    user: "0:0"
+    volumes:
+      - ./loki/data:/loki
+      - ./grafana/data:/grafana
+    command: ["sh", "-c", "chown -R 10001:10001 /loki && chown -R 472:472 /grafana"]
+    restart: "no"
+
+  victoria-metrics:
+    image: victoriametrics/victoria-metrics:v1.114.0
+    container_name: notion-victoria-metrics
+    volumes:
+      - ./victoria-metrics/data:/storage
+    command:
+      - "-storageDataPath=/storage"
+      - "-retentionPeriod=14d"
+    restart: unless-stopped
+    networks:
+      - obs
+
+  loki:
+    image: grafana/loki:3.4.1
+    container_name: notion-loki
+    volumes:
+      # Каталог должен принадлежать uid 10001 (пользователь loki в образе)
+      - ./loki/data:/loki
+      - ./loki/loki-config.yml:/etc/loki/config.yml:ro
+    command:
+      - "-config.file=/etc/loki/config.yml"
+    restart: unless-stopped
+    networks:
+      - obs
+    depends_on:
+      init-dirs:
+        condition: service_completed_successfully
+
+  grafana:
+    image: grafana/grafana:10.4.3
+    container_name: notion-grafana
+    ports:
+      - "127.0.0.1:13080:3000"
+    environment:
+      # Применяются только при первом старте с пустой базой; у существующей
+      # grafana.db логины и пароли живут в самой базе.
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?set in .env}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_SECURITY_COOKIE_SECURE: "true"
+      GF_SERVER_ROOT_URL: https://grafana.notiontv.ru/
+      GF_SERVER_DOMAIN: grafana.notiontv.ru
+    volumes:
+      # Каталог должен принадлежать uid 472 (пользователь grafana в образе)
+      - ./grafana/data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      victoria-metrics:
+        condition: service_started
+      loki:
+        condition: service_started
+      init-dirs:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    networks:
+      - obs
+
+networks:
+  obs:
+    name: notion-obs

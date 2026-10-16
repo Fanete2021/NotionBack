@@ -1,0 +1,57 @@
+# Alloy: логи notionback-api / notionfront и метрики хоста одним агентом.
+# Порт наружу не открывается — данные уходят в сеть notion-obs.
+#
+# Сеть создаёт grafana-stack. Сначала поднять его, потом этот каталог.
+#
+# Конфиг — файлы в config/. Alloy склеивает все .alloy каталога в один граф.
+# Каталог грузится не рекурсивно. Каждый файл самодостаточен, включая свой приёмник:
+#   node-exporter.alloy  метрики хоста
+#   logger.alloy         stdout контейнеров notionback-api и notionfront
+name: notion-alloy
+
+services:
+  alloy:
+    image: grafana/alloy:v1.9.2
+    container_name: notion-alloy
+    restart: unless-stopped
+    uts: host
+
+    networks:
+      - obs
+
+    volumes:
+      - ./config:/etc/alloy/config:ro
+      # Файловые логи. Читается только то, что перечислено в logger.alloy.
+      - "${EXTRA_LOGS_DIR:-/var/log}:/logs:ro"
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+      # Позиции чтения: без них рестарт перечитал бы логи заново.
+      - alloy_data:/var/lib/alloy
+
+    environment:
+      LOKI_URL: "${LOKI_URL:?set in .env}"
+      METRICS_URL: "${METRICS_URL:?set in .env}"
+      PT_ENV: "${PT_ENV:-unknown}"
+      PT_HOST: "${PT_HOST:?set in .env}"
+      PT_TZ: "${PT_TZ:-Europe/Moscow}"
+
+    command:
+      - "run"
+      - "/etc/alloy/config"
+      - "--storage.path=/var/lib/alloy/data"
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
+
+networks:
+  obs:
+    external: true
+    name: notion-obs
+
+volumes:
+  alloy_data:

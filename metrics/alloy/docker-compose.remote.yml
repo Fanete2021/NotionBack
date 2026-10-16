@@ -1,0 +1,43 @@
+# Alloy на машине, где нет сети notion-obs (отдельный сервер фронта).
+# Логи и метрики уходят на хост с Grafana по URL из .env.
+# На том хосте стек должен быть поднят с docker-compose.ingest.yml.
+#
+#   docker compose -f docker-compose.remote.yml up -d
+name: notion-alloy
+
+services:
+  alloy:
+    image: grafana/alloy:v1.9.2
+    container_name: notion-alloy
+    restart: unless-stopped
+    uts: host
+
+    volumes:
+      - ./config:/etc/alloy/config:ro
+      - "${EXTRA_LOGS_DIR:-/var/log}:/logs:ro"
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+      - alloy_data:/var/lib/alloy
+
+    environment:
+      LOKI_URL: "${LOKI_URL:?set in .env}"
+      METRICS_URL: "${METRICS_URL:?set in .env}"
+      PT_ENV: "${PT_ENV:-unknown}"
+      PT_HOST: "${PT_HOST:?set in .env}"
+      PT_TZ: "${PT_TZ:-Europe/Moscow}"
+
+    command:
+      - "run"
+      - "/etc/alloy/config"
+      - "--storage.path=/var/lib/alloy/data"
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
+
+volumes:
+  alloy_data:
