@@ -7,6 +7,7 @@ import { PageCommentsModule } from '@modules/page-comments/page-comments.module'
 import {
   PagesContentModule,
   PagesModule,
+  PagesPublicationModule,
   PagesRealtimeModule,
   PagesTrashModule,
   PagesVersionModule,
@@ -76,6 +77,7 @@ import { validationSchema } from './validation';
     AttachmentsModule,
     PagesModule,
     PagesContentModule,
+    PagesPublicationModule,
     PagesVersionModule,
     PagesTrashModule,
     PagesRealtimeModule,

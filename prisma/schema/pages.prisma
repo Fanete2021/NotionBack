@@ -3,6 +3,12 @@ enum PageType {
   ARTICLE
 }
 
+enum PublicationStatus {
+  DRAFT
+  PUBLISHED
+  HIDDEN
+}
+
 model Page {
   id           String    @id @default(uuid())
   workspaceId  String
@@ -17,6 +23,11 @@ model Page {
   updatedAt    DateTime  @updatedAt
   deletedAt    DateTime?
   deletedBy    String?
+  slug              String?            @unique
+  seoTitle          String?
+  seoDescription    String?
+  publicationStatus PublicationStatus?
+  publishedAt       DateTime?
 
   workspace    Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   project      Project?      @relation(fields: [projectId, workspaceId], references: [id, workspaceId], onDelete: Cascade)
@@ -33,6 +44,7 @@ model Page {
   @@unique([workspaceId, projectId, parentPageId, position])
   @@index([workspaceId, parentPageId])
   @@index([workspaceId, deletedAt])
+  @@index([publicationStatus, publishedAt, id])
   @@map("pages")
 }
 
