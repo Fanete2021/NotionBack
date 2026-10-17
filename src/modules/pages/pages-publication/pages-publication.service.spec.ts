@@ -26,6 +26,7 @@ describe('PagesPublicationService', () => {
       overrides.icon ?? null,
       overrides.type ?? PageType.DOC,
       overrides.authorId ?? 'user-1',
+      overrides.updatedById ?? 'user-1',
       overrides.position ?? 0,
       overrides.createdAt ?? new Date('2026-01-01T00:00:00.000Z'),
       overrides.updatedAt ?? new Date('2026-01-02T00:00:00.000Z'),

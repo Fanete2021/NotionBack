@@ -27,6 +27,7 @@ interface PageContentHead {
   pageId: string;
   json: Prisma.JsonValue;
   updatedAt: Date;
+  updatedById?: string;
 }
 
 interface RestorePageInput {

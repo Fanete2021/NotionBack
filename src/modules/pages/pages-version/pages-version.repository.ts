@@ -114,10 +114,13 @@ export class PagesVersionRepository {
 
       await tx.page.update({
         where: { id: input.pageId },
-        data: { updatedAt: now },
+        data: { updatedAt: now, updatedById: input.authorId },
       });
 
-      return { changed: true, content: updated };
+      return {
+        changed: true,
+        content: { ...updated, updatedById: input.authorId },
+      };
     });
   }
 }

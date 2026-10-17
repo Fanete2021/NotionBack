@@ -331,6 +331,7 @@ export class YjsDocService implements OnModuleInit, OnModuleDestroy {
         pageId,
         new Uint8Array(state),
         json,
+        editorId,
       );
       entry.jsonBytes = Buffer.byteLength(JSON.stringify(json), 'utf8');
     } catch (error) {

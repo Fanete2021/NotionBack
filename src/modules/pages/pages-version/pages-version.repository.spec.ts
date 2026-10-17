@@ -81,6 +81,7 @@ describe('PagesVersionRepository', () => {
         pageId: 'page-1',
         json: nextJson,
         updatedAt,
+        updatedById: 'user-1',
       };
       mockTx.pageContent.findUnique.mockResolvedValue({
         pageId: 'page-1',
@@ -132,10 +133,16 @@ describe('PagesVersionRepository', () => {
       });
       expect(mockTx.page.update).toHaveBeenCalledTimes(1);
       const updateCalls = mockTx.page.update.mock.calls as unknown as Array<
-        [{ where: { id: string }; data: { updatedAt: Date } }]
+        [
+          {
+            where: { id: string };
+            data: { updatedAt: Date; updatedById: string };
+          },
+        ]
       >;
       expect(updateCalls[0][0].where).toEqual({ id: 'page-1' });
       expect(updateCalls[0][0].data.updatedAt).toBeInstanceOf(Date);
+      expect(updateCalls[0][0].data.updatedById).toBe('user-1');
       expect(result).toEqual({ changed: true, content: restored });
     });
 
@@ -146,7 +153,6 @@ describe('PagesVersionRepository', () => {
         json: currentJson,
         updatedAt,
       });
-
       const result = await repository.restore({
         pageId: 'page-1',
         authorId: 'user-1',
@@ -156,6 +162,7 @@ describe('PagesVersionRepository', () => {
 
       expect(mockTx.pageVersion.create).not.toHaveBeenCalled();
       expect(mockTx.pageContent.upsert).not.toHaveBeenCalled();
+      expect(mockTx.page.update).not.toHaveBeenCalled();
       expect(result).toEqual({
         changed: false,
         content: {

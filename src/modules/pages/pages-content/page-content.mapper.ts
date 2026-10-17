@@ -4,11 +4,12 @@ import { PageContentEntity } from './entities';
 
 @Injectable()
 export class PagesContentMapper {
-  toEntity(content: PageContent): PageContentEntity {
+  toEntity(content: PageContent & { updatedById: string }): PageContentEntity {
     return new PageContentEntity(
       content.pageId,
       content.json,
       content.updatedAt,
+      content.updatedById,
     );
   }
 }

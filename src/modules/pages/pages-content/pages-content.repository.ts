@@ -15,6 +15,7 @@ export class PagesContentRepository {
     pageId: string,
     workspaceId: string,
     json: Prisma.InputJsonValue,
+    updatedById: string,
   ) {
     const searchText = extractPlainText(json);
     const now = new Date();
@@ -30,7 +31,7 @@ export class PagesContentRepository {
 
       await tx.page.update({
         where: { id: pageId },
-        data: { updatedAt: now },
+        data: { updatedAt: now, updatedById },
       });
 
       return content;
@@ -41,6 +42,7 @@ export class PagesContentRepository {
     pageId: string,
     yjsState: Uint8Array<ArrayBuffer>,
     json: Prisma.InputJsonValue,
+    updatedById: string | null,
   ) {
     const searchText = extractPlainText(json);
     const now = new Date();
@@ -65,7 +67,9 @@ export class PagesContentRepository {
 
       await tx.page.update({
         where: { id: pageId },
-        data: { updatedAt: now },
+        // Правка пришла из Yjs-сессии без известного редактора (сид из json) —
+        // не затираем последнего редактора.
+        data: { updatedAt: now, ...(updatedById ? { updatedById } : {}) },
       });
 
       return content;

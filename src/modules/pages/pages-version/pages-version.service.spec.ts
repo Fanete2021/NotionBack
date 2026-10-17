@@ -119,6 +119,7 @@ describe('PagesVersionService', () => {
         pageId: 'page-1',
         json: targetJson,
         updatedAt,
+        updatedById: 'user-1',
       };
       mockRepository.restore.mockResolvedValue({
         content: restored,

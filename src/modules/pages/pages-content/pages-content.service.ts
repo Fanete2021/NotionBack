@@ -33,6 +33,7 @@ export class PagesContentService {
         yjsState: null,
         searchText: '',
         updatedAt: new Date(),
+        updatedById: page.updatedById,
       };
     }
 
@@ -45,9 +46,10 @@ export class PagesContentService {
         yjsState: null,
         searchText: '',
         updatedAt: new Date(),
+        updatedById: page.updatedById,
       };
     }
-    return content;
+    return { ...content, updatedById: page.updatedById };
   }
 
   async updateContent(page: PageEntity, json: unknown, editorId: string) {
@@ -73,11 +75,12 @@ export class PagesContentService {
       page.id,
       page.workspaceId,
       json,
+      editorId,
     );
 
     await this.pagesVersionService.scheduleAutoSnapshot(page.id, editorId);
 
-    return updatedContent;
+    return { ...updatedContent, updatedById: editorId };
   }
 
   private assertSizeWithinLimit(json: unknown): void {
