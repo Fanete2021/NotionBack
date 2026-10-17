@@ -27,10 +27,7 @@ export class PageEntity {
   @ApiProperty({ enum: PageType, example: PageType.DOC })
   readonly type: PageType;
 
-  @ApiProperty({
-    example: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
-    description: 'Создатель страницы',
-  })
+  @ApiProperty({ example: '3fa85f64-5717-4562-b3fc-2c963f66afa6' })
   readonly authorId: string;
 
   @ApiProperty({

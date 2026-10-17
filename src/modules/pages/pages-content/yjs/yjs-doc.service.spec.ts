@@ -125,6 +125,7 @@ describe('YjsDocService', () => {
       PAGE_ID,
       expect.any(Uint8Array),
       expect.objectContaining({ type: 'doc' }),
+      'user-a',
     );
     expect(versions.scheduleAutoSnapshot).toHaveBeenCalledWith(
       PAGE_ID,

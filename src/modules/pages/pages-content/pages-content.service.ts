@@ -2,14 +2,12 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
-  NotFoundException,
   PayloadTooLargeException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
 import { EMPTY_DOCUMENT } from '../constants';
 import { PageEntity } from '../entities/page.entity';
-import { PagesRepository } from '../pages.repository';
 import { PagesVersionService } from '../pages-version';
 import { PagesContentRepository } from './pages-content.repository';
 import { YjsDocService } from './yjs';
@@ -18,7 +16,6 @@ import { YjsDocService } from './yjs';
 export class PagesContentService {
   constructor(
     private readonly pagesContentRepository: PagesContentRepository,
-    private readonly pagesRepository: PagesRepository,
     private readonly configService: ConfigService,
     private readonly pagesVersionService: PagesVersionService,
     private readonly yjsDocService: YjsDocService,
@@ -36,6 +33,7 @@ export class PagesContentService {
         yjsState: null,
         searchText: '',
         updatedAt: new Date(),
+        updatedById: page.updatedById,
       };
     }
 
@@ -77,14 +75,8 @@ export class PagesContentService {
       page.id,
       page.workspaceId,
       json,
+      editorId,
     );
-
-    const updatedPage = await this.pagesRepository.update(page.id, {
-      updatedById: editorId,
-    });
-    if (!updatedPage) {
-      throw new NotFoundException('Page not found');
-    }
 
     await this.pagesVersionService.scheduleAutoSnapshot(page.id, editorId);
 
