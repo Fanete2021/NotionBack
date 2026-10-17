@@ -1,5 +1,11 @@
 import { CreateEventDto } from './create-event.dto';
 import { UpdateEventDto } from './update-event.dto';
 import { ListEventsQueryDto } from './list-events-query.dto';
+import { SetEventCompletedDto } from './set-event-completed.dto';
 
-export { CreateEventDto, UpdateEventDto, ListEventsQueryDto };
+export {
+  CreateEventDto,
+  UpdateEventDto,
+  ListEventsQueryDto,
+  SetEventCompletedDto,
+};

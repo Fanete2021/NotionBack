@@ -31,6 +31,7 @@ describe('EventsService', () => {
       startAt: new Date('2026-09-09T14:00:00.000Z'),
       endAt: new Date('2026-09-09T14:30:00.000Z'),
       allDay: false,
+      isCompleted: false,
       createdAt: new Date('2026-09-01T00:00:00.000Z'),
       updatedAt: new Date('2026-09-01T00:00:00.000Z'),
       ...overrides,
@@ -176,6 +177,52 @@ describe('EventsService', () => {
       mockEventsRepository.findById.mockResolvedValue(null);
 
       await expect(service.update('missing', { title: 'x' })).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+  });
+
+  describe('setCompleted', () => {
+    it('отмечает событие выполненным', async () => {
+      const event = buildEvent();
+      const updated = buildEvent({ isCompleted: true });
+      mockEventsRepository.update.mockResolvedValue(updated);
+
+      const result = await service.setCompleted('e1', true, event);
+
+      expect(mockEventsRepository.update).toHaveBeenCalledWith('e1', {
+        isCompleted: true,
+      });
+      expect(result).toEqual(updated);
+    });
+
+    it('снимает отметку выполнения', async () => {
+      const event = buildEvent({ isCompleted: true });
+      const updated = buildEvent({ isCompleted: false });
+      mockEventsRepository.update.mockResolvedValue(updated);
+
+      const result = await service.setCompleted('e1', false, event);
+
+      expect(mockEventsRepository.update).toHaveBeenCalledWith('e1', {
+        isCompleted: false,
+      });
+      expect(result.isCompleted).toBe(false);
+    });
+
+    it('бросает 404, если события нет', async () => {
+      mockEventsRepository.findById.mockResolvedValue(null);
+
+      await expect(service.setCompleted('missing', true)).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(mockEventsRepository.update).not.toHaveBeenCalled();
+    });
+
+    it('бросает 404, если событие удалили между гардом и записью', async () => {
+      const event = buildEvent();
+      mockEventsRepository.update.mockResolvedValue(null);
+
+      await expect(service.setCompleted('e1', true, event)).rejects.toThrow(
         NotFoundException,
       );
     });
