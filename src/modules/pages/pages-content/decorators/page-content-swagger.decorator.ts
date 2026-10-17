@@ -5,28 +5,30 @@ import { PageContentEntity } from '../entities';
 
 function PagesGetContentResponse() {
   return applyDecorators(
-    ApiOperation({ summary: 'Get a page content (TipTap JSON)' }),
-    ApiParam({ name: 'id', type: String, description: 'Page id' }),
+    ApiOperation({ summary: 'Получить содержимое документа (JSON TipTap)' }),
+    ApiParam({ name: 'id', type: String, description: 'Id документа' }),
     ApiResponse({ status: 200, type: PageContentEntity }),
     ApiWorkspaceForbidden(),
-    ApiResponse({ status: 404, description: 'Page not found' }),
+    ApiResponse({ status: 404, description: 'Документ не найден' }),
   );
 }
 
 function PagesUpdateContentResponse() {
   return applyDecorators(
-    ApiOperation({ summary: 'Overwrite a page content (TipTap JSON)' }),
-    ApiParam({ name: 'id', type: String, description: 'Page id' }),
+    ApiOperation({
+      summary: 'Перезаписать содержимое документа (JSON TipTap)',
+    }),
+    ApiParam({ name: 'id', type: String, description: 'Id документа' }),
     ApiBody({
       schema: { type: 'object', example: { type: 'doc', content: [] } },
-      description: 'TipTap document JSON',
+      description: 'JSON-документ TipTap',
     }),
     ApiResponse({ status: 200, type: PageContentEntity }),
     ApiWorkspaceForbidden(),
-    ApiResponse({ status: 404, description: 'Page not found' }),
+    ApiResponse({ status: 404, description: 'Документ не найден' }),
     ApiResponse({
       status: 413,
-      description: 'Page content exceeds the size limit',
+      description: 'Содержимое документа превышает лимит размера',
     }),
   );
 }

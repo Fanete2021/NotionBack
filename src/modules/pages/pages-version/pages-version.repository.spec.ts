@@ -9,6 +9,7 @@ describe('PagesVersionRepository', () => {
   const mockTx = {
     $queryRaw: jest.fn(),
     page: {
+      findUniqueOrThrow: jest.fn(),
       update: jest.fn(),
     },
     pageVersion: {
@@ -87,6 +88,7 @@ describe('PagesVersionRepository', () => {
         json: currentJson,
         updatedAt,
       });
+      mockTx.page.findUniqueOrThrow.mockResolvedValue({ workspaceId: 'ws-1' });
       mockTx.pageVersion.create.mockResolvedValue({ id: 'saved' });
       mockTx.pageContent.upsert.mockResolvedValue(restored);
       mockTx.page.update.mockResolvedValue({ id: 'page-1' });
@@ -115,14 +117,32 @@ describe('PagesVersionRepository', () => {
       });
       expect(mockTx.pageContent.upsert).toHaveBeenCalledWith({
         where: { pageId: 'page-1' },
-        create: { pageId: 'page-1', json: nextJson },
-        update: { json: nextJson },
+        create: {
+          pageId: 'page-1',
+          workspaceId: 'ws-1',
+          json: nextJson,
+          searchText: '',
+        },
+        update: {
+          json: nextJson,
+          searchText: '',
+          workspaceId: 'ws-1',
+          yjsState: null,
+        },
         select: { pageId: true, json: true, updatedAt: true },
       });
-      expect(mockTx.page.update).toHaveBeenCalledWith({
-        where: { id: 'page-1' },
-        data: { updatedById: 'user-1' },
-      });
+      expect(mockTx.page.update).toHaveBeenCalledTimes(1);
+      const updateCalls = mockTx.page.update.mock.calls as unknown as Array<
+        [
+          {
+            where: { id: string };
+            data: { updatedAt: Date; updatedById: string };
+          },
+        ]
+      >;
+      expect(updateCalls[0][0].where).toEqual({ id: 'page-1' });
+      expect(updateCalls[0][0].data.updatedAt).toBeInstanceOf(Date);
+      expect(updateCalls[0][0].data.updatedById).toBe('user-1');
       expect(result).toEqual({ changed: true, content: restored });
     });
 
@@ -156,12 +176,14 @@ describe('PagesVersionRepository', () => {
     it('перед откатом пустой страницы снимает EMPTY_DOCUMENT', async () => {
       const nextJson = { type: 'doc', content: [{ type: 'paragraph' }] };
       mockTx.pageContent.findUnique.mockResolvedValue(null);
+      mockTx.page.findUniqueOrThrow.mockResolvedValue({ workspaceId: 'ws-1' });
       mockTx.pageVersion.create.mockResolvedValue({ id: 'saved' });
       mockTx.pageContent.upsert.mockResolvedValue({
         pageId: 'page-1',
         json: nextJson,
         updatedAt,
       });
+      mockTx.page.update.mockResolvedValue({ id: 'page-1' });
 
       await repository.restore({
         pageId: 'page-1',

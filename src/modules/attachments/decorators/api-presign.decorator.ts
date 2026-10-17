@@ -7,16 +7,16 @@ export function ApiPresignAttachment() {
   return applyDecorators(
     ApiOperation({
       summary:
-        'Get a presigned upload url for an image/video attachment (workspace member)',
+        'Получить presigned-ссылку для загрузки изображения или видео (участник воркспейса)',
     }),
     ApiResponse({
       status: 201,
-      description: 'Presigned upload url created',
+      description: 'Presigned-ссылка для загрузки создана',
       type: PresignAttachmentResultEntity,
     }),
-    ApiResponse({ status: 400, description: 'Content type not allowed' }),
+    ApiResponse({ status: 400, description: 'Тип содержимого не разрешён' }),
     ApiWorkspaceForbidden,
-    ApiResponse({ status: 404, description: 'Page not found' }),
-    ApiResponse({ status: 413, description: 'File is too large' }),
+    ApiResponse({ status: 404, description: 'Документ не найден' }),
+    ApiResponse({ status: 413, description: 'Файл слишком большой' }),
   );
 }

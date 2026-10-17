@@ -1,0 +1,86 @@
+// Stdout контейнеров через docker socket.
+//
+// Файл самодостаточен: приёмник объявлен ниже.
+//
+// Переменные окружения:
+//   LOKI_URL  приёмник в сети notion-obs (или URL удалённого Loki)
+//   PT_ENV    лейбл env
+//   PT_HOST   лейбл host
+//   PT_TZ     запасной пояс. Время точки — поле time у pino (Unix ms),
+//             а если его нет — время приёма.
+//
+// В Loki попадают только контейнеры notionback-api и notionfront.
+// Лейбл service — имя контейнера без ведущего слэша.
+//
+// Бэкенд в проде пишет JSON pino в stdout. Числовой level становится
+// лейблом level (info/warn/error/...). Строки без JSON получают level=raw
+// (так выглядит stdout Next.js).
+
+discovery.docker "apps" {
+	host = "unix:///var/run/docker.sock"
+}
+
+discovery.relabel "apps" {
+	targets = discovery.docker.apps.targets
+
+	rule {
+		source_labels = ["__meta_docker_container_name"]
+		regex         = "/(notionback-api|notionfront)"
+		action        = "keep"
+	}
+
+	rule {
+		source_labels = ["__meta_docker_container_name"]
+		regex         = "/(.*)"
+		target_label  = "service"
+	}
+}
+
+loki.source.docker "apps" {
+	host          = "unix:///var/run/docker.sock"
+	targets       = discovery.relabel.apps.output
+	relabel_rules = discovery.relabel.apps.rules
+	forward_to    = [loki.process.apps.receiver]
+}
+
+loki.process "apps" {
+	stage.static_labels {
+		values = {
+			env  = coalesce(sys.env("PT_ENV"), "unknown"),
+			host = coalesce(sys.env("PT_HOST"), "unknown"),
+		}
+	}
+
+	stage.regex {
+		expression = "\"level\":(?P<level_num>10|20|30|40|50|60)\\b"
+	}
+
+	stage.regex {
+		expression = "\"time\":(?P<log_time>\\d{13})"
+	}
+
+	stage.template {
+		source   = "level"
+		template = "{{ if eq .level_num \"30\" }}info{{ else if eq .level_num \"40\" }}warn{{ else if eq .level_num \"50\" }}error{{ else if eq .level_num \"60\" }}fatal{{ else if eq .level_num \"20\" }}debug{{ else if eq .level_num \"10\" }}trace{{ else }}raw{{ end }}"
+	}
+
+	stage.labels {
+		values = {
+			level = "",
+		}
+	}
+
+	stage.timestamp {
+		source            = "log_time"
+		format            = "UnixMs"
+		action_on_failure = "skip"
+	}
+
+	forward_to = [loki.write.default.receiver]
+}
+
+loki.write "default" {
+	endpoint {
+		url = sys.env("LOKI_URL")
+	}
+}

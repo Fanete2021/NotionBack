@@ -7,7 +7,7 @@ export class PageContentEntity {
 
   @ApiProperty({
     example: { type: 'doc', content: [] },
-    description: 'TipTap document JSON',
+    description: 'JSON-документ TipTap',
   })
   readonly json: Prisma.JsonValue;
 

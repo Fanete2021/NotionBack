@@ -121,6 +121,34 @@ export class EventsService {
     return this.eventsMapper.toEntity(updated);
   }
 
+  async setCompleted(
+    id: string,
+    isCompleted: boolean,
+    existingEvent?: EventEntity,
+  ): Promise<EventEntity> {
+    const event = existingEvent ?? (await this.eventsRepository.findById(id));
+    if (!event) {
+      throw new NotFoundException('Event not found');
+    }
+
+    const updated = await this.eventsRepository.update(id, { isCompleted });
+    if (!updated) {
+      throw new NotFoundException('Event not found');
+    }
+
+    this.logger.info(
+      {
+        eventId: id,
+        workspaceId: event.workspaceId,
+        isCompleted,
+        action: 'event_update_completion',
+      },
+      'event completion updated',
+    );
+
+    return this.eventsMapper.toEntity(updated);
+  }
+
   async delete(id: string): Promise<void> {
     const deleted = await this.eventsRepository.delete(id);
     if (!deleted) {

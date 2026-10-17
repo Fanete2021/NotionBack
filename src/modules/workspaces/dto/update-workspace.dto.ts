@@ -4,7 +4,7 @@ import { IsBoolean, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class UpdateWorkspaceDto {
   @ApiPropertyOptional({
-    example: 'My renamed workspace',
+    example: 'Переименованный воркспейс',
     description: 'Название воркспейса',
   })
   @Transform(({ value }: { value: string }) =>

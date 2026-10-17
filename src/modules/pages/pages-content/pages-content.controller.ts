@@ -12,7 +12,7 @@ import { PagesContentMapper } from './page-content.mapper';
 import { PagesContentService } from './pages-content.service';
 
 @ApiBearerAuth()
-@ApiTags('Pages version')
+@ApiTags('Содержимое документов')
 @Controller('pages')
 export class PagesContentController {
   constructor(

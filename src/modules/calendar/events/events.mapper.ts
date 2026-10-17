@@ -13,6 +13,7 @@ export class EventsMapper {
       startAt: event.startAt,
       endAt: event.endAt,
       allDay: event.allDay,
+      isCompleted: event.isCompleted,
       createdAt: event.createdAt,
       updatedAt: event.updatedAt,
     });

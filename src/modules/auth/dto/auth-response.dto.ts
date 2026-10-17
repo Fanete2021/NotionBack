@@ -5,7 +5,7 @@ class AuthUserDto extends PickType(UserEntity, ['id', 'email'] as const) {}
 
 class AuthResponseDto {
   @ApiProperty({
-    description: 'JWT Access Token',
+    description: 'JWT access-токен',
     example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
   })
   accessToken!: string;

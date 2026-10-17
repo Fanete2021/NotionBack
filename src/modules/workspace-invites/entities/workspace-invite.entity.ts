@@ -5,27 +5,27 @@ import { WorkspaceInviteType } from '@modules/workspace-invites/types';
 export class WorkspaceInviteEntity {
   @ApiProperty({
     example: 'qU5f_1zXvR2kLmN8pQaBcDdEeFfGgHhIiJjKkLlMmNnOo',
-    description: 'Invite token used to build the shareable link',
+    description: 'Токен приглашения для формирования ссылки',
   })
   readonly token: string;
 
   @ApiProperty({
     example: 'http://localhost:3000/join/qU5f_1zXvR2kLmN8pQa',
-    description: 'Full invite link for sharing',
+    description: 'Полная ссылка-приглашение для отправки',
   })
   readonly url: string;
 
   @ApiProperty({ enum: WorkspaceInviteType })
   readonly type: WorkspaceInviteType;
 
-  @ApiProperty({ enum: Role, description: 'Role granted on redemption' })
+  @ApiProperty({ enum: Role, description: 'Роль, выдаваемая при активации' })
   readonly role: Role;
 
   @ApiProperty({
     type: Date,
     nullable: true,
     example: '2026-08-24T00:00:00.000Z',
-    description: 'Expiration time for temporary invites, null for permanent',
+    description: 'Время истечения для временных ссылок, null для постоянных',
   })
   readonly expiresAt: Date | null;
 

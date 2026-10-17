@@ -15,19 +15,19 @@ class PresignAttachmentResultEntity {
 
   @ApiProperty({
     example: 'http://localhost:9000/notion-attachments/workspaces/...',
-    description: 'Presigned URL for file upload',
+    description: 'Presigned-ссылка для загрузки файла',
   })
   readonly uploadUrl: string;
 
   @ApiProperty({
     example: 'PUT',
-    description: 'HTTP method to use',
+    description: 'HTTP-метод запроса',
   })
   readonly method: 'PUT';
 
   @ApiProperty({
     type: PresignUploadHeaders,
-    description: 'Headers that MUST be included in PUT request',
+    description: 'Заголовки, которые обязательно нужно передать в PUT-запросе',
   })
   readonly headers: Record<string, string>;
 

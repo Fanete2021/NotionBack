@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
   PayloadTooLargeException,
@@ -11,6 +12,7 @@ import { PageEntity } from '../entities/page.entity';
 import { PagesRepository } from '../pages.repository';
 import { PagesVersionService } from '../pages-version';
 import { PagesContentRepository } from './pages-content.repository';
+import { YjsDocService } from './yjs';
 
 @Injectable()
 export class PagesContentService {
@@ -19,15 +21,32 @@ export class PagesContentService {
     private readonly pagesRepository: PagesRepository,
     private readonly configService: ConfigService,
     private readonly pagesVersionService: PagesVersionService,
+    private readonly yjsDocService: YjsDocService,
   ) {}
 
   async getContent(page: PageEntity) {
+    // Пока страницу правят через Yjs, актуальный документ живёт в памяти,
+    // а в БД он отстаёт на время дебаунса.
+    const liveJson = this.yjsDocService.getLiveJson(page.id);
+    if (liveJson) {
+      return {
+        pageId: page.id,
+        workspaceId: page.workspaceId,
+        json: liveJson as Prisma.JsonValue,
+        yjsState: null,
+        searchText: '',
+        updatedAt: new Date(),
+      };
+    }
+
     const content = await this.pagesContentRepository.findContent(page.id);
     if (!content) {
       return {
         pageId: page.id,
+        workspaceId: page.workspaceId,
         json: EMPTY_DOCUMENT as Prisma.JsonValue,
         yjsState: null,
+        searchText: '',
         updatedAt: new Date(),
         updatedById: page.updatedById,
       };
@@ -44,10 +63,19 @@ export class PagesContentService {
       throw new BadRequestException('Page content must be a JSON object');
     }
 
+    // Запись целиком затёрла бы чужие realtime-правки: во время Yjs-сессии
+    // документ меняется только через сокет.
+    if (this.yjsDocService.isActive(page.id)) {
+      throw new ConflictException(
+        'Page is being edited in real time, use the websocket channel',
+      );
+    }
+
     this.assertSizeWithinLimit(json);
 
     const updatedContent = await this.pagesContentRepository.upsertContent(
       page.id,
+      page.workspaceId,
       json,
     );
 

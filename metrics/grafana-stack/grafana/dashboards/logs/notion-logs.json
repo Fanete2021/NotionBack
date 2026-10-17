@@ -1,0 +1,105 @@
+{
+  "uid": "notion-logs",
+  "title": "Notion logs",
+  "description": "Stdout notionback-api (JSON pino) и notionfront. Окружение и хост — лейблы Alloy. Уровень у pino разобран в лейбл level.",
+  "tags": ["logs", "notion"],
+  "timezone": "browser",
+  "editable": true,
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "service",
+        "label": "Сервис",
+        "type": "query",
+        "datasource": { "type": "loki", "uid": "loki" },
+        "query": "label_values({host=~\".+\"}, service)",
+        "refresh": 1,
+        "includeAll": true,
+        "allValue": ".+",
+        "multi": false,
+        "sort": 1,
+        "current": {}
+      },
+      {
+        "name": "env",
+        "label": "Окружение",
+        "type": "query",
+        "datasource": { "type": "loki", "uid": "loki" },
+        "query": "label_values({service=~\"$service\"}, env)",
+        "refresh": 1,
+        "includeAll": true,
+        "allValue": ".+",
+        "multi": false,
+        "sort": 1,
+        "current": {}
+      },
+      {
+        "name": "host",
+        "label": "Хост",
+        "type": "query",
+        "datasource": { "type": "loki", "uid": "loki" },
+        "query": "label_values({service=~\"$service\", env=~\"$env\"}, host)",
+        "refresh": 1,
+        "includeAll": true,
+        "allValue": ".+",
+        "multi": false,
+        "sort": 1,
+        "current": {}
+      },
+      {
+        "name": "level",
+        "label": "Уровень",
+        "type": "custom",
+        "query": "все : .+, error : error|fatal, warn : warn, info : info, debug : debug|trace, raw : raw",
+        "current": { "text": "все", "value": ".+" },
+        "options": [
+          { "text": "все", "value": ".+", "selected": true },
+          { "text": "error", "value": "error|fatal", "selected": false },
+          { "text": "warn", "value": "warn", "selected": false },
+          { "text": "info", "value": "info", "selected": false },
+          { "text": "debug", "value": "debug|trace", "selected": false },
+          { "text": "raw", "value": "raw", "selected": false }
+        ]
+      },
+      {
+        "name": "search",
+        "label": "Текст",
+        "type": "textbox",
+        "query": "",
+        "current": { "text": "", "value": "" }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "logs",
+      "title": "Логи",
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "h": 22, "w": 24, "x": 0, "y": 0 },
+      "options": {
+        "showTime": true,
+        "showLabels": false,
+        "showCommonLabels": false,
+        "wrapLogMessage": true,
+        "prettifyLogMessage": true,
+        "enableLogDetails": true,
+        "dedupStrategy": "none",
+        "sortOrder": "Descending"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{service=~\"${service}\", env=~\"${env}\", host=~\"${host}\", level=~\"${level}\"} |= \"${search}\""
+        }
+      ]
+    }
+  ]
+}

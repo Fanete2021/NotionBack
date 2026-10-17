@@ -117,7 +117,9 @@ describe('PagesRepository', () => {
       expect(mockTx.pageContent.create).toHaveBeenCalledWith({
         data: {
           pageId: 'p3',
+          workspaceId: 'ws-1',
           json: { type: 'doc', content: [] },
+          searchText: '',
         },
       });
       expect(result).toEqual(pageFixture('p3', 3));

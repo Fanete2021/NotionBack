@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Page, PageType } from '@prisma/client';
+import { Page, PageType, PublicationStatus } from '@prisma/client';
 
 export class PageEntity {
   @ApiProperty({ example: '3fa85f64-5717-4562-b3fc-2c963f66afa6' })
@@ -48,6 +48,31 @@ export class PageEntity {
   @ApiProperty({ example: '2026-08-03T00:00:00.000Z' })
   readonly updatedAt: Date;
 
+  @ApiPropertyOptional({ example: 'vvedenie', nullable: true })
+  readonly slug: string | null;
+
+  @ApiPropertyOptional({ example: 'Введение в проект', nullable: true })
+  readonly seoTitle: string | null;
+
+  @ApiPropertyOptional({
+    example: 'Короткое описание для карточки ленты',
+    nullable: true,
+  })
+  readonly seoDescription: string | null;
+
+  @ApiPropertyOptional({
+    enum: PublicationStatus,
+    nullable: true,
+    example: PublicationStatus.PUBLISHED,
+  })
+  readonly publicationStatus: PublicationStatus | null;
+
+  @ApiPropertyOptional({
+    example: '2026-08-03T00:00:00.000Z',
+    nullable: true,
+  })
+  readonly publishedAt: Date | null;
+
   constructor(
     id: string,
     workspaceId: string,
@@ -61,6 +86,11 @@ export class PageEntity {
     position: number,
     createdAt: Date,
     updatedAt: Date,
+    slug: string | null,
+    seoTitle: string | null,
+    seoDescription: string | null,
+    publicationStatus: PublicationStatus | null,
+    publishedAt: Date | null,
   ) {
     this.id = id;
     this.workspaceId = workspaceId;
@@ -74,6 +104,11 @@ export class PageEntity {
     this.position = position;
     this.createdAt = createdAt;
     this.updatedAt = updatedAt;
+    this.slug = slug;
+    this.seoTitle = seoTitle;
+    this.seoDescription = seoDescription;
+    this.publicationStatus = publicationStatus;
+    this.publishedAt = publishedAt;
   }
 
   static fromModel(page: Page): PageEntity {
@@ -90,6 +125,11 @@ export class PageEntity {
       page.position,
       page.createdAt,
       page.updatedAt,
+      page.slug,
+      page.seoTitle,
+      page.seoDescription,
+      page.publicationStatus,
+      page.publishedAt,
     );
   }
 }

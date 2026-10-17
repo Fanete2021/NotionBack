@@ -1,6 +1,7 @@
 export {
   EventsControllerResponse,
   EventsUpdateResponse,
+  EventsSetCompletedResponse,
   EventsDeleteResponse,
 } from './events-swagger.decorators';
 export {

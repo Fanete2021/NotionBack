@@ -2,6 +2,7 @@ import 'dotenv/config';
 import * as bcrypt from 'bcrypt';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@prisma/client';
+import { extractPlainText } from '../src/modules/pages/pages-content/utils/extract-plain-text';
 
 const DEMO_EMAIL = 'demo@notion.com';
 const DEMO_PASSWORD = 'demo1234';
@@ -103,6 +104,25 @@ async function main() {
       },
     });
 
+    const welcomeJson = {
+      type: 'doc',
+      content: [
+        {
+          type: 'heading',
+          attrs: { level: 1 },
+          content: [{ type: 'text', text: 'Добро пожаловать!' }],
+        },
+        {
+          type: 'paragraph',
+          content: [
+            {
+              type: 'text',
+              text: 'Это демо-страница для проверки API.',
+            },
+          ],
+        },
+      ],
+    };
     const welcomePage = await prisma.page.create({
       data: {
         workspaceId: workspace.id,
@@ -113,25 +133,9 @@ async function main() {
         updatedById: demoUser.id,
         content: {
           create: {
-            json: {
-              type: 'doc',
-              content: [
-                {
-                  type: 'heading',
-                  attrs: { level: 1 },
-                  content: [{ type: 'text', text: 'Добро пожаловать!' }],
-                },
-                {
-                  type: 'paragraph',
-                  content: [
-                    {
-                      type: 'text',
-                      text: 'Это демо-страница для проверки API.',
-                    },
-                  ],
-                },
-              ],
-            },
+            workspaceId: workspace.id,
+            json: welcomeJson,
+            searchText: extractPlainText(welcomeJson),
           },
         },
       },
@@ -149,6 +153,25 @@ async function main() {
       },
     });
 
+    const roadmapJson = {
+      type: 'doc',
+      content: [
+        {
+          type: 'bulletList',
+          content: [
+            {
+              type: 'listItem',
+              content: [
+                {
+                  type: 'paragraph',
+                  content: [{ type: 'text', text: 'MVP' }],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
     const roadmapPage = await prisma.page.create({
       data: {
         workspaceId: workspace.id,
@@ -159,25 +182,9 @@ async function main() {
         updatedById: demoUser.id,
         content: {
           create: {
-            json: {
-              type: 'doc',
-              content: [
-                {
-                  type: 'bulletList',
-                  content: [
-                    {
-                      type: 'listItem',
-                      content: [
-                        {
-                          type: 'paragraph',
-                          content: [{ type: 'text', text: 'MVP' }],
-                        },
-                      ],
-                    },
-                  ],
-                },
-              ],
-            },
+            workspaceId: workspace.id,
+            json: roadmapJson,
+            searchText: extractPlainText(roadmapJson),
           },
         },
       },

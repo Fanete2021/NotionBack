@@ -7,23 +7,23 @@ export function ApiConfirmAttachment() {
   return applyDecorators(
     ApiOperation({
       summary:
-        'Confirm a finished upload (uploader only). Verifies the real file in storage and marks the attachment CONFIRMED',
+        'Подтвердить завершённую загрузку (только загрузивший). Проверяет файл в хранилище и переводит вложение в статус CONFIRMED',
     }),
-    ApiParam({ name: 'id', type: String, description: 'Attachment id' }),
+    ApiParam({ name: 'id', type: String, description: 'Id вложения' }),
     ApiResponse({
       status: 201,
-      description: 'Attachment confirmed',
+      description: 'Вложение подтверждено',
       type: AttachmentEntity,
     }),
     ApiResponse({
       status: 400,
-      description: 'File not uploaded yet or content type mismatch',
+      description: 'Файл ещё не загружен или тип содержимого не совпадает',
     }),
     ApiWorkspaceForbidden,
-    ApiResponse({ status: 404, description: 'Attachment not found' }),
+    ApiResponse({ status: 404, description: 'Вложение не найдено' }),
     ApiResponse({
       status: 413,
-      description: 'Uploaded file exceeds the size limit',
+      description: 'Загруженный файл превышает лимит размера',
     }),
   );
 }
