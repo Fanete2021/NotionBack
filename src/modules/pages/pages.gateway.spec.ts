@@ -23,10 +23,17 @@ describe('PagesGateway', () => {
     findMemberRole: jest.fn(),
     registerPageSessionAccess: jest.fn(),
   };
-  const pageCommentsService = {
-    registerRealtime: jest.fn<
+  const pageCommentsRealtime = {
+    register: jest.fn<
       void,
-      [(event: { pageId: string; action: string; commentId: string }) => void]
+      [
+        (event: {
+          pageId: string;
+          action: string;
+          commentId: string;
+          actorId: string;
+        }) => void,
+      ]
     >(),
   };
   const yjsDocService = {
@@ -89,7 +96,7 @@ describe('PagesGateway', () => {
       pagesService as never,
       workspacesService as never,
       pagesYjsService,
-      pageCommentsService as never,
+      pageCommentsRealtime as never,
     );
     (gateway as unknown as { server: unknown }).server = server;
     gateway.afterInit({ use: jest.fn() } as never);
@@ -440,12 +447,13 @@ describe('PagesGateway', () => {
     it('broadcasts a comment change to everyone on the page', () => {
       gateway.onModuleInit();
 
-      const publish = pageCommentsService.registerRealtime.mock.calls[0][0];
+      const publish = pageCommentsRealtime.register.mock.calls[0][0];
 
       publish({
         pageId: PAGE_ID,
         action: 'created',
         commentId: 'comment-1',
+        actorId: 'user-1',
       });
 
       expect(server.to).toHaveBeenCalledWith(`page:${PAGE_ID}`);
@@ -453,6 +461,7 @@ describe('PagesGateway', () => {
         pageId: PAGE_ID,
         action: 'created',
         commentId: 'comment-1',
+        actorId: 'user-1',
       });
     });
   });

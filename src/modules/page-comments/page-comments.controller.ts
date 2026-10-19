@@ -11,6 +11,7 @@ import {
   Query,
 } from '@nestjs/common';
 import { PageCommentsService } from './page-comments.service';
+import { PageCommentsRealtimeService } from './page-comments-realtime.service';
 import { PageCommentMapper } from './page-comment.mapper';
 import { CurrentUser } from '@common/decorators';
 import { PageCommentEntity } from './entities';
@@ -35,6 +36,7 @@ export class PageCommentsController {
   constructor(
     private readonly pageCommentsService: PageCommentsService,
     private readonly pageCommentMapper: PageCommentMapper,
+    private readonly pageCommentsRealtime: PageCommentsRealtimeService,
   ) {}
 
   @PageCommentsListResponse()
@@ -55,7 +57,9 @@ export class PageCommentsController {
     @Body() dto: CreatePageCommentDto,
   ): Promise<PageCommentEntity> {
     const comment = await this.pageCommentsService.create(pageId, userId, dto);
-    return this.pageCommentMapper.toEntity(comment);
+    const entity = this.pageCommentMapper.toEntity(comment);
+    this.pageCommentsRealtime.publish(userId, 'created', entity);
+    return entity;
   }
 
   @PageCommentsUpdateResponse()
@@ -72,7 +76,9 @@ export class PageCommentsController {
       userId,
       dto,
     );
-    return this.pageCommentMapper.toEntity(comment);
+    const entity = this.pageCommentMapper.toEntity(comment);
+    this.pageCommentsRealtime.publish(userId, 'updated', entity);
+    return entity;
   }
 
   @PageCommentsSetResolvedResponse()
@@ -89,17 +95,20 @@ export class PageCommentsController {
       userId,
       dto.resolved,
     );
-    return this.pageCommentMapper.toEntity(comment);
+    const entity = this.pageCommentMapper.toEntity(comment);
+    this.pageCommentsRealtime.publish(userId, 'updated', entity);
+    return entity;
   }
 
   @PageCommentsDeleteResponse()
   @Delete(':commentId')
   @HttpCode(HttpStatus.NO_CONTENT)
-  delete(
+  async delete(
     @CurrentUser('id') userId: string,
     @Param('pageId') pageId: string,
     @Param('commentId') commentId: string,
   ): Promise<void> {
-    return this.pageCommentsService.delete(pageId, commentId, userId);
+    await this.pageCommentsService.delete(pageId, commentId, userId);
+    this.pageCommentsRealtime.publishDeleted(userId, pageId, commentId);
   }
 }

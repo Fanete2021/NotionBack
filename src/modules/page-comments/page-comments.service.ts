@@ -1,47 +1,26 @@
-import {
-  BadRequestException,
-  ForbiddenException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
+import { PageCommentsAccessService } from './page-comments-access.service';
 import { PageCommentsRepository } from './page-comments.repository';
-import { PageCommentMapper } from './page-comment.mapper';
 import { CreatePageCommentDto } from './dto';
 import { UpdatePageCommentDto } from './dto';
 import { ListPageCommentsQueryDto } from './dto';
 import { PageCommentWithAuthor } from './types';
-import type { PageCommentEntity } from './entities';
-
-interface PageCommentRealtimeEvent {
-  pageId: string;
-  action: 'created' | 'updated' | 'deleted';
-  commentId: string;
-  comment?: PageCommentEntity;
-}
 
 @Injectable()
 export class PageCommentsService {
   constructor(
     private readonly pageCommentsRepository: PageCommentsRepository,
-    private readonly pageCommentMapper: PageCommentMapper,
+    private readonly pageCommentsAccess: PageCommentsAccessService,
     @InjectPinoLogger(PageCommentsService.name)
     private readonly logger: PinoLogger,
   ) {}
-
-  private publishRealtime: ((event: PageCommentRealtimeEvent) => void) | null =
-    null;
-
-  /** Открытые страницы подписываются сюда, чтобы не тянуть сокеты в модуль комментариев. */
-  registerRealtime(publish: (event: PageCommentRealtimeEvent) => void): void {
-    this.publishRealtime = publish;
-  }
 
   async list(
     pageId: string,
     query: ListPageCommentsQueryDto,
   ): Promise<PageCommentWithAuthor[]> {
-    await this.assertActivePage(pageId);
+    await this.pageCommentsAccess.assertActivePage(pageId);
 
     const resolved =
       query.resolved === undefined ? undefined : query.resolved === 'true';
@@ -57,22 +36,12 @@ export class PageCommentsService {
     authorId: string,
     dto: CreatePageCommentDto,
   ): Promise<PageCommentWithAuthor> {
-    await this.assertActivePage(pageId);
-
-    const body = dto.body.trim();
-    if (!body) {
-      this.logger.warn(
-        {
-          action: 'page_comment_create',
-          pageId,
-          userId: authorId,
-          reason: 'empty_body',
-        },
-        'page comment create rejected',
-      );
-      throw new BadRequestException('Comment body must not be empty');
-    }
-
+    await this.pageCommentsAccess.assertActivePage(pageId);
+    const body = this.pageCommentsAccess.requireBody(dto.body, {
+      action: 'page_comment_create',
+      pageId,
+      userId: authorId,
+    });
     const anchorId = dto.anchorId?.trim() || null;
 
     const comment = await this.pageCommentsRepository.create(
@@ -92,13 +61,6 @@ export class PageCommentsService {
       'page comment created',
     );
 
-    this.publishComment(
-      'created',
-      pageId,
-      comment.id,
-      this.pageCommentMapper.toEntity(comment),
-    );
-
     return comment;
   }
 
@@ -108,38 +70,19 @@ export class PageCommentsService {
     actorId: string,
     dto: UpdatePageCommentDto,
   ): Promise<PageCommentWithAuthor> {
-    await this.assertActivePage(pageId);
-
-    const comment = await this.getCommentOrThrow(pageId, commentId);
-
-    if (comment.authorId !== actorId) {
-      this.logger.warn(
-        {
-          action: 'page_comment_update',
-          pageId,
-          commentId,
-          userId: actorId,
-          reason: 'not_author',
-        },
-        'page comment update rejected',
-      );
-      throw new ForbiddenException('You can only edit your own comments');
-    }
-
-    const body = dto.body.trim();
-    if (!body) {
-      this.logger.warn(
-        {
-          action: 'page_comment_update',
-          pageId,
-          commentId,
-          userId: actorId,
-          reason: 'empty_body',
-        },
-        'page comment update rejected',
-      );
-      throw new BadRequestException('Comment body must not be empty');
-    }
+    await this.pageCommentsAccess.assertActivePage(pageId);
+    const comment = await this.pageCommentsAccess.getOrThrow(pageId, commentId);
+    this.pageCommentsAccess.assertAuthor(
+      comment,
+      actorId,
+      'page_comment_update',
+    );
+    const body = this.pageCommentsAccess.requireBody(dto.body, {
+      action: 'page_comment_update',
+      pageId,
+      userId: actorId,
+      commentId,
+    });
 
     const updated = await this.pageCommentsRepository.updateBody(
       commentId,
@@ -147,7 +90,7 @@ export class PageCommentsService {
       body,
     );
     if (!updated) {
-      this.logCommentNotFound(
+      this.pageCommentsAccess.logNotFound(
         'page_comment_update',
         pageId,
         commentId,
@@ -166,13 +109,6 @@ export class PageCommentsService {
       'page comment updated',
     );
 
-    this.publishComment(
-      'updated',
-      pageId,
-      updated.id,
-      this.pageCommentMapper.toEntity(updated),
-    );
-
     return updated;
   }
 
@@ -182,7 +118,7 @@ export class PageCommentsService {
     actorId: string,
     resolved: boolean,
   ): Promise<PageCommentWithAuthor> {
-    await this.assertActivePage(pageId);
+    await this.pageCommentsAccess.assertActivePage(pageId);
 
     const resolvedAt = resolved ? new Date() : null;
     const resolvedById = resolved ? actorId : null;
@@ -195,7 +131,7 @@ export class PageCommentsService {
       resolvedAt,
     );
     if (!updated) {
-      this.logCommentNotFound(
+      this.pageCommentsAccess.logNotFound(
         'page_comment_resolve',
         pageId,
         commentId,
@@ -215,13 +151,6 @@ export class PageCommentsService {
       'page comment resolve status updated',
     );
 
-    this.publishComment(
-      'updated',
-      pageId,
-      updated.id,
-      this.pageCommentMapper.toEntity(updated),
-    );
-
     return updated;
   }
 
@@ -230,27 +159,17 @@ export class PageCommentsService {
     commentId: string,
     actorId: string,
   ): Promise<void> {
-    await this.assertActivePage(pageId);
-
-    const comment = await this.getCommentOrThrow(pageId, commentId);
-
-    if (comment.authorId !== actorId) {
-      this.logger.warn(
-        {
-          action: 'page_comment_delete',
-          pageId,
-          commentId,
-          userId: actorId,
-          reason: 'not_author',
-        },
-        'page comment delete rejected',
-      );
-      throw new ForbiddenException('You can only delete your own comments');
-    }
+    await this.pageCommentsAccess.assertActivePage(pageId);
+    const comment = await this.pageCommentsAccess.getOrThrow(pageId, commentId);
+    this.pageCommentsAccess.assertAuthor(
+      comment,
+      actorId,
+      'page_comment_delete',
+    );
 
     const deleted = await this.pageCommentsRepository.delete(commentId, pageId);
     if (!deleted) {
-      this.logCommentNotFound(
+      this.pageCommentsAccess.logNotFound(
         'page_comment_delete',
         pageId,
         commentId,
@@ -268,61 +187,5 @@ export class PageCommentsService {
       },
       'page comment deleted',
     );
-
-    this.publishComment('deleted', pageId, commentId);
-  }
-
-  private publishComment(
-    action: PageCommentRealtimeEvent['action'],
-    pageId: string,
-    commentId: string,
-    comment?: PageCommentEntity,
-  ): void {
-    this.publishRealtime?.({
-      pageId,
-      action,
-      commentId,
-      ...(comment ? { comment } : {}),
-    });
-  }
-
-  private async assertActivePage(pageId: string): Promise<void> {
-    const activePageId =
-      await this.pageCommentsRepository.findActivePageId(pageId);
-    if (!activePageId) {
-      throw new NotFoundException('Page not found');
-    }
-  }
-
-  private logCommentNotFound(
-    action: string,
-    pageId: string,
-    commentId: string,
-    userId: string,
-  ): void {
-    this.logger.warn(
-      {
-        action,
-        pageId,
-        commentId,
-        userId,
-        reason: 'comment_not_found',
-      },
-      'page comment action rejected',
-    );
-  }
-
-  private async getCommentOrThrow(
-    pageId: string,
-    commentId: string,
-  ): Promise<PageCommentWithAuthor> {
-    const comment = await this.pageCommentsRepository.findByIdAndPageId(
-      commentId,
-      pageId,
-    );
-    if (!comment) {
-      throw new NotFoundException('Comment not found');
-    }
-    return comment;
   }
 }

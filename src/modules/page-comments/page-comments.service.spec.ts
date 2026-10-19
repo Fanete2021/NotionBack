@@ -5,15 +5,12 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PageCommentsService } from './page-comments.service';
+import { PageCommentsAccessService } from './page-comments-access.service';
 import { PageCommentsRepository } from './page-comments.repository';
-import { PageCommentMapper } from './page-comment.mapper';
-import { PageCommentEntity } from './entities';
 import { provideMockPinoLogger } from '@common/testing';
 
 describe('PageCommentsService', () => {
   let service: PageCommentsService;
-
-  const publish = jest.fn();
 
   const mockRepository = {
     findActivePageId: jest.fn(),
@@ -52,14 +49,14 @@ describe('PageCommentsService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PageCommentsService,
-        PageCommentMapper,
+        PageCommentsAccessService,
         { provide: PageCommentsRepository, useValue: mockRepository },
         provideMockPinoLogger(PageCommentsService.name),
+        provideMockPinoLogger(PageCommentsAccessService.name),
       ],
     }).compile();
 
     service = module.get(PageCommentsService);
-    service.registerRealtime(publish);
   });
 
   describe('list', () => {
@@ -73,7 +70,6 @@ describe('PageCommentsService', () => {
         anchorId: undefined,
         resolved: true,
       });
-      expect(publish).not.toHaveBeenCalled();
     });
   });
 
@@ -89,27 +85,13 @@ describe('PageCommentsService', () => {
         'hello',
         null,
       );
-      expect(publish).toHaveBeenCalledWith({
-        pageId: 'page-1',
-        action: 'created',
-        commentId: 'comment-1',
-        comment: expect.objectContaining({
-          body: 'Text',
-          authorInfo: {
-            id: 'user-1',
-            name: 'Author',
-            email: 'a@example.com',
-            avatarUrl: null,
-          },
-        }) as PageCommentEntity,
-      });
     });
 
     it('бросает 400 на пустой body', async () => {
       await expect(
         service.create('page-1', 'user-1', { body: '   ' }),
       ).rejects.toThrow(BadRequestException);
-      expect(publish).not.toHaveBeenCalled();
+      expect(mockRepository.create).not.toHaveBeenCalled();
     });
   });
 
@@ -120,7 +102,7 @@ describe('PageCommentsService', () => {
       await expect(
         service.update('page-1', 'comment-1', 'other-user', { body: 'X' }),
       ).rejects.toThrow(ForbiddenException);
-      expect(publish).not.toHaveBeenCalled();
+      expect(mockRepository.updateBody).not.toHaveBeenCalled();
     });
 
     it('обновляет свой комментарий', async () => {
@@ -137,12 +119,6 @@ describe('PageCommentsService', () => {
         'page-1',
         'New',
       );
-      expect(publish).toHaveBeenCalledWith({
-        pageId: 'page-1',
-        action: 'updated',
-        commentId: 'comment-1',
-        comment: expect.objectContaining({ body: 'New' }) as PageCommentEntity,
-      });
     });
   });
 
@@ -163,14 +139,6 @@ describe('PageCommentsService', () => {
         'user-2',
         expect.any(Date) as Date,
       );
-      expect(publish).toHaveBeenCalledWith({
-        pageId: 'page-1',
-        action: 'updated',
-        commentId: 'comment-1',
-        comment: expect.objectContaining({
-          resolved: true,
-        }) as PageCommentEntity,
-      });
     });
   });
 
@@ -182,11 +150,6 @@ describe('PageCommentsService', () => {
       await service.delete('page-1', 'comment-1', 'user-1');
 
       expect(mockRepository.delete).toHaveBeenCalledWith('comment-1', 'page-1');
-      expect(publish).toHaveBeenCalledWith({
-        pageId: 'page-1',
-        action: 'deleted',
-        commentId: 'comment-1',
-      });
     });
 
     it('запрещает удаление чужого комментария', async () => {
@@ -196,7 +159,6 @@ describe('PageCommentsService', () => {
         service.delete('page-1', 'comment-1', 'other-user'),
       ).rejects.toThrow(ForbiddenException);
       expect(mockRepository.delete).not.toHaveBeenCalled();
-      expect(publish).not.toHaveBeenCalled();
     });
 
     it('404 если комментарий не найден', async () => {
