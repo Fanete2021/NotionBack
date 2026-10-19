@@ -50,6 +50,7 @@ export class PagesVersionController {
             item.authorId,
             item.label,
             item.createdAt,
+            item.preview,
           ),
       ),
       result.nextCursor,

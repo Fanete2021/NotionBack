@@ -22,7 +22,7 @@ import { PageVersion, Prisma } from '@prisma/client';
 import { PAGE_VERSIONS_DEFAULT_LIMIT } from './consts';
 import { PagesVersionRepository } from './pages-version.repository';
 import { PagesVersionService } from './pages-version.service';
-import { PageVersionListItem } from './types';
+import { PageVersionListRow } from './types';
 
 describe('PagesVersionService', () => {
   let service: PagesVersionService;
@@ -44,12 +44,16 @@ describe('PagesVersionService', () => {
     createdAt: new Date('2026-09-01T00:00:00.000Z'),
   });
 
-  const listItem = (id: string): PageVersionListItem => ({
+  const listItem = (
+    id: string,
+    snapshot: Prisma.JsonValue = { type: 'doc', content: [] },
+  ): PageVersionListRow => ({
     id,
     pageId: 'page-1',
     authorId: 'author-1',
     label: null,
     createdAt: new Date('2026-09-01T00:00:00.000Z'),
+    snapshot,
   });
 
   beforeEach(async () => {
@@ -109,6 +113,25 @@ describe('PagesVersionService', () => {
       });
       expect(result.items).toHaveLength(1);
       expect(result.nextCursor).toBeNull();
+    });
+
+    it('добавляет превью текста снимка, обрезанное до 200 символов', async () => {
+      const longText = 'a'.repeat(250);
+      mockRepository.findManyByPageId.mockResolvedValue([
+        listItem('v1', {
+          type: 'doc',
+          content: [
+            {
+              type: 'paragraph',
+              content: [{ type: 'text', text: longText }],
+            },
+          ],
+        }),
+      ]);
+
+      const result = await service.list('page-1', {});
+
+      expect(result.items[0].preview).toBe('a'.repeat(200));
     });
   });
 

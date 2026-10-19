@@ -58,6 +58,7 @@ describe('PagesVersionController', () => {
       authorId: 'user-2',
       label: '2026-09-01T00:00:00.000Z',
       createdAt,
+      preview: 'Текст версии',
     };
 
     it('проверяет членство и возвращает страницу истории', async () => {
@@ -91,6 +92,7 @@ describe('PagesVersionController', () => {
               item.authorId,
               item.label,
               item.createdAt,
+              item.preview,
             ),
           ],
           'ver-1',

@@ -46,7 +46,7 @@ describe('PagesVersionRepository', () => {
   });
 
   describe('findManyByPageId', () => {
-    it('не выбирает snapshot и листает курсором', async () => {
+    it('выбирает snapshot для превью и листает курсором', async () => {
       mockPrisma.pageVersion.findMany.mockResolvedValue([]);
 
       await repository.findManyByPageId('page-1', {
@@ -66,6 +66,7 @@ describe('PagesVersionRepository', () => {
           authorId: true,
           label: true,
           createdAt: true,
+          snapshot: true,
         },
       });
     });

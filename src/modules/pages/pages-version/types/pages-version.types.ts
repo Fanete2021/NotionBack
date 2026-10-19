@@ -5,12 +5,22 @@ interface AutoSnapshotJobData {
   authorId: string;
 }
 
+interface PageVersionListRow {
+  id: string;
+  pageId: string;
+  authorId: string;
+  label: string | null;
+  createdAt: Date;
+  snapshot: Prisma.JsonValue;
+}
+
 interface PageVersionListItem {
   id: string;
   pageId: string;
   authorId: string;
   label: string | null;
   createdAt: Date;
+  preview: string;
 }
 
 interface PageVersionPage {
@@ -46,6 +56,7 @@ export type {
   ListPageVersionsOptions,
   PageContentHead,
   PageVersionListItem,
+  PageVersionListRow,
   PageVersionPage,
   RestorePageInput,
   RestorePageResult,

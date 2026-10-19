@@ -7,10 +7,20 @@ import {
 import { PageVersion, Prisma } from '@prisma/client';
 import { Queue } from 'bullmq';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
-import { AUTO_SNAPSHOT_DELAY, PAGE_VERSIONS_DEFAULT_LIMIT } from './consts';
+import { extractPlainText } from '../pages-content/utils';
+import {
+  AUTO_SNAPSHOT_DELAY,
+  PAGE_VERSION_PREVIEW_LENGTH,
+  PAGE_VERSIONS_DEFAULT_LIMIT,
+} from './consts';
 import { ListPageVersionsQueryDto } from './dto';
 import { PagesVersionRepository } from './pages-version.repository';
-import { PageContentHead, PageVersionPage } from './types';
+import {
+  PageContentHead,
+  PageVersionListItem,
+  PageVersionListRow,
+  PageVersionPage,
+} from './types';
 
 /** Мост к живым Yjs-сессиям (регистрируется из pages-content, чтобы не было цикла модулей). */
 export interface PageLiveSync {
@@ -70,7 +80,8 @@ export class PagesVersionService {
     });
 
     const hasMore = rows.length > limit;
-    const items = hasMore ? rows.slice(0, limit) : rows;
+    const page = hasMore ? rows.slice(0, limit) : rows;
+    const items = page.map((row) => toListItem(row));
 
     return {
       items,
@@ -120,4 +131,18 @@ function toInputJson(value: Prisma.JsonValue): Prisma.InputJsonValue {
   }
 
   return value;
+}
+
+function toListItem(row: PageVersionListRow): PageVersionListItem {
+  return {
+    id: row.id,
+    pageId: row.pageId,
+    authorId: row.authorId,
+    label: row.label,
+    createdAt: row.createdAt,
+    preview: extractPlainText(row.snapshot).slice(
+      0,
+      PAGE_VERSION_PREVIEW_LENGTH,
+    ),
+  };
 }
