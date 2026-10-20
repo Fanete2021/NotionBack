@@ -14,9 +14,21 @@ export class PageContentEntity {
   @ApiProperty({ example: '2026-08-03T00:00:00.000Z' })
   readonly updatedAt: Date;
 
-  constructor(pageId: string, json: Prisma.JsonValue, updatedAt: Date) {
+  @ApiProperty({
+    example: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
+    description: 'Кто последним изменил контент страницы',
+  })
+  readonly updatedById: string;
+
+  constructor(
+    pageId: string,
+    json: Prisma.JsonValue,
+    updatedAt: Date,
+    updatedById: string,
+  ) {
     this.pageId = pageId;
     this.json = json;
     this.updatedAt = updatedAt;
+    this.updatedById = updatedById;
   }
 }

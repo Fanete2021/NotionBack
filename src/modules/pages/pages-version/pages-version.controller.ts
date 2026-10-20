@@ -73,6 +73,7 @@ export class PagesVersionController {
       content.pageId,
       content.json,
       content.updatedAt,
+      content.updatedById ?? page.updatedById,
     );
   }
 }

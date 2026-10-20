@@ -46,6 +46,7 @@ describe('PagesRepository', () => {
     icon: null,
     type: PageType.DOC,
     authorId: 'user-1',
+    updatedById: 'user-1',
     position,
     createdAt: new Date('2026-01-01T00:00:00.000Z'),
     updatedAt: new Date('2026-01-01T00:00:00.000Z'),
@@ -105,6 +106,7 @@ describe('PagesRepository', () => {
         data: {
           workspaceId: 'ws-1',
           authorId: 'user-1',
+          updatedById: 'user-1',
           projectId: 'prj-1',
           title: 'P3',
           icon: null,
@@ -139,6 +141,7 @@ describe('PagesRepository', () => {
         data: {
           workspaceId: 'ws-1',
           authorId: 'user-1',
+          updatedById: 'user-1',
           projectId: 'prj-1',
           title: 'P1',
           icon: null,
