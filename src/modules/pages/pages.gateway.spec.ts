@@ -243,6 +243,23 @@ describe('PagesGateway', () => {
       );
     });
 
+    it('accepts an update sent as a plain JSON byte array', async () => {
+      const client = makeClient();
+      await gateway.handleJoin(client as never, { pageId: PAGE_ID });
+
+      const result = await gateway.handleYjsUpdate(client as never, {
+        pageId: PAGE_ID,
+        update: [1, 2, 3],
+      });
+
+      expect(result).toEqual({ ok: true });
+      expect(yjsDocService.applyUpdate).toHaveBeenCalledWith(
+        PAGE_ID,
+        new Uint8Array([1, 2, 3]),
+        'user-1',
+      );
+    });
+
     it('rejects updates from a client that has not joined', async () => {
       const result = await gateway.handleYjsUpdate(makeClient() as never, {
         pageId: PAGE_ID,

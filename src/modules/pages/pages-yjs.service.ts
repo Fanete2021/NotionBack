@@ -216,7 +216,19 @@ class PagesYjsService implements OnModuleDestroy {
   private toUint8Array(value: unknown): Uint8Array | null {
     if (value instanceof Uint8Array) return value;
     if (value instanceof ArrayBuffer) return new Uint8Array(value);
+    if (Array.isArray(value) && value.every(this.isByte)) {
+      return Uint8Array.from(value);
+    }
     return null;
+  }
+
+  private isByte(value: unknown): value is number {
+    return (
+      typeof value === 'number' &&
+      Number.isInteger(value) &&
+      value >= 0 &&
+      value <= 255
+    );
   }
 
   private room(pageId: string): string {
