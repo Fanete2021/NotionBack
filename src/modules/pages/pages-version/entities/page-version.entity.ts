@@ -16,17 +16,26 @@ export class PageVersionEntity {
   @ApiProperty({ example: '2026-09-27T06:00:00.000Z' })
   readonly createdAt: Date;
 
+  @ApiProperty({
+    example: 'Первые символы содержимого этой версии страницы',
+    description:
+      'Превью текста снимка (первые 200 символов без форматирования)',
+  })
+  readonly preview: string;
+
   constructor(
     id: string,
     pageId: string,
     authorId: string,
     label: string | null,
     createdAt: Date,
+    preview: string,
   ) {
     this.id = id;
     this.pageId = pageId;
     this.authorId = authorId;
     this.label = label;
     this.createdAt = createdAt;
+    this.preview = preview;
   }
 }

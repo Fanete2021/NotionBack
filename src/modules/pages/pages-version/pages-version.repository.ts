@@ -5,7 +5,7 @@ import { EMPTY_DOCUMENT } from '../constants';
 import { extractPlainText } from '../pages-content/utils';
 import {
   ListPageVersionsOptions,
-  PageVersionListItem,
+  PageVersionListRow,
   RestorePageInput,
   RestorePageResult,
 } from './types';
@@ -34,7 +34,7 @@ export class PagesVersionRepository {
   findManyByPageId(
     pageId: string,
     options: ListPageVersionsOptions,
-  ): Promise<PageVersionListItem[]> {
+  ): Promise<PageVersionListRow[]> {
     return this.prisma.pageVersion.findMany({
       where: { pageId },
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
@@ -46,6 +46,7 @@ export class PagesVersionRepository {
         authorId: true,
         label: true,
         createdAt: true,
+        snapshot: true,
       },
     });
   }
