@@ -1,5 +1,6 @@
 import { JwtAuthGuard } from '@common/guards';
 import { RedisClient } from '@common/providers';
+import { AiModule } from '@modules/ai/ai.module';
 import { AttachmentsModule } from '@modules/attachments/attachments.module';
 import { AuthModule } from '@modules/auth/auth.module';
 import { CalendarModule } from '@modules/calendar';
@@ -70,6 +71,7 @@ import { validationSchema } from './validation';
     }),
     PrismaModule,
     AuthModule,
+    AiModule,
     UsersModule,
     ProjectsModule,
     WorkspacesModule,
