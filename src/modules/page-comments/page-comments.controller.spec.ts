@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { PageCommentsController } from './page-comments.controller';
 import { PageCommentsService } from './page-comments.service';
+import { PageCommentsRealtimeService } from './page-comments-realtime.service';
 import { PageCommentMapper } from './page-comment.mapper';
 import { PageCommentEntity } from './entities';
 
@@ -13,6 +14,10 @@ describe('PageCommentsController', () => {
     update: jest.fn(),
     setResolved: jest.fn(),
     delete: jest.fn(),
+  };
+  const pageCommentsRealtime = {
+    publish: jest.fn(),
+    publishDeleted: jest.fn(),
   };
 
   const commentRow = {
@@ -43,6 +48,10 @@ describe('PageCommentsController', () => {
       providers: [
         PageCommentMapper,
         { provide: PageCommentsService, useValue: mockPageCommentsService },
+        {
+          provide: PageCommentsRealtimeService,
+          useValue: pageCommentsRealtime,
+        },
       ],
     }).compile();
 
@@ -70,5 +79,23 @@ describe('PageCommentsController', () => {
       { body: 'Hi' },
     );
     expect(result).toBeInstanceOf(PageCommentEntity);
+    expect(pageCommentsRealtime.publish).toHaveBeenCalledWith(
+      'user-1',
+      'created',
+      result,
+    );
+  });
+
+  it('delete сообщает id и автора', async () => {
+    mockPageCommentsService.delete.mockResolvedValue(undefined);
+
+    await controller.delete('user-1', 'page-1', 'comment-1');
+
+    expect(pageCommentsRealtime.publishDeleted).toHaveBeenCalledWith(
+      'user-1',
+      'page-1',
+      'comment-1',
+    );
+    expect(pageCommentsRealtime.publish).not.toHaveBeenCalled();
   });
 });

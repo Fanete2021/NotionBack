@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PageCommentsService } from './page-comments.service';
+import { PageCommentsAccessService } from './page-comments-access.service';
 import { PageCommentsRepository } from './page-comments.repository';
 import { provideMockPinoLogger } from '@common/testing';
 
@@ -48,8 +49,10 @@ describe('PageCommentsService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PageCommentsService,
+        PageCommentsAccessService,
         { provide: PageCommentsRepository, useValue: mockRepository },
         provideMockPinoLogger(PageCommentsService.name),
+        provideMockPinoLogger(PageCommentsAccessService.name),
       ],
     }).compile();
 
@@ -88,6 +91,7 @@ describe('PageCommentsService', () => {
       await expect(
         service.create('page-1', 'user-1', { body: '   ' }),
       ).rejects.toThrow(BadRequestException);
+      expect(mockRepository.create).not.toHaveBeenCalled();
     });
   });
 
@@ -98,6 +102,7 @@ describe('PageCommentsService', () => {
       await expect(
         service.update('page-1', 'comment-1', 'other-user', { body: 'X' }),
       ).rejects.toThrow(ForbiddenException);
+      expect(mockRepository.updateBody).not.toHaveBeenCalled();
     });
 
     it('обновляет свой комментарий', async () => {
