@@ -140,7 +140,7 @@ describe('ProjectsRepository', () => {
       const executeCalls = mockTx.$executeRaw.mock.calls as unknown[][];
       expect(String(executeCalls[0][0])).toContain('pg_advisory_xact_lock');
       expect(String(executeCalls[1][0])).toContain(
-        'SET "position" = "position" +',
+        'SET "position" = -("position" + 1)',
       );
       expect(String(executeCalls[2][0])).toContain('FROM (VALUES');
 

@@ -91,17 +91,48 @@ export class PagesRepository {
       }
 
       if (orderedIds.length > 0) {
-        await tx.page.updateMany({
-          where: { id: { in: orderedIds } },
-          data: { position: { increment: orderedIds.length } },
+        const trashed = await tx.page.findMany({
+          where: {
+            workspaceId,
+            projectId,
+            parentPageId: null,
+            deletedAt: { not: null },
+          },
+          orderBy: [{ position: 'asc' }, { id: 'asc' }],
+          select: { id: true },
         });
 
-        for (const [index, id] of orderedIds.entries()) {
-          await tx.page.update({
-            where: { id },
-            data: { position: index },
-          });
-        }
+        const placements = [
+          ...orderedIds.map((id, index) => ({ id, position: index })),
+          ...trashed.map((page, index) => ({
+            id: page.id,
+            position: orderedIds.length + index,
+          })),
+        ];
+        const idList = Prisma.join(
+          placements.map((row) => Prisma.sql`${row.id}::text`),
+        );
+        const valueRows = Prisma.join(
+          placements.map(
+            (row) => Prisma.sql`(${row.id}::text, ${row.position}::int)`,
+          ),
+        );
+
+        // Та же дыра, что у проектов: position + count конфликтует построчно.
+        // Удалённые страницы тоже держат позицию в уникальном индексе,
+        // поэтому их уводим за живой диапазон 0..n-1.
+        await tx.$executeRaw`
+          UPDATE "pages"
+          SET "position" = -("position" + 1)
+          WHERE id IN (${idList})
+        `;
+        await tx.$executeRaw`
+          UPDATE "pages" AS p
+          SET "position" = v.position,
+              "updatedAt" = NOW()
+          FROM (VALUES ${valueRows}) AS v(id, position)
+          WHERE p.id = v.id
+        `;
       }
 
       const pages = await tx.page.findMany({

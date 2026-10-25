@@ -114,7 +114,6 @@ export class ProjectsRepository {
       }
 
       if (orderedIds.length > 0) {
-        const offset = orderedIds.length;
         const idList = Prisma.join(
           orderedIds.map((id) => Prisma.sql`${id}::text`),
         );
@@ -126,7 +125,7 @@ export class ProjectsRepository {
 
         await tx.$executeRaw`
           UPDATE "projects"
-          SET "position" = "position" + ${offset}
+          SET "position" = -("position" + 1)
           WHERE id IN (${idList})
         `;
         await tx.$executeRaw`

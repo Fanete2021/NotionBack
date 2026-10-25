@@ -10,10 +10,14 @@ describe('PagesRepository', () => {
     page: {
       aggregate: jest.fn(),
       create: jest.fn(),
+      findMany: jest.fn(),
+      update: jest.fn(),
+      updateMany: jest.fn(),
     },
     pageContent: {
       create: jest.fn(),
     },
+    $executeRaw: jest.fn(),
   };
 
   const mockPrisma = {
@@ -83,6 +87,7 @@ describe('PagesRepository', () => {
     mockPrisma.$transaction.mockImplementation(
       (callback: (tx: unknown) => unknown) => callback(mockTx),
     );
+    mockTx.$executeRaw.mockResolvedValue(1);
   });
 
   describe('create', () => {
@@ -211,6 +216,28 @@ describe('PagesRepository', () => {
       const result = await repository.nextPosition('ws-1', 'prj-1');
 
       expect(result).toBe(0);
+    });
+  });
+
+  describe('reorder', () => {
+    it('сначала уводит позиции в минус, затем пишет итоговые индексы', async () => {
+      mockTx.page.findMany
+        .mockResolvedValueOnce([pageFixture('p1', 0), pageFixture('p2', 2)])
+        .mockResolvedValueOnce([{ id: 'trashed' }])
+        .mockResolvedValueOnce([pageFixture('p2', 0), pageFixture('p1', 1)]);
+
+      const result = await repository.reorder('ws-1', 'prj-1', ['p2', 'p1']);
+
+      expect(mockTx.page.update).not.toHaveBeenCalled();
+      expect(mockTx.page.updateMany).not.toHaveBeenCalled();
+      expect(mockTx.$executeRaw).toHaveBeenCalledTimes(3);
+      const executeCalls = mockTx.$executeRaw.mock.calls as unknown[][];
+      expect(String(executeCalls[1][0])).toContain(
+        'SET "position" = -("position" + 1)',
+      );
+      expect(String(executeCalls[2][0])).toContain('FROM (VALUES');
+      expect(JSON.stringify(executeCalls[1])).toContain('trashed');
+      expect(result).toHaveLength(2);
     });
   });
 
