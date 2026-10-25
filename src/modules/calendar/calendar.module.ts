@@ -8,9 +8,15 @@ import { WorkspaceEventGuard } from './events/guards';
 import { PrismaModule } from '../../prisma';
 import { WorkspacesModule } from '@modules/workspaces/workspaces.module';
 import { ProjectsModule } from '@modules/projects/projects.module';
+import { NotificationsModule } from '@modules/notifications';
 
 @Module({
-  imports: [PrismaModule, WorkspacesModule, ProjectsModule],
+  imports: [
+    PrismaModule,
+    WorkspacesModule,
+    ProjectsModule,
+    NotificationsModule,
+  ],
   controllers: [EventsController, WorkspaceEventsController],
   providers: [
     EventsService,

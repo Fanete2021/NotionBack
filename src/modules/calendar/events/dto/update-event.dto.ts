@@ -3,10 +3,13 @@ import { Transform } from 'class-transformer';
 import {
   IsBoolean,
   IsDateString,
+  IsInt,
   IsNotEmpty,
   IsOptional,
   IsString,
   IsUUID,
+  Max,
+  Min,
   ValidateIf,
 } from 'class-validator';
 
@@ -53,4 +56,25 @@ export class UpdateEventDto {
   @ValidateIf((_, value) => value !== null)
   @IsUUID('4')
   projectId?: string | null;
+
+  @ApiPropertyOptional({
+    example: 15,
+    description:
+      'За сколько минут до события напомнить (null — убрать напоминание)',
+    nullable: true,
+  })
+  @IsOptional()
+  @ValidateIf((_, value) => value !== null)
+  @IsInt()
+  @Min(0)
+  @Max(40320)
+  reminderMinutes?: number | null;
+
+  @ApiPropertyOptional({
+    example: true,
+    description: 'Отправлять напоминание в Telegram',
+  })
+  @IsOptional()
+  @IsBoolean()
+  telegramReminder?: boolean;
 }

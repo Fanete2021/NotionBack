@@ -1,7 +1,25 @@
+jest.mock('@nestjs/bullmq', () => {
+  const common =
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    require('@nestjs/common') as typeof import('@nestjs/common');
+
+  return {
+    BullModule: {
+      registerQueue: jest.fn(() => ({})),
+      forRoot: jest.fn(() => ({})),
+    },
+    InjectQueue: (name: string): ParameterDecorator =>
+      common.Inject(`BullQueue_${name}`),
+    Processor: jest.fn(() => jest.fn()),
+    WorkerHost: class {},
+  };
+});
+
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { provideMockPinoLogger } from '@common/testing';
 import { ProjectsRepository } from '@modules/projects/projects.repository';
+import { EventRemindersService } from '@modules/notifications/event-reminders.service';
 import { EventsService } from './events.service';
 import { EventsRepository } from './events.repository';
 import { EventsMapper } from './events.mapper';
@@ -22,6 +40,11 @@ describe('EventsService', () => {
     findById: jest.fn(),
   };
 
+  const mockEventRemindersService = {
+    scheduleForEvent: jest.fn(),
+    removeForEvent: jest.fn(),
+  };
+
   const buildEvent = (overrides: Partial<EventEntity> = {}): EventEntity =>
     new EventEntity({
       id: 'e1',
@@ -32,6 +55,8 @@ describe('EventsService', () => {
       endAt: new Date('2026-09-09T14:30:00.000Z'),
       allDay: false,
       isCompleted: false,
+      reminderMinutes: null,
+      telegramReminder: false,
       createdAt: new Date('2026-09-01T00:00:00.000Z'),
       updatedAt: new Date('2026-09-01T00:00:00.000Z'),
       ...overrides,
@@ -45,6 +70,10 @@ describe('EventsService', () => {
         EventsMapper,
         { provide: EventsRepository, useValue: mockEventsRepository },
         { provide: ProjectsRepository, useValue: mockProjectsRepository },
+        {
+          provide: EventRemindersService,
+          useValue: mockEventRemindersService,
+        },
         provideMockPinoLogger(EventsService.name),
       ],
     }).compile();
@@ -57,11 +86,15 @@ describe('EventsService', () => {
       const event = buildEvent();
       mockEventsRepository.create.mockResolvedValue(event);
 
-      const result = await service.create('ws-1', {
-        title: 'Meeting',
-        startAt: '2026-09-09T14:00:00.000Z',
-        endAt: '2026-09-09T14:30:00.000Z',
-      });
+      const result = await service.create(
+        'ws-1',
+        {
+          title: 'Meeting',
+          startAt: '2026-09-09T14:00:00.000Z',
+          endAt: '2026-09-09T14:30:00.000Z',
+        },
+        'u1',
+      );
 
       expect(mockProjectsRepository.findById).not.toHaveBeenCalled();
       expect(mockEventsRepository.create).toHaveBeenCalledWith('ws-1', {
@@ -70,8 +103,43 @@ describe('EventsService', () => {
         endAt: new Date('2026-09-09T14:30:00.000Z'),
         allDay: false,
         projectId: null,
+        reminderMinutes: null,
+        telegramReminder: false,
+        reminderUserId: null,
       });
+      expect(mockEventRemindersService.scheduleForEvent).toHaveBeenCalledWith(
+        event,
+      );
       expect(result).toEqual(event);
+    });
+
+    it('включает telegram-напоминание и планирует его на создателя', async () => {
+      const event = buildEvent({ telegramReminder: true, reminderMinutes: 30 });
+      mockEventsRepository.create.mockResolvedValue(event);
+
+      await service.create(
+        'ws-1',
+        {
+          title: 'Meeting',
+          startAt: '2026-09-09T14:00:00.000Z',
+          endAt: '2026-09-09T14:30:00.000Z',
+          telegramReminder: true,
+          reminderMinutes: 30,
+        },
+        'u1',
+      );
+
+      expect(mockEventsRepository.create).toHaveBeenCalledWith(
+        'ws-1',
+        expect.objectContaining({
+          reminderMinutes: 30,
+          telegramReminder: true,
+          reminderUserId: 'u1',
+        }),
+      );
+      expect(mockEventRemindersService.scheduleForEvent).toHaveBeenCalledWith(
+        event,
+      );
     });
 
     it('проверяет, что проект принадлежит воркспейсу', async () => {
@@ -81,12 +149,16 @@ describe('EventsService', () => {
       });
       mockEventsRepository.create.mockResolvedValue(buildEvent());
 
-      await service.create('ws-1', {
-        title: 'Meeting',
-        startAt: '2026-09-09T14:00:00.000Z',
-        endAt: '2026-09-09T14:30:00.000Z',
-        projectId: 'p1',
-      });
+      await service.create(
+        'ws-1',
+        {
+          title: 'Meeting',
+          startAt: '2026-09-09T14:00:00.000Z',
+          endAt: '2026-09-09T14:30:00.000Z',
+          projectId: 'p1',
+        },
+        'u1',
+      );
 
       expect(mockProjectsRepository.findById).toHaveBeenCalledWith('p1');
     });
@@ -98,23 +170,31 @@ describe('EventsService', () => {
       });
 
       await expect(
-        service.create('ws-1', {
-          title: 'Meeting',
-          startAt: '2026-09-09T14:00:00.000Z',
-          endAt: '2026-09-09T14:30:00.000Z',
-          projectId: 'p1',
-        }),
+        service.create(
+          'ws-1',
+          {
+            title: 'Meeting',
+            startAt: '2026-09-09T14:00:00.000Z',
+            endAt: '2026-09-09T14:30:00.000Z',
+            projectId: 'p1',
+          },
+          'u1',
+        ),
       ).rejects.toThrow(BadRequestException);
       expect(mockEventsRepository.create).not.toHaveBeenCalled();
     });
 
     it('бросает 400, если endAt раньше startAt', async () => {
       await expect(
-        service.create('ws-1', {
-          title: 'Meeting',
-          startAt: '2026-09-09T15:00:00.000Z',
-          endAt: '2026-09-09T14:00:00.000Z',
-        }),
+        service.create(
+          'ws-1',
+          {
+            title: 'Meeting',
+            startAt: '2026-09-09T15:00:00.000Z',
+            endAt: '2026-09-09T14:00:00.000Z',
+          },
+          'u1',
+        ),
       ).rejects.toThrow(BadRequestException);
       expect(mockEventsRepository.create).not.toHaveBeenCalled();
     });
@@ -151,6 +231,35 @@ describe('EventsService', () => {
   });
 
   describe('update', () => {
+    it('не переназначает получателя, если Telegram уже включён', async () => {
+      const event = buildEvent({
+        telegramReminder: true,
+        reminderMinutes: 15,
+      });
+      mockEventsRepository.update.mockResolvedValue(event);
+
+      await service.update('e1', { title: 'New' }, event, 'u2');
+
+      expect(mockEventsRepository.update).toHaveBeenCalledWith('e1', {
+        title: 'New',
+      });
+    });
+
+    it('фиксирует получателя только при явном включении Telegram', async () => {
+      const event = buildEvent();
+      mockEventsRepository.update.mockResolvedValue(
+        buildEvent({ telegramReminder: true, reminderMinutes: 15 }),
+      );
+
+      await service.update('e1', { telegramReminder: true }, event, 'u2');
+
+      expect(mockEventsRepository.update).toHaveBeenCalledWith('e1', {
+        telegramReminder: true,
+        reminderUserId: 'u2',
+        reminderMinutes: 15,
+      });
+    });
+
     it('обновляет только переданные поля', async () => {
       const event = buildEvent();
       const updated = buildEvent({ title: 'New' });

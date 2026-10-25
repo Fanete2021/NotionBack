@@ -30,6 +30,10 @@ model User {
   updatedAt    DateTime @updatedAt
   avatarUrl    String?
 
+  telegramChatId      String?   @unique
+  telegramUsername    String?
+  telegramConnectedAt DateTime?
+
   ownedWorkspaces      Workspace[]       @relation("WorkspaceOwner")
   memberships          WorkspaceMember[]
   authoredPages        Page[]
@@ -40,6 +44,10 @@ model User {
   pageVersions         PageVersion[]
   pageCommentsAuthored PageComment[]     @relation("PageCommentAuthor")
   pageCommentsResolved PageComment[]     @relation("PageCommentResolver")
+
+  telegramConnectCodes TelegramConnectCode[]
+  notificationSettings NotificationSettings?
+  remindedEvents       CalendarEvent[]       @relation("EventReminderUser")
 
   @@map("users")
 }

@@ -8,6 +8,7 @@ import { databaseValidationSchema } from './database.validation';
 import { redisValidationSchema } from './redis.validation';
 import { s3ValidationSchema } from './s3.validation';
 import { sentryValidationSchema } from './sentry.validation';
+import { telegramValidationSchema } from './telegram.validation';
 import { workspaceValidationSchema } from './workspace.validation';
 
 export const validationSchema = Joi.object({
@@ -19,4 +20,5 @@ export const validationSchema = Joi.object({
   ...attachmentsValidationSchema,
   ...workspaceValidationSchema,
   ...sentryValidationSchema,
+  ...telegramValidationSchema,
 });

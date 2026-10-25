@@ -5,6 +5,10 @@ import {
 } from '@nestjs/common';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { ProjectsRepository } from '@modules/projects/projects.repository';
+import {
+  DEFAULT_REMINDER_MINUTES,
+  EventRemindersService,
+} from '@modules/notifications';
 import { EventsRepository } from './events.repository';
 import { EventsMapper } from './events.mapper';
 import { EventEntity } from './entities';
@@ -17,11 +21,16 @@ export class EventsService {
     private readonly eventsRepository: EventsRepository,
     private readonly eventsMapper: EventsMapper,
     private readonly projectsRepository: ProjectsRepository,
+    private readonly eventRemindersService: EventRemindersService,
     @InjectPinoLogger(EventsService.name)
     private readonly logger: PinoLogger,
   ) {}
 
-  async create(workspaceId: string, dto: CreateEventDto): Promise<EventEntity> {
+  async create(
+    workspaceId: string,
+    dto: CreateEventDto,
+    userId: string,
+  ): Promise<EventEntity> {
     const projectId = dto.projectId ?? null;
     await this.assertProjectInWorkspace(workspaceId, projectId);
 
@@ -29,13 +38,23 @@ export class EventsService {
     const endAt = new Date(dto.endAt);
     this.assertValidRange(startAt, endAt);
 
+    const telegramReminder = dto.telegramReminder ?? false;
+    const reminderMinutes =
+      dto.reminderMinutes ??
+      (telegramReminder ? DEFAULT_REMINDER_MINUTES : null);
+
     const event = await this.eventsRepository.create(workspaceId, {
       title: dto.title,
       startAt,
       endAt,
       allDay: dto.allDay ?? false,
       projectId,
+      reminderMinutes,
+      telegramReminder,
+      reminderUserId: telegramReminder ? userId : null,
     });
+
+    await this.eventRemindersService.scheduleForEvent(event);
 
     this.logger.info(
       { eventId: event.id, workspaceId, action: 'event_create' },
@@ -77,6 +96,7 @@ export class EventsService {
     id: string,
     dto: UpdateEventDto,
     existingEvent?: EventEntity,
+    userId?: string,
   ): Promise<EventEntity> {
     const event = existingEvent ?? (await this.eventsRepository.findById(id));
     if (!event) {
@@ -108,10 +128,14 @@ export class EventsService {
       payload.endAt = endAt;
     }
 
+    this.applyReminderUpdate(payload, dto, event, userId);
+
     const updated = await this.eventsRepository.update(id, payload);
     if (!updated) {
       throw new NotFoundException('Event not found');
     }
+
+    await this.eventRemindersService.scheduleForEvent(updated);
 
     this.logger.info(
       { eventId: id, workspaceId: event.workspaceId, action: 'event_update' },
@@ -119,6 +143,32 @@ export class EventsService {
     );
 
     return this.eventsMapper.toEntity(updated);
+  }
+
+  private applyReminderUpdate(
+    payload: UpdateEventData,
+    dto: UpdateEventDto,
+    event: EventEntity,
+    userId?: string,
+  ): void {
+    if (dto.telegramReminder !== undefined) {
+      payload.telegramReminder = dto.telegramReminder;
+    }
+    if (dto.reminderMinutes !== undefined) {
+      payload.reminderMinutes = dto.reminderMinutes;
+    }
+
+    if (dto.telegramReminder === false) {
+      payload.reminderUserId = null;
+      return;
+    }
+
+    if (dto.telegramReminder === true && userId) {
+      payload.reminderUserId = userId;
+      if (dto.reminderMinutes === undefined && event.reminderMinutes == null) {
+        payload.reminderMinutes = DEFAULT_REMINDER_MINUTES;
+      }
+    }
   }
 
   async setCompleted(
@@ -134,6 +184,12 @@ export class EventsService {
     const updated = await this.eventsRepository.update(id, { isCompleted });
     if (!updated) {
       throw new NotFoundException('Event not found');
+    }
+
+    if (isCompleted) {
+      await this.eventRemindersService.removeForEvent(id);
+    } else {
+      await this.eventRemindersService.scheduleForEvent(updated);
     }
 
     this.logger.info(
@@ -154,6 +210,8 @@ export class EventsService {
     if (!deleted) {
       throw new NotFoundException('Event not found');
     }
+
+    await this.eventRemindersService.removeForEvent(id);
 
     this.logger.info({ eventId: id, action: 'event_delete' }, 'event deleted');
   }
