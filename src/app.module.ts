@@ -4,7 +4,9 @@ import { AiModule } from '@modules/ai/ai.module';
 import { AttachmentsModule } from '@modules/attachments/attachments.module';
 import { AuthModule } from '@modules/auth/auth.module';
 import { CalendarModule } from '@modules/calendar';
+import { NotificationsModule } from '@modules/notifications/notifications.module';
 import { PageCommentsModule } from '@modules/page-comments/page-comments.module';
+import { TelegramModule } from '@modules/telegram/telegram.module';
 import {
   PagesContentModule,
   PagesModule,
@@ -29,6 +31,7 @@ import {
   authConfig,
   createLoggerOptions,
   databaseConfig,
+  telegramConfig,
 } from './config';
 import { HttpExceptionsFilter, PrismaExceptionFilter } from './filters';
 import { HealthController } from './health/health.controller';
@@ -41,7 +44,7 @@ import { validationSchema } from './validation';
     SentryModule.forRoot(),
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [appConfig, authConfig, databaseConfig],
+      load: [appConfig, authConfig, databaseConfig, telegramConfig],
       validationSchema,
     }),
     BullModule.forRootAsync({
@@ -84,6 +87,8 @@ import { validationSchema } from './validation';
     PagesTrashModule,
     PagesRealtimeModule,
     PageCommentsModule,
+    TelegramModule,
+    NotificationsModule,
     CalendarModule,
   ],
   controllers: [HealthController],

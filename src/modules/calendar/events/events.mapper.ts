@@ -14,6 +14,8 @@ export class EventsMapper {
       endAt: event.endAt,
       allDay: event.allDay,
       isCompleted: event.isCompleted,
+      reminderMinutes: event.reminderMinutes,
+      telegramReminder: event.telegramReminder,
       createdAt: event.createdAt,
       updatedAt: event.updatedAt,
     });

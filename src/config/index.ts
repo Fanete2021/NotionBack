@@ -2,5 +2,6 @@ export { getCorsOrigins } from './cors';
 export { default as appConfig } from './app.config';
 export { default as authConfig } from './auth.config';
 export { default as databaseConfig } from './database.config';
+export { default as telegramConfig } from './telegram.config';
 export { default as createLoggerOptions } from './logger.config';
 export { initSentry } from './sentry.config';

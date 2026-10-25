@@ -28,6 +28,19 @@ export class EventEntity {
   })
   readonly isCompleted: boolean;
 
+  @ApiPropertyOptional({
+    example: 15,
+    description: 'За сколько минут до события напомнить',
+    nullable: true,
+  })
+  readonly reminderMinutes: number | null;
+
+  @ApiProperty({
+    example: false,
+    description: 'Отправлять напоминание в Telegram',
+  })
+  readonly telegramReminder: boolean;
+
   @ApiProperty({ example: '2026-09-01T00:00:00.000Z' })
   readonly createdAt: Date;
 
@@ -43,6 +56,8 @@ export class EventEntity {
     endAt: Date;
     allDay: boolean;
     isCompleted: boolean;
+    reminderMinutes: number | null;
+    telegramReminder: boolean;
     createdAt: Date;
     updatedAt: Date;
   }) {
@@ -54,6 +69,8 @@ export class EventEntity {
     this.endAt = props.endAt;
     this.allDay = props.allDay;
     this.isCompleted = props.isCompleted;
+    this.reminderMinutes = props.reminderMinutes;
+    this.telegramReminder = props.telegramReminder;
     this.createdAt = props.createdAt;
     this.updatedAt = props.updatedAt;
   }

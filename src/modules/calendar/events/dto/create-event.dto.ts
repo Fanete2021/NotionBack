@@ -3,10 +3,13 @@ import { Transform } from 'class-transformer';
 import {
   IsBoolean,
   IsDateString,
+  IsInt,
   IsNotEmpty,
   IsOptional,
   IsString,
   IsUUID,
+  Max,
+  Min,
 } from 'class-validator';
 
 export class CreateEventDto {
@@ -51,4 +54,23 @@ export class CreateEventDto {
   @IsOptional()
   @IsUUID('4')
   projectId?: string;
+
+  @ApiPropertyOptional({
+    example: 15,
+    description: 'За сколько минут до события напомнить',
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(40320)
+  reminderMinutes?: number;
+
+  @ApiPropertyOptional({
+    example: true,
+    description: 'Отправлять напоминание в Telegram',
+    default: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  telegramReminder?: boolean;
 }

@@ -9,6 +9,7 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
+import { CurrentUser } from '@common/decorators';
 import { WorkspaceEventGuard } from './guards';
 import { EventsService } from './events.service';
 import { SetEventCompletedDto, UpdateEventDto } from './dto';
@@ -33,8 +34,9 @@ export class EventsController {
     @Param('id') id: string,
     @Body() dto: UpdateEventDto,
     @Req() req: AuthenticatedRequest,
+    @CurrentUser('id') userId: string,
   ): Promise<EventEntity> {
-    return this.eventsService.update(id, dto, req.event);
+    return this.eventsService.update(id, dto, req.event, userId);
   }
 
   @EventsSetCompletedResponse()

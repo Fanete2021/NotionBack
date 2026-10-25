@@ -4,6 +4,9 @@ type CreateEventData = {
   endAt: Date;
   allDay: boolean;
   projectId: string | null;
+  reminderMinutes: number | null;
+  telegramReminder: boolean;
+  reminderUserId: string | null;
 };
 
 type UpdateEventData = Partial<CreateEventData> & {

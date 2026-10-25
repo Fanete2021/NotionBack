@@ -7,6 +7,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { CurrentUser } from '@common/decorators';
 import { WorkspaceMemberGuard } from '@modules/workspace-members/guards';
 import { EventsService } from './events.service';
 import { CreateEventDto, ListEventsQueryDto } from './dto';
@@ -37,7 +38,8 @@ export class WorkspaceEventsController {
   create(
     @Param('workspaceId') workspaceId: string,
     @Body() dto: CreateEventDto,
+    @CurrentUser('id') userId: string,
   ): Promise<EventEntity> {
-    return this.eventsService.create(workspaceId, dto);
+    return this.eventsService.create(workspaceId, dto, userId);
   }
 }

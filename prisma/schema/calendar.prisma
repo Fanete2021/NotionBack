@@ -10,8 +10,13 @@ model CalendarEvent {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  project   Project?  @relation(fields: [projectId, workspaceId], references: [id, workspaceId], onDelete: Cascade)
+  reminderMinutes  Int?
+  telegramReminder Boolean @default(false)
+  reminderUserId   String?
+
+  workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project      Project?  @relation(fields: [projectId, workspaceId], references: [id, workspaceId], onDelete: Cascade)
+  reminderUser User?     @relation("EventReminderUser", fields: [reminderUserId], references: [id], onDelete: SetNull)
 
   @@index([workspaceId, startAt])
   @@index([workspaceId, projectId])
