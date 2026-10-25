@@ -1,5 +1,6 @@
 import {
   BadGatewayException,
+  ConflictException,
   GatewayTimeoutException,
   HttpException,
   ServiceUnavailableException,
@@ -8,7 +9,7 @@ import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { provideMockPinoLogger } from '@common/testing';
 import { AiAction } from './ai-action';
-import { AiService, AI_REQUEST_TIMEOUT_MS } from './ai.service';
+import { AiService, AI_IDLE_TIMEOUT_MS } from './ai.service';
 import { AiCompleteEntity } from './entities';
 
 describe('AiService', () => {
@@ -104,7 +105,7 @@ describe('AiService', () => {
 
       expect(result).toEqual(new AiCompleteEntity(action, 'готово'));
       const body = requestBody();
-      expect(body.model).toBe('llama-3.3-70b-versatile');
+      expect(body.model).toBe('openai/gpt-oss-120b');
       expect(body.stream).toBe(true);
       expect(body.messages[0]?.content.startsWith(phrases[action])).toBe(true);
       expect(body.messages[1]).toEqual({ role: 'user', content: 'исходник' });
@@ -200,7 +201,25 @@ describe('AiService', () => {
     const assertion = expect(pending).rejects.toBeInstanceOf(
       GatewayTimeoutException,
     );
-    await jest.advanceTimersByTimeAsync(AI_REQUEST_TIMEOUT_MS);
+    await jest.advanceTimersByTimeAsync(AI_IDLE_TIMEOUT_MS);
     await assertion;
+  });
+
+  it('отвечает 502, если провайдер вернул пустой ответ', async () => {
+    mockStream([encode('data: [DONE]\n\n')]);
+
+    await expect(
+      service.complete({ action: AiAction.WRITE, text: 'текст' }),
+    ).rejects.toBeInstanceOf(BadGatewayException);
+  });
+
+  it('блокирует повторную генерацию того же пользователя (409)', () => {
+    service.beginGeneration('user-1');
+
+    expect(() => service.beginGeneration('user-1')).toThrow(ConflictException);
+    expect(() => service.beginGeneration('user-2')).not.toThrow();
+
+    service.endGeneration('user-1');
+    expect(() => service.beginGeneration('user-1')).not.toThrow();
   });
 });

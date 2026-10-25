@@ -1,5 +1,6 @@
 import {
   BadGatewayException,
+  ConflictException,
   GatewayTimeoutException,
   HttpException,
   Injectable,
@@ -13,34 +14,58 @@ import { AiCompleteEntity } from './entities';
 
 const GROQ_CHAT_COMPLETIONS_URL =
   'https://api.groq.com/openai/v1/chat/completions';
-const GROQ_MODEL = 'llama-3.3-70b-versatile';
-const AI_REQUEST_TIMEOUT_MS = 30_000;
+const GROQ_DEFAULT_MODEL = 'openai/gpt-oss-120b';
+const AI_IDLE_TIMEOUT_MS = 30_000;
+
+const MARKDOWN_GUIDE =
+  ' Ответ верни в Markdown, используя при необходимости заголовки (#, ##), ' +
+  'списки (-, 1.), **жирный**, *курсив*, `код` и ссылки [текст](url). ' +
+  'Не добавляй пояснений и не оборачивай ответ в тройные обратные кавычки.';
 
 const AI_INSTRUCTIONS: Record<AiAction, string> = {
   [AiAction.WRITE]:
-    'Напиши текст по запросу пользователя. Верни только готовый текст, без пояснений.',
+    'Напиши текст по запросу пользователя. Верни только готовый текст.' +
+    MARKDOWN_GUIDE,
   [AiAction.IMPROVE]:
-    'Улучши ясность и стиль текста пользователя. Верни только улучшенный текст, без пояснений.',
+    'Улучши ясность и стиль текста пользователя. Верни только улучшенный текст, сохранив исходное форматирование.' +
+    MARKDOWN_GUIDE,
   [AiAction.SUMMARIZE]:
-    'Кратко перескажи текст пользователя. Верни только пересказ, без пояснений.',
+    'Кратко перескажи текст пользователя. Верни только пересказ.' +
+    MARKDOWN_GUIDE,
   [AiAction.FIX_GRAMMAR]:
-    'Исправь грамматику и орфографию текста пользователя. Верни только исправленный текст, без пояснений.',
+    'Исправь грамматику и орфографию текста пользователя. Верни только исправленный текст, сохранив исходное форматирование и не переписывая его.' +
+    MARKDOWN_GUIDE,
   [AiAction.TRANSLATE]:
-    'Переведи текст пользователя. Если язык перевода не указан в тексте, переведи на русский. Верни только перевод, без пояснений.',
+    'Переведи текст пользователя. Если язык перевода не указан в тексте, переведи на русский. Верни только перевод, сохранив исходное форматирование.' +
+    MARKDOWN_GUIDE,
 };
 
 type TimeoutHandle = {
   signal: AbortSignal;
+  refresh: () => void;
   cancel: () => void;
 };
 
 @Injectable()
 export class AiService {
+  private readonly inFlightUserIds = new Set<string>();
+
   constructor(
     private readonly configService: ConfigService,
     @InjectPinoLogger(AiService.name)
     private readonly logger: PinoLogger,
   ) {}
+
+  beginGeneration(userId: string): void {
+    if (this.inFlightUserIds.has(userId)) {
+      throw new ConflictException('AI generation already in progress');
+    }
+    this.inFlightUserIds.add(userId);
+  }
+
+  endGeneration(userId: string): void {
+    this.inFlightUserIds.delete(userId);
+  }
 
   async complete(
     dto: CompleteAiDto,
@@ -50,6 +75,10 @@ export class AiService {
 
     for await (const delta of this.stream(dto, signal)) {
       text += delta;
+    }
+
+    if (!text) {
+      throw new BadGatewayException('AI provider returned an empty response');
     }
 
     return new AiCompleteEntity(dto.action, text);
@@ -65,8 +94,9 @@ export class AiService {
       : timeout.signal;
 
     try {
-      const body = await this.open(dto, signal, timeout.signal);
-      yield* this.readDeltas(body, dto.action, timeout.signal);
+      const body = await this.open(dto, signal, timeout);
+      timeout.refresh();
+      yield* this.readDeltas(body, dto.action, timeout);
     } finally {
       timeout.cancel();
     }
@@ -74,14 +104,22 @@ export class AiService {
 
   private startTimeout(): TimeoutHandle {
     const controller = new AbortController();
-    const timer = setTimeout(() => {
-      const reason = new Error('AI provider request timed out');
-      reason.name = 'TimeoutError';
-      controller.abort(reason);
-    }, AI_REQUEST_TIMEOUT_MS);
+    let timer: ReturnType<typeof setTimeout>;
+    const arm = (): void => {
+      timer = setTimeout(() => {
+        const reason = new Error('AI provider request timed out');
+        reason.name = 'TimeoutError';
+        controller.abort(reason);
+      }, AI_IDLE_TIMEOUT_MS);
+    };
+    arm();
 
     return {
       signal: controller.signal,
+      refresh: (): void => {
+        clearTimeout(timer);
+        arm();
+      },
       cancel: (): void => {
         clearTimeout(timer);
       },
@@ -91,12 +129,16 @@ export class AiService {
   private async open(
     dto: CompleteAiDto,
     signal: AbortSignal,
-    timeoutSignal: AbortSignal,
+    timeout: TimeoutHandle,
   ): Promise<ReadableStream<Uint8Array>> {
     const apiKey = this.configService.get<string>('GROQ_API_KEY')?.trim();
     if (!apiKey) {
       throw new ServiceUnavailableException('AI provider is not configured');
     }
+
+    const model =
+      this.configService.get<string>('GROQ_MODEL')?.trim() ||
+      GROQ_DEFAULT_MODEL;
 
     try {
       const response = await fetch(GROQ_CHAT_COMPLETIONS_URL, {
@@ -106,7 +148,7 @@ export class AiService {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: GROQ_MODEL,
+          model,
           stream: true,
           messages: [
             { role: 'system', content: AI_INSTRUCTIONS[dto.action] },
@@ -132,14 +174,14 @@ export class AiService {
       if (error instanceof HttpException) {
         throw error;
       }
-      throw this.toHttpException(error, dto.action, timeoutSignal);
+      throw this.toHttpException(error, dto.action, timeout.signal);
     }
   }
 
   private async *readDeltas(
     body: ReadableStream<Uint8Array>,
     action: AiAction,
-    timeoutSignal: AbortSignal,
+    timeout: TimeoutHandle,
   ): AsyncGenerator<string> {
     const reader = body.getReader();
     const decoder = new TextDecoder();
@@ -149,6 +191,7 @@ export class AiService {
       let finished = false;
       while (!finished) {
         const { done, value } = await reader.read();
+        timeout.refresh();
         finished = done;
         if (value) {
           buffer += decoder.decode(value, { stream: true });
@@ -170,7 +213,7 @@ export class AiService {
       if (error instanceof HttpException) {
         throw error;
       }
-      throw this.toHttpException(error, action, timeoutSignal);
+      throw this.toHttpException(error, action, timeout.signal);
     } finally {
       reader.releaseLock();
     }
@@ -273,4 +316,4 @@ export class AiService {
   }
 }
 
-export { AI_REQUEST_TIMEOUT_MS };
+export { AI_IDLE_TIMEOUT_MS };

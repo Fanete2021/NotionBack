@@ -53,6 +53,11 @@ function AiCompleteResponse(): ReturnType<typeof applyDecorators> {
       description: 'Провайдер ИИ не ответил вовремя',
       type: ErrorResponseDto,
     }),
+    ApiResponse({
+      status: HttpStatus.CONFLICT,
+      description: 'Для пользователя уже выполняется генерация',
+      type: ErrorResponseDto,
+    }),
   );
 }
 

@@ -9,6 +9,7 @@ import {
   Res,
 } from '@nestjs/common';
 import type { Response } from 'express';
+import { CurrentUser } from '@common/decorators';
 import { AiCompleteResponse, AiControllerResponse } from './decorators';
 import { CompleteAiDto } from './dto';
 import { AiCompleteEntity } from './entities';
@@ -24,16 +25,37 @@ export class AiController {
   @Post('complete')
   async complete(
     @Body() dto: CompleteAiDto,
+    @CurrentUser('id') userId: string,
     @Headers('accept') accept: string | string[] | undefined,
     @Res() res: Response,
   ): Promise<void> {
-    if (!this.wantsStream(accept)) {
-      const result = await this.aiService.complete(dto);
-      res.status(HttpStatus.OK).json(result);
-      return;
+    this.aiService.beginGeneration(userId);
+    try {
+      if (this.wantsStream(accept)) {
+        await this.writeStream(dto, res);
+      } else {
+        await this.respondJson(dto, res);
+      }
+    } finally {
+      this.aiService.endGeneration(userId);
     }
+  }
 
-    await this.writeStream(dto, res);
+  private async respondJson(dto: CompleteAiDto, res: Response): Promise<void> {
+    const clientAbort = new AbortController();
+    const onClose = (): void => {
+      clientAbort.abort();
+    };
+    res.on('close', onClose);
+
+    try {
+      const result = await this.aiService.complete(dto, clientAbort.signal);
+      if (!res.writableEnded) {
+        res.status(HttpStatus.OK).json(result);
+      }
+    } finally {
+      res.off('close', onClose);
+    }
   }
 
   private wantsStream(accept?: string | string[]): boolean {
@@ -64,7 +86,14 @@ export class AiController {
         text += delta;
         this.writeEvent(res, 'delta', { text: delta });
       }
-      this.writeEvent(res, 'done', new AiCompleteEntity(dto.action, text));
+      if (!text) {
+        this.writeEvent(res, 'error', {
+          status: 'error',
+          message: 'AI provider returned an empty response',
+        });
+      } else {
+        this.writeEvent(res, 'done', new AiCompleteEntity(dto.action, text));
+      }
     } catch (error: unknown) {
       if (clientAbort.signal.aborted) {
         return;

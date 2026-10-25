@@ -1,4 +1,8 @@
-import { BadGatewayException, GatewayTimeoutException } from '@nestjs/common';
+import {
+  BadGatewayException,
+  ConflictException,
+  GatewayTimeoutException,
+} from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import type { Response } from 'express';
 import { AiAction } from './ai-action';
@@ -12,8 +16,11 @@ describe('AiController', () => {
   const mockAiService = {
     complete: jest.fn(),
     stream: jest.fn(),
+    beginGeneration: jest.fn(),
+    endGeneration: jest.fn(),
   };
 
+  const userId = 'user-1';
   const dto = { action: AiAction.WRITE, text: 'черновик' };
 
   beforeEach(async () => {
@@ -62,11 +69,16 @@ describe('AiController', () => {
     mockAiService.complete.mockResolvedValue(entity);
     const response = mockResponse();
 
-    await controller.complete(dto, undefined, response.res);
+    await controller.complete(dto, userId, undefined, response.res);
 
-    expect(mockAiService.complete).toHaveBeenCalledWith(dto);
+    expect(mockAiService.complete).toHaveBeenCalledWith(
+      dto,
+      expect.any(AbortSignal),
+    );
     expect(response.json).toHaveBeenCalledWith(entity);
     expect(response.write).not.toHaveBeenCalled();
+    expect(mockAiService.beginGeneration).toHaveBeenCalledWith(userId);
+    expect(mockAiService.endGeneration).toHaveBeenCalledWith(userId);
   });
 
   it('пробрасывает ошибку провайдера в json-режиме', async () => {
@@ -76,9 +88,27 @@ describe('AiController', () => {
     const response = mockResponse();
 
     await expect(
-      controller.complete(dto, undefined, response.res),
+      controller.complete(dto, userId, undefined, response.res),
     ).rejects.toBeInstanceOf(BadGatewayException);
     expect(response.json).not.toHaveBeenCalled();
+    // Слот освобождается даже при ошибке провайдера.
+    expect(mockAiService.endGeneration).toHaveBeenCalledWith(userId);
+  });
+
+  it('не начинает генерацию, если у пользователя уже идёт другая (409)', async () => {
+    mockAiService.beginGeneration.mockImplementationOnce(() => {
+      throw new ConflictException('AI generation already in progress');
+    });
+    const response = mockResponse();
+
+    await expect(
+      controller.complete(dto, userId, undefined, response.res),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(mockAiService.complete).not.toHaveBeenCalled();
+    expect(mockAiService.stream).not.toHaveBeenCalled();
+    expect(response.json).not.toHaveBeenCalled();
+    expect(response.write).not.toHaveBeenCalled();
+    expect(mockAiService.endGeneration).not.toHaveBeenCalled();
   });
 
   it('в sse сначала сообщает, что генерация ждёт модель, затем отдаёт результат', async () => {
@@ -88,7 +118,7 @@ describe('AiController', () => {
     });
     const response = mockResponse();
 
-    await controller.complete(dto, 'text/event-stream', response.res);
+    await controller.complete(dto, userId, 'text/event-stream', response.res);
 
     expect(response.chunks.join('')).toBe(
       [
@@ -117,7 +147,7 @@ describe('AiController', () => {
     const response = mockResponse();
 
     await expect(
-      controller.complete(dto, 'text/event-stream', response.res),
+      controller.complete(dto, userId, 'text/event-stream', response.res),
     ).resolves.toBeUndefined();
 
     expect(response.chunks.join('')).toContain('event: status');

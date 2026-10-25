@@ -1,7 +1,9 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsEnum, IsNotEmpty, IsString } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsString, MaxLength } from 'class-validator';
 import { AiAction } from '../ai-action';
+
+const MAX_TEXT_LENGTH = 20_000;
 
 export class CompleteAiDto {
   @ApiProperty({
@@ -15,11 +17,13 @@ export class CompleteAiDto {
   @ApiProperty({
     example: 'Кратко перескажи заметку о запуске',
     description: 'Текст документа или промпт',
+    maxLength: MAX_TEXT_LENGTH,
   })
   @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.trim() : value,
   )
   @IsString()
   @IsNotEmpty()
+  @MaxLength(MAX_TEXT_LENGTH)
   text!: string;
 }
